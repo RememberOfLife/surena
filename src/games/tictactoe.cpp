@@ -3,9 +3,9 @@
 #include <string>
 #include <vector>
 
-#include "util/fast_prng.hpp"
+#include "surena/util/fast_prng.hpp"
 
-#include "games/tictactoe.hpp"
+#include "surena/games/tictactoe.hpp"
 
 namespace surena {
 

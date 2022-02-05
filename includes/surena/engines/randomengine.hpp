@@ -1,10 +1,9 @@
-#ifndef RANDOMENGINE_HPP
-#define RANDOMENGINE_HPP
+#pragma once
 
-#include "game.hpp"
-#include "util/fast_prng.hpp"
+#include "surena/game.hpp"
+#include "surena/util/fast_prng.hpp"
 
-#include "engine.hpp"
+#include "surena/engine.hpp"
 
 namespace surena {
 
@@ -52,5 +51,3 @@ namespace surena {
     };
 
 }
-
-#endif

@@ -1,13 +1,13 @@
 #include <iostream>
 #include <string>
 
-#include "game.hpp"
-#include "engine.hpp"
-#include "engines/singlethreadedmcts.hpp"
-#include "games/alhambra.hpp"
-#include "games/caesar.hpp"
-#include "games/tictactoe.hpp"
-#include "games/havannah.hpp"
+#include "surena/game.hpp"
+#include "surena/engine.hpp"
+#include "surena/engines/singlethreadedmcts.hpp"
+#include "surena/games/alhambra.hpp"
+#include "surena/games/caesar.hpp"
+#include "surena/games/tictactoe.hpp"
+#include "surena/games/havannah.hpp"
 
 namespace surena {
     const char* version = "0.1.0";

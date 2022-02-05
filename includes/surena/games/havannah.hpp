@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "game.hpp"
+#include "surena/game.hpp"
 
 namespace surena {
 

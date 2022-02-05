@@ -3,9 +3,9 @@
 #include <string>
 #include <vector>
 
-#include "util/fast_prng.hpp"
+#include "surena/util/fast_prng.hpp"
 
-#include "games/caesar.hpp"
+#include "surena/games/caesar.hpp"
 
 namespace surena {
 

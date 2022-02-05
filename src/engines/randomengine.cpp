@@ -1,6 +1,6 @@
-#include "util/fast_prng.hpp"
+#include "surena/util/fast_prng.hpp"
 
-#include "engines/randomengine.hpp"
+#include "surena/engines/randomengine.hpp"
 
 namespace surena {
 

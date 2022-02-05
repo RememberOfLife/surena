@@ -1,31 +1,25 @@
-#ifndef TICTACTOE_HPP
-#define TICTACTOE_HPP
+#ifndef ALHAMBRA_HPP
+#define ALHAMBRA_HPP
 
 #include <cstdint>
 #include <string>
 #include <vector>
 
-#include "game.hpp"
+#include "surena/game.hpp"
 
 namespace surena {
 
-    class TicTacToe : public PerfectInformationGame {
+    class Alhambra : public ImperfectInformationGame {
 
         private:
 
-            /*
-            board as:
-            789
-            456
-            123
-            state bits: ... RR CC 998877 665544 332211
-            where RR is results and CC is current player
-            */
-            uint32_t state;
+            // state
 
         public:
 
-            TicTacToe();
+            Alhambra();
+
+            void discretize(uint64_t seed) override;
 
             uint8_t player_to_move() override;
 
@@ -47,10 +41,7 @@ namespace surena {
 
         private:
 
-            // get player value of cell (x grows right, y grows up)
-            uint8_t get_cell(int x, int y);
-
-            void set_cell(int x, int y, uint8_t p);
+            // helpers
 
     };
 

@@ -1,9 +1,9 @@
 #ifndef ENGINE_HPP
 #define ENGINE_HPP
 
-#include "game.hpp"
+#include "surena/game.hpp"
 
-#include "engine.hpp"
+#include "surena/engine.hpp"
 
 namespace surena {
 
