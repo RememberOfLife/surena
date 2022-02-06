@@ -16,6 +16,7 @@ set(SOURCES
     src/games/alhambra.cpp
     src/games/caesar.cpp
     src/games/havannah.cpp
+    src/games/tictactoe_ultimate.cpp
     src/games/tictactoe.cpp
 
     src/util/fast_prng.cpp

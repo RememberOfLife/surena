@@ -3,8 +3,6 @@
 
 #include "surena/game.hpp"
 
-#include "surena/engine.hpp"
-
 namespace surena {
 
     class PerfectInformationEngine {

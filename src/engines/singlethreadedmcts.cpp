@@ -126,7 +126,7 @@ namespace surena {
                 }
             }
         }
-        printf("iterations: %llu\n", iterations);
+        printf("iterations: %lu\n", iterations);
         delete playout_game;
         delete selection_game;
     }
@@ -219,10 +219,10 @@ namespace surena {
 
     void SinglethreadedMCTS::debug_print()
     {
-        printf("root (%llu/%llu)  ==>", root->reward_count, root->playout_count);
+        printf("root (%lu/%lu)  ==>", root->reward_count, root->playout_count);
         SearchTreeNode* curr_node = root->left_child;
         while (curr_node != NULL) {
-            printf("  %s=(%llu/%llu)", get_move_string(curr_node->move_id).c_str(), curr_node->reward_count, curr_node->playout_count);
+            printf("  %s=(%lu/%lu)", get_move_string(curr_node->move_id).c_str(), curr_node->reward_count, curr_node->playout_count);
             curr_node = curr_node->right_sibling;
         }
         printf("\n");

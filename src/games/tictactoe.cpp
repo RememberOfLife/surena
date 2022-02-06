@@ -11,7 +11,6 @@ namespace surena {
 
     TicTacToe::TicTacToe():
         state(0b01 << 18) // player one starts
-        //state(0b0001001010000101100101) //one move to victory
     {}
 
     uint8_t TicTacToe::player_to_move()
@@ -43,7 +42,6 @@ namespace surena {
         int y = (move_id >> 2) & 0b11;
         int current_player = (state >> 18) & 0b11;
         set_cell(x, y, current_player);
-        
         // detect win for current player
         bool win = false;
         for (int i = 0; i < 3; i++) {
@@ -111,26 +109,8 @@ namespace surena {
             return UINT64_MAX;
         }
         uint64_t move_id = 0;
-        // x
-        if (move_string[0] == 'A') {
-            move_id |= 0b00;
-        } else if (move_string[0] == 'B') {
-            move_id |= 0b01;
-        } else if (move_string[0] == 'C') {
-            move_id |= 0b10;
-        } else {
-            return UINT64_MAX;
-        }
-        // y
-        if (move_string[1] == '0') {
-            move_id |= 0b00<<2;
-        } else if (move_string[1] == '1') {
-            move_id |= 0b01<<2;
-        } else if (move_string[1] == '2') {
-            move_id |= 0b10<<2;
-        } else {
-            return UINT64_MAX;
-        }
+        move_id |= (move_string[0]-'A');
+        move_id |= (move_string[1]-'0') << 2;
         return move_id;
     }
 
@@ -139,37 +119,29 @@ namespace surena {
         int x = move_id & 0b11;
         int y = (move_id >> 2) & 0b11;
         std::string move_string = "";
-        switch (x)
-        {
-            case (0): {
-                move_string += "A";
-            }
-            break;
-            case (1): {
-                move_string += "B";
-            }
-            break;
-            case (2): {
-                move_string += "C";
-            }
-            break;
-        }
-        switch (y)
-        {
-            case (0): {
-                move_string += "0";
-            }
-            break;
-            case (1): {
-                move_string += "1";
-            }
-            break;
-            case (2): {
-                move_string += "2";
-            }
-            break;
-        }
+        move_string += ('A'+x);
+        move_string += ('0'+y);
         return move_string;
+    }
+
+    void TicTacToe::debug_print()
+    {
+        for (int y = 2; y >= 0; y--) {
+            for (int x = 0; x < 3; x++) {
+                switch (get_cell(x, y)) {
+                    case (1): {
+                        printf("X");
+                    } break;
+                    case (2):{ 
+                        printf("O");
+                    } break;
+                    default: {
+                        printf(".");
+                    } break;
+                }
+            }
+            printf("\n");
+        }
     }
 
     uint8_t TicTacToe::get_cell(int x, int y)
@@ -187,26 +159,6 @@ namespace surena {
         v = v << offset;
         v ^= static_cast<uint64_t>(p) << offset;
         state ^= v;
-    }
-
-    void TicTacToe::debug_print()
-    {
-        for (int y = 2; y >= 0; y--) {
-            for (int x = 0; x < 3; x++) {
-                switch (get_cell(x, y)) {
-                    case (1):
-                        printf("X");
-                        break;
-                    case (2):
-                        printf("O");
-                        break;
-                    default:
-                        printf(".");
-                        break;
-                }
-            }
-            printf("\n");
-        }
     }
 
 }

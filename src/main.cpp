@@ -6,19 +6,21 @@
 #include "surena/engines/singlethreadedmcts.hpp"
 #include "surena/games/alhambra.hpp"
 #include "surena/games/caesar.hpp"
+#include "surena/games/tictactoe_ultimate.hpp"
 #include "surena/games/tictactoe.hpp"
 #include "surena/games/havannah.hpp"
 
 namespace surena {
-    const char* version = "0.1.0";
+    const char* version = "0.2.0";
 }
 
 // args https://github.com/p-ranav/argparse
 
 int main()
 {
+    printf("surena v%s\n", surena::version);
     surena::PerfectInformationEngine* engine = new surena::SinglethreadedMCTS();
-    surena::PerfectInformationGame* thegame = new surena::Havannah(3);
+    surena::PerfectInformationGame* thegame = new surena::TicTacToe_Ultimate();
     engine->set_gamestate(thegame);
     while (engine->player_to_move() != 0) {
         if (engine->player_to_move() == 2) {

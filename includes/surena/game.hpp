@@ -5,8 +5,6 @@
 #include <string>
 #include <vector>
 
-#include "surena/game.hpp"
-
 namespace surena {
 
     class PerfectInformationGame {
