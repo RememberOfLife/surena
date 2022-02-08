@@ -24,7 +24,7 @@ namespace surena {
         return available_moves[rng.rand()%available_moves.size()];
     }
 
-    void RandomEngine::set_gamestate(PerfectInformationGame* target_gamestate)
+    void RandomEngine::set_gamestate(Game* target_gamestate)
     {
         gamestate = target_gamestate;
     }

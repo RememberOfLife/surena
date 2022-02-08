@@ -1,5 +1,4 @@
-#ifndef FAST_PRNG_HPP
-#define FAST_PRNG_HPP
+#pragma once
 
 #include <cstdint>
 
@@ -9,8 +8,7 @@ struct fast_prng {
     uint64_t inc;
     void srand(uint64_t seed);
     uint32_t rand();
+    //TODO more rand functions: intn,float,norm,etc..
 
     fast_prng(uint64_t seed);
 };
-
-#endif

@@ -83,6 +83,9 @@ namespace surena {
         return static_cast<uint8_t>((state >> 20) & 0b11);
     }
 
+    void TicTacToe::discretize(uint64_t seed)
+    {}
+
     uint8_t TicTacToe::perform_playout(uint64_t seed)
     {
         fast_prng rng(seed);
@@ -93,12 +96,12 @@ namespace surena {
         return get_result();
     }
 
-    surena::PerfectInformationGame* TicTacToe::clone() 
+    surena::Game* TicTacToe::clone() 
     {
         return new TicTacToe(*this);
     }
 
-    void TicTacToe::copy_from(PerfectInformationGame* target) 
+    void TicTacToe::copy_from(Game* target) 
     {
         *this = *static_cast<TicTacToe*>(target);
     }

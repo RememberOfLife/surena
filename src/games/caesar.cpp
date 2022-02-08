@@ -187,11 +187,6 @@ namespace surena {
         //TODO
     }
 
-    void Caesar::discretize(uint64_t seed)
-    {
-        //TODO
-    }
-
     uint8_t Caesar::player_to_move()
     {
         return current_player;
@@ -214,19 +209,24 @@ namespace surena {
         return winning_player;
     }
 
+    void Caesar::discretize(uint64_t seed)
+    {
+        //TODO
+    }
+
     uint8_t Caesar::perform_playout(uint64_t seed)
     {
         //TODO
         return winning_player;
     }
     
-    PerfectInformationGame* Caesar::clone()
+    Game* Caesar::clone()
     {
         //TODO
         return NULL;
     }
 
-    void Caesar::copy_from(PerfectInformationGame* target)
+    void Caesar::copy_from(Game* target)
     {
         //TODO
     }

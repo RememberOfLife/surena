@@ -1,5 +1,4 @@
-#ifndef HAVANNAH_HPP
-#define HAVANNAH_HPP
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -48,7 +47,7 @@ namespace surena {
         //TODO maybe store existing neighbor tiles as bitmap for every tile (preferred), or store feature contribution of every tile, this is a bijection
     } Tile;
 
-    class Havannah : public PerfectInformationGame {
+    class Havannah : public Game {
 
         struct Graph {
             // a joined graph no longer is its own parent, instead it points to the true graph which it connects to
@@ -79,10 +78,12 @@ namespace surena {
 
             uint8_t get_result() override;
 
+            void discretize(uint64_t seed) override;
+
             uint8_t perform_playout(uint64_t seed) override;
             
-            PerfectInformationGame* clone() override;
-            void copy_from(PerfectInformationGame* target) override;
+            Game* clone() override;
+            void copy_from(Game* target) override;
 
             uint64_t get_move_id(std::string move_string) override;
             std::string get_move_string(uint64_t move_id) override;
@@ -92,5 +93,3 @@ namespace surena {
     };
     
 }
-
-#endif

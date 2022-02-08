@@ -1,5 +1,4 @@
-#ifndef GAME_HPP
-#define GAME_HPP
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -7,14 +6,22 @@
 
 namespace surena {
 
-    class PerfectInformationGame {
+    class Game {
 
         public:
 
-            virtual ~PerfectInformationGame() = default;
+            virtual ~Game() = default;
+
+            //TODO should the game expose some functionality to see what type of special moves it has?
+            // i.e. something like feature flags that returns a flat union for things like randomness, simultaneous moves, hidden information?
             
-            //TODO evaluation function
-            //TODO game state id (zobrist)
+            //NOTE:
+            // imperfect information can be collapsed into one possible legal state by using discretize, use as much gathered information about unknown players as possible when collapsing
+            // random events are represented using the 0xFF player id
+            // simultaneous move games present the union of all moves for all simultaneously moving players as available moves and the applied moves for every simultaneously moving player until all are gathered for processing
+
+            //TODO state id (e.g. zobrist)
+            //virtual uint64_t id() = 0;
 
             // returns the playerID to move from this state, 0 if the game is over
             virtual uint8_t player_to_move() = 0;
@@ -30,11 +37,17 @@ namespace surena {
             // returns the winning playerID, 0 if the game is not over yet or is a draw
             virtual uint8_t get_result() = 0;
 
+            //TODO evaluation function
+
+            // discretize the gamestate into a random legal state influenced by the seed and internal state set
+            // only to be called once, irreversible
+            virtual void discretize(uint64_t seed) = 0;
+
             // playouts the game by randomly playing legal moves until the game is over, returns get_result
             virtual uint8_t perform_playout(uint64_t seed) = 0;
 
-            virtual PerfectInformationGame* clone() = 0;
-            virtual void copy_from(PerfectInformationGame* target) = 0;
+            virtual Game* clone() = 0;
+            virtual void copy_from(Game* target) = 0;
 
             // move id transformation functions
             // uint64_t <-> string
@@ -47,35 +60,4 @@ namespace surena {
 
     };
 
-    class ImperfectInformationGame {
-
-        public:
-
-            virtual ~ImperfectInformationGame() = default;
-
-            //NOTE:
-            // imperfect information games represent random events using the 0xFF player id
-            // to simulate proper play, choose a random move that is available for this player on their turn
-            // when importing real play, choose the move corresponding to the outcome in reality
-
-            // discretize the gamestate into a random legal state influenced by the seed and internal state set
-            // only to be called once, irreversible
-            virtual void discretize(uint64_t seed) = 0;
-
-            // to be implemented by actual game
-            virtual uint8_t player_to_move() = 0;
-            virtual std::vector<uint64_t> get_moves() = 0;
-            virtual void apply_move(uint64_t move_id) = 0;
-            virtual uint8_t get_result() = 0;
-            virtual uint8_t perform_playout(uint64_t seed) = 0;
-            virtual PerfectInformationGame* clone() = 0;
-            virtual void copy_from(PerfectInformationGame* target) = 0;
-            virtual uint64_t get_move_id(std::string move_string) = 0;
-            virtual std::string get_move_string(uint64_t move_id) = 0;
-            virtual void debug_print() = 0;
-
-    };
-
 }
-
-#endif

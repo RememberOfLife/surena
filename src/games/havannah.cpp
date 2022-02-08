@@ -309,6 +309,8 @@ namespace surena {
             return winningPlayer;
         }
 
+        void Havannah::discretize(uint64_t seed)
+        {}
         
         uint8_t Havannah::perform_playout(uint64_t seed)
         {
@@ -320,12 +322,12 @@ namespace surena {
             return get_result();
         }
         
-        PerfectInformationGame* Havannah::clone()
+        Game* Havannah::clone()
         {
             return new Havannah(*this);
         }
         
-        void Havannah::copy_from(PerfectInformationGame* target)
+        void Havannah::copy_from(Game* target)
         {
             *this = *static_cast<Havannah*>(target);
         }

@@ -101,6 +101,9 @@ namespace surena {
         return winning_player;
     }
 
+    void TicTacToe_Ultimate::discretize(uint64_t seed)
+    {}
+
     uint8_t TicTacToe_Ultimate::perform_playout(uint64_t seed)
     {
         fast_prng rng(seed);
@@ -111,12 +114,12 @@ namespace surena {
         return get_result();
     }
 
-    surena::PerfectInformationGame* TicTacToe_Ultimate::clone() 
+    surena::Game* TicTacToe_Ultimate::clone() 
     {
         return new TicTacToe_Ultimate(*this);
     }
 
-    void TicTacToe_Ultimate::copy_from(PerfectInformationGame* target) 
+    void TicTacToe_Ultimate::copy_from(Game* target) 
     {
         *this = *static_cast<TicTacToe_Ultimate*>(target);
     }

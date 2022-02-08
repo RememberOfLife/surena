@@ -47,8 +47,8 @@ namespace surena {
         std::chrono::time_point<std::chrono::steady_clock> start_clock = std::chrono::steady_clock::now();
         std::chrono::time_point<std::chrono::steady_clock> check_clock = std::chrono::steady_clock::now();
         uint64_t iterations = 0;
-        PerfectInformationGame* selection_game = gamestate->clone();
-        PerfectInformationGame* playout_game = gamestate->clone();
+        Game* selection_game = gamestate->clone();
+        Game* playout_game = gamestate->clone();
         while (true) {
         //while (iterations < 100) {
             check_clock = std::chrono::steady_clock::now();
@@ -153,7 +153,7 @@ namespace surena {
         return best_node->move_id;
     }
 
-    void SinglethreadedMCTS::set_gamestate(PerfectInformationGame* target_gamestate)
+    void SinglethreadedMCTS::set_gamestate(Game* target_gamestate)
     {
         gamestate = target_gamestate;
         delete root;

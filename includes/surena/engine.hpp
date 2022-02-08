@@ -1,5 +1,4 @@
-#ifndef ENGINE_HPP
-#define ENGINE_HPP
+#pragma once
 
 #include "surena/game.hpp"
 
@@ -26,7 +25,7 @@ namespace surena {
             virtual uint64_t get_best_move() = 0;
 
             // engine takes ownership of target gamestate
-            virtual void set_gamestate(PerfectInformationGame* target_gamestate) = 0;
+            virtual void set_gamestate(Game* target_gamestate) = 0;
 
             // returns an unordered list of available moves
             virtual std::vector<uint64_t> get_moves() = 0;
@@ -48,5 +47,3 @@ namespace surena {
     };
 
 }
-
-#endif

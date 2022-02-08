@@ -1,5 +1,4 @@
-#ifndef ALHAMBRA_HPP
-#define ALHAMBRA_HPP
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -9,7 +8,7 @@
 
 namespace surena {
 
-    class Alhambra : public ImperfectInformationGame {
+    class Alhambra : public Game {
 
         private:
 
@@ -19,8 +18,6 @@ namespace surena {
 
             Alhambra();
 
-            void discretize(uint64_t seed) override;
-
             uint8_t player_to_move() override;
 
             std::vector<uint64_t> get_moves() override;
@@ -29,10 +26,12 @@ namespace surena {
 
             uint8_t get_result() override;
 
+            void discretize(uint64_t seed) override;
+
             uint8_t perform_playout(uint64_t seed) override;
             
-            PerfectInformationGame* clone() override;
-            void copy_from(PerfectInformationGame* target) override;
+            Game* clone() override;
+            void copy_from(Game* target) override;
 
             uint64_t get_move_id(std::string move_string) override;
             std::string get_move_string(uint64_t move_id) override;
@@ -46,5 +45,3 @@ namespace surena {
     };
 
 }
-
-#endif

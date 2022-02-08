@@ -1,9 +1,8 @@
 #pragma once
 
-#include "surena/game.hpp"
 #include "surena/util/fast_prng.hpp"
-
 #include "surena/engine.hpp"
+#include "surena/game.hpp"
 
 namespace surena {
 
@@ -31,7 +30,7 @@ namespace surena {
 
         private:
 
-            PerfectInformationGame* gamestate;
+            Game* gamestate;
             fast_prng rng;
             SearchTreeNode* root;
 
@@ -54,7 +53,7 @@ namespace surena {
             
             uint64_t get_best_move() override;
 
-            void set_gamestate(PerfectInformationGame* target_gamestate) override;
+            void set_gamestate(Game* target_gamestate) override;
 
             uint8_t player_to_move() override;
 
