@@ -17,10 +17,11 @@ namespace surena {
 
             //TODO sync some more methods from game into here
 
-            // search
-            virtual void search_start() = 0;
+            // start search async
+            // will search until stop or timeout is reached, will not timeout if timeout is 0
+            virtual void search_start(uint64_t ms_timeout = 0) = 0;
             virtual void search_stop() = 0;
-            // constrained
+            //TODO constrained, also sync?
 
             // returns the playerID to move from this state, 0 if the game is over
             virtual uint8_t player_to_move() = 0;
@@ -29,6 +30,7 @@ namespace surena {
             virtual uint64_t get_best_move() = 0;
 
             // engine takes ownership of target gamestate
+            // target_gamestate may be NULL, commands used on an engine without a gamestate may return garbage, but may not crash
             virtual void set_gamestate(Game* target_gamestate) = 0;
 
             // returns an unordered list of available moves

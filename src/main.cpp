@@ -24,7 +24,7 @@ int main()
     engine->set_gamestate(thegame);
     while (engine->player_to_move() != 0) {
         if (engine->player_to_move() == 2) {
-            engine->search_start();
+            engine->search_start(5000);
             engine->debug_print();
             engine->apply_move(engine->get_best_move());
             thegame->debug_print();

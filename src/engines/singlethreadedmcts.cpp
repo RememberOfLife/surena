@@ -32,6 +32,7 @@ namespace surena {
     }
 
     SinglethreadedMCTS::SinglethreadedMCTS():
+        gamestate(NULL),
         rng(42),
         root(new SearchTreeNode(NULL, NULL, NULL, 0, 0, 0, 0))
     {}
@@ -42,7 +43,7 @@ namespace surena {
         delete root;
     }
 
-    void SinglethreadedMCTS::search_start()
+    void SinglethreadedMCTS::search_start(uint64_t ms_timeout)
     {
         std::chrono::time_point<std::chrono::steady_clock> start_clock = std::chrono::steady_clock::now();
         std::chrono::time_point<std::chrono::steady_clock> check_clock = std::chrono::steady_clock::now();
@@ -52,7 +53,7 @@ namespace surena {
         while (true) {
         //while (iterations < 100) {
             check_clock = std::chrono::steady_clock::now();
-            if(std::chrono::duration_cast<std::chrono::milliseconds>(check_clock-start_clock).count() > 1000) {
+            if(std::chrono::duration_cast<std::chrono::milliseconds>(check_clock-start_clock).count() > ms_timeout) {
                 break;
             }
             iterations++;
@@ -130,7 +131,6 @@ namespace surena {
         delete playout_game;
         delete selection_game;
     }
-
 
     void SinglethreadedMCTS::search_stop()
     {

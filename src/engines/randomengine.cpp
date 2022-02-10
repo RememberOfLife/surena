@@ -15,13 +15,18 @@ namespace surena {
         delete gamestate;
     }
 
-    void RandomEngine::search_start() {}
+    void RandomEngine::search_start(uint64_t ms_timeout)
+    {}
 
 
-    void RandomEngine::search_stop() {}
+    void RandomEngine::search_stop()
+    {}
     
     uint64_t RandomEngine::get_best_move()
     {
+        if (!gamestate) {
+            return 0;
+        }
         std::vector<uint64_t> available_moves = this->get_moves();
         return available_moves[rand_ctr%available_moves.size()];
     }
@@ -34,37 +39,58 @@ namespace surena {
 
     uint8_t RandomEngine::player_to_move()
     {
+        if (!gamestate) {
+            return 0;
+        }
         return gamestate->player_to_move();
     }
 
     std::vector<uint64_t> RandomEngine::get_moves()
     {
+        if (!gamestate) {
+            return std::vector<uint64_t>{};
+        }
         return gamestate->get_moves();
     }
 
     void RandomEngine::apply_move(uint64_t move_id)
     {
+        if (!gamestate) {
+            return;
+        }
         gamestate->apply_move(move_id);
         rand_ctr = rng.rand();
     }
 
     void RandomEngine::apply_internal_update(uint64_t update_id)
     {
+        if (!gamestate) {
+            return;
+        }
         gamestate->apply_internal_update(update_id);
     }
 
     uint8_t RandomEngine::get_result()
     {
+        if (!gamestate) {
+            return 0;
+        }
         return gamestate->get_result();
     }
 
     uint64_t RandomEngine::get_move_id(std::string move_string)
     {
+        if (!gamestate) {
+            return 0;
+        }
         return gamestate->get_move_id(move_string);
     }
 
     std::string RandomEngine::get_move_string(uint64_t move_id)
     {
+        if (!gamestate) {
+            return "-";
+        }
         return gamestate->get_move_string(move_id);
     }
 

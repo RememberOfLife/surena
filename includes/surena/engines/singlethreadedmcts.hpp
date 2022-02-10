@@ -48,7 +48,7 @@ namespace surena {
 
             ~SinglethreadedMCTS() override;
 
-            void search_start() override;
+            void search_start(uint64_t ms_timeout = 0) override;
             void search_stop() override;
             
             uint64_t get_best_move() override;
