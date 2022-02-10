@@ -4,14 +4,18 @@
 
 namespace surena {
 
-    class PerfectInformationEngine {
+    class Engine {
 
         public:
 
-            virtual ~PerfectInformationEngine() = default;
+            virtual ~Engine() = default;
 
-            //TODO does initialization of large memory operations automatically happen on class instanziation
+            //TODO does initialization of large memory operations automatically happen on class instantiation
             // or delay into a custom init function invoked by the command interface on isready?
+
+            //TODO requires a compatiblity check function against the feature flags of the game
+
+            //TODO sync some more methods from game into here
 
             // search
             virtual void search_start() = 0;
@@ -33,6 +37,9 @@ namespace surena {
             // performs a move on the gamestate, non reversible
             // moves not in the available moves list cause undefined behaviour
             virtual void apply_move(uint64_t move_id) = 0;
+
+            //TODO see game todo here
+            virtual void apply_internal_update(uint64_t update_id) = 0;
 
             // returns the winning playerID, 0 if the game is not over yet or is a draw
             virtual uint8_t get_result() = 0;

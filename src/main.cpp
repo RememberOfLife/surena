@@ -19,7 +19,7 @@ namespace surena {
 int main()
 {
     printf("surena v%s\n", surena::version);
-    surena::PerfectInformationEngine* engine = new surena::SinglethreadedMCTS();
+    surena::Engine* engine = new surena::SinglethreadedMCTS();
     surena::Game* thegame = new surena::TicTacToe_Ultimate();
     engine->set_gamestate(thegame);
     while (engine->player_to_move() != 0) {

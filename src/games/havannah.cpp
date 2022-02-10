@@ -304,6 +304,11 @@ namespace surena {
             std::cout << "current graph features: B[" << std::bitset<6>(graphMap[currentGraphId].connectedBorders) << "] C[" << std::bitset<6>(graphMap[currentGraphId].connectedCorners) << "]\n";*/
         }
 
+        void Havannah::apply_internal_update(uint64_t update_id)
+        {
+            //TODO
+        }
+
         uint8_t Havannah::get_result()
         {
             return winningPlayer;

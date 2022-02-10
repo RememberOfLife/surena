@@ -44,6 +44,11 @@ namespace surena {
         gamestate->apply_move(move_id);
     }
 
+    void RandomEngine::apply_internal_update(uint64_t update_id)
+    {
+        gamestate->apply_internal_update(update_id);
+    }
+
     uint8_t RandomEngine::get_result()
     {
         return gamestate->get_result();

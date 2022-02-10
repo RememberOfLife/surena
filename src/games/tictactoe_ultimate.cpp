@@ -96,6 +96,11 @@ namespace surena {
         current_player = (current_player == 1) ? 2 : 1;
     }
 
+    void TicTacToe_Ultimate::apply_internal_update(uint64_t update_id)
+    {
+        //TODO
+    }
+
     uint8_t TicTacToe_Ultimate::get_result()
     {
         return winning_player;
