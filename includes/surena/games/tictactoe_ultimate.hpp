@@ -47,6 +47,7 @@ namespace surena {
             
             void debug_print() override;
 
+            //#####
             // game specific exposed functions
 
             uint8_t check_result(uint32_t& state);

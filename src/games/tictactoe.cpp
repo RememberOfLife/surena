@@ -10,7 +10,7 @@
 namespace surena {
 
     TicTacToe::TicTacToe():
-        state(0b01 << 18) // player one starts
+        state(PLAYER_X << 18) // player one starts
     {}
 
     uint8_t TicTacToe::player_to_move()
@@ -75,7 +75,7 @@ namespace surena {
             return;
         }
         // switch player
-        int next_player = (current_player == 1) ? 2 : 1;
+        int next_player = (current_player == PLAYER_X) ? PLAYER_O : PLAYER_X;
         state ^= (current_player ^ next_player) << 18;
     }
 
@@ -159,10 +159,10 @@ namespace surena {
         for (int y = 2; y >= 0; y--) {
             for (int x = 0; x < 3; x++) {
                 switch (get_cell(x, y)) {
-                    case (1): {
+                    case (PLAYER_X): {
                         printf("X");
                     } break;
-                    case (2):{ 
+                    case (PLAYER_O):{ 
                         printf("O");
                     } break;
                     default: {

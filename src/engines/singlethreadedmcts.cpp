@@ -52,9 +52,11 @@ namespace surena {
         Game* playout_game = gamestate->clone();
         while (true) {
         //while (iterations < 100) {
-            check_clock = std::chrono::steady_clock::now();
-            if(std::chrono::duration_cast<std::chrono::milliseconds>(check_clock-start_clock).count() > ms_timeout) {
-                break;
+            if (ms_timeout > 0) {
+                check_clock = std::chrono::steady_clock::now();
+                if(std::chrono::duration_cast<std::chrono::milliseconds>(check_clock-start_clock).count() > ms_timeout) {
+                    break;
+                }
             }
             iterations++;
 
@@ -127,7 +129,6 @@ namespace surena {
                 }
             }
         }
-        printf("iterations: %lu\n", iterations);
         delete playout_game;
         delete selection_game;
     }

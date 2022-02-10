@@ -9,6 +9,20 @@
 namespace surena {
 
     class TicTacToe : public Game {
+        
+        public:
+
+            enum PLAYER : uint8_t {
+                PLAYER_NONE = 0,
+                PLAYER_X,
+                PLAYER_O,
+            };
+
+            enum RESULT : uint8_t {
+                RESULT_DRAW = 0,
+                RESULT_X,
+                RESULT_O,
+            };
 
         private:
 
@@ -48,6 +62,9 @@ namespace surena {
             
             void debug_print() override;
 
+            //#####
+            // game specific exposed functions
+            
             // get player value of cell (x grows right, y grows up)
             uint8_t get_cell(int x, int y);
             void set_cell(int x, int y, uint8_t p);
