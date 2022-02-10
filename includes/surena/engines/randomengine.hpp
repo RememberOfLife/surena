@@ -12,6 +12,7 @@ namespace surena {
 
             Game* gamestate;
             fast_prng rng;
+            uint32_t rand_ctr;
 
         public:
 

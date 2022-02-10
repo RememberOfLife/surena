@@ -55,7 +55,8 @@ namespace surena {
             win = true;
         }
         if (win) {
-            // current player has won, set current player to 0 and mark result as current player
+            // current player has won, mark result as current player and set current player to 0
+            state &= ~(0b11<<20); // reset result to 0, otherwise result may be 4 after an internal state update
             state |= current_player << 20;
             state &= ~(0b11<<18);
             return;

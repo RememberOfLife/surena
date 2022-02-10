@@ -5,7 +5,9 @@
 namespace surena {
 
     RandomEngine::RandomEngine():
-        rng(42)
+        gamestate(NULL),
+        rng(42),
+        rand_ctr(rng.rand())
     {}
 
     RandomEngine::~RandomEngine()
@@ -21,12 +23,13 @@ namespace surena {
     uint64_t RandomEngine::get_best_move()
     {
         std::vector<uint64_t> available_moves = this->get_moves();
-        return available_moves[rng.rand()%available_moves.size()];
+        return available_moves[rand_ctr%available_moves.size()];
     }
 
     void RandomEngine::set_gamestate(Game* target_gamestate)
     {
         gamestate = target_gamestate;
+        rand_ctr = rng.rand();
     }
 
     uint8_t RandomEngine::player_to_move()
@@ -42,6 +45,7 @@ namespace surena {
     void RandomEngine::apply_move(uint64_t move_id)
     {
         gamestate->apply_move(move_id);
+        rand_ctr = rng.rand();
     }
 
     void RandomEngine::apply_internal_update(uint64_t update_id)
