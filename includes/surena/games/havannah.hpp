@@ -23,38 +23,40 @@ namespace surena {
 
     class Havannah : public Game {
 
-        enum COLOR : uint8_t {
-            COLOR_NONE = 0,
-            COLOR_WHITE,
-            COLOR_BLACK,
-            COLOR_INVALID,
-        };
-        static const char* COLOR_CHARS[4]; // in the same order as they appear in the enum of same name
+        public:
 
-        // assuming a flat topped board this is [letter * num]
-        // such that num goes vertically on the left downwards
-        // and letter goes ascending horizontally towards the right
-        struct Tile_Id {
-            uint_fast8_t x, y;
-            Tile_Id(std::string an);
-            Tile_Id(int x, int y);
-            Tile_Id(uint64_t move_code);
-            std::string an();
-            uint64_t to_move_id();
-        };
+            enum COLOR : uint8_t {
+                COLOR_NONE = 0,
+                COLOR_WHITE,
+                COLOR_BLACK,
+                COLOR_INVALID,
+            };
+            static const char* COLOR_CHARS[4]; // in the same order as they appear in the enum of same name
 
-        struct Tile {
-            COLOR color;
-            uint8_t parent_graph_id;
-            //TODO maybe store existing neighbor tiles as bitmap for every tile (preferred), or store feature contribution of every tile, this is a bijection
-        };
+            // assuming a flat topped board this is [letter * num]
+            // such that num goes vertically on the left downwards
+            // and letter goes ascending horizontally towards the right
+            struct Tile_Id {
+                uint_fast8_t x, y;
+                Tile_Id(std::string an);
+                Tile_Id(int x, int y);
+                Tile_Id(uint64_t move_code);
+                std::string an();
+                uint64_t to_move_id();
+            };
 
-        struct Graph {
-            // a joined graph no longer is its own parent, instead it points to the true graph which it connects to
-            uint8_t parent_graph_id;
-            uint8_t connected_borders;
-            uint8_t connected_corners;
-        };
+            struct Tile {
+                COLOR color;
+                uint8_t parent_graph_id;
+                //TODO maybe store existing neighbor tiles as bitmap for every tile (preferred), or store feature contribution of every tile, this is a bijection
+            };
+
+            struct Graph {
+                // a joined graph no longer is its own parent, instead it points to the true graph which it connects to
+                uint8_t parent_graph_id;
+                uint8_t connected_borders;
+                uint8_t connected_corners;
+            };
 
         private:
             int size;
