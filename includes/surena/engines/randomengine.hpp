@@ -41,8 +41,6 @@ namespace surena {
 
             void apply_move(uint64_t move_id) override;
 
-            void apply_internal_update(uint64_t update_id) override;
-
             uint8_t get_result() override;
 
             uint64_t get_move_id(std::string move_string) override;

@@ -204,11 +204,6 @@ namespace surena {
         //TODO
     }
 
-    void Caesar::apply_internal_update(uint64_t update_id)
-    {
-        //TODO
-    }
-
     uint8_t Caesar::get_result()
     {
         return winning_player;

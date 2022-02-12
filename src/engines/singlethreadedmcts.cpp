@@ -203,15 +203,6 @@ namespace surena {
         root->reward_count = children_reward_sum;
     }
 
-    void SinglethreadedMCTS::apply_internal_update(uint64_t update_id)
-    {
-        gamestate->apply_internal_update(update_id);
-        // applying an internal likely invalidates the saved search tree, we have to scrap it all
-        SearchTreeNode* new_root = new SearchTreeNode(NULL, NULL, NULL, 0, 0, root->move_id, gamestate->player_to_move());
-        delete root;
-        root = new_root;
-    }
-
     uint8_t SinglethreadedMCTS::get_result()
     {
         return gamestate->get_result();

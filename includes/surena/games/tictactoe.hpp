@@ -46,8 +46,6 @@ namespace surena {
 
             void apply_move(uint64_t move_id) override;
 
-            void apply_internal_update(uint64_t update_id) override;
-
             uint8_t get_result() override;
 
             void discretize(uint64_t seed) override;
@@ -68,6 +66,8 @@ namespace surena {
             // get player value of cell (x grows right, y grows up)
             uint8_t get_cell(int x, int y);
             void set_cell(int x, int y, uint8_t p);
+            void set_current_player(uint8_t p);
+            void set_result(uint8_t p);
 
     };
 

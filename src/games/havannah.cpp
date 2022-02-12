@@ -10,7 +10,7 @@
 
 namespace surena {
 
-        const char* Havannah::COLOR_CHARS[4] = {".", "O", "X", "-"}; // invalid, none, white, black
+        const char* Havannah::COLOR_CHARS[4] = {".", "O", "X", "-"}; // none, white, black, invalid
 
         Havannah::Tile_Id::Tile_Id(std::string an)
         {
@@ -304,11 +304,6 @@ namespace surena {
             std::cout << "current graph features: B[" << std::bitset<6>(graphMap[currentGraphId].connectedBorders) << "] C[" << std::bitset<6>(graphMap[currentGraphId].connectedCorners) << "]\n";*/
         }
 
-        void Havannah::apply_internal_update(uint64_t update_id)
-        {
-            //TODO
-        }
-
         uint8_t Havannah::get_result()
         {
             return winning_player;
@@ -418,6 +413,9 @@ namespace surena {
         
         Havannah::COLOR Havannah::get_cell(int x, int y)
         {
+            if (x < 0 || y < 0 || x > board_sizer || y > board_sizer) {
+                return COLOR_INVALID;
+            }
             return gameboard[y][x].color;
         }
     

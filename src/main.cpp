@@ -20,7 +20,7 @@ int main()
 {
     printf("surena v%s\n", surena::version);
     surena::Engine* engine = new surena::SinglethreadedMCTS();
-    surena::Game* thegame = new surena::TicTacToe_Ultimate();
+    surena::Game* thegame = new surena::TicTacToe();
     engine->set_gamestate(thegame);
     while (engine->player_to_move() != 0) {
         if (engine->player_to_move() == 2) {

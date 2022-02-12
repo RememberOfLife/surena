@@ -96,11 +96,6 @@ namespace surena {
         current_player = (current_player == 1) ? 2 : 1;
     }
 
-    void TicTacToe_Ultimate::apply_internal_update(uint64_t update_id)
-    {
-        //TODO
-    }
-
     uint8_t TicTacToe_Ultimate::get_result()
     {
         return winning_player;
@@ -271,6 +266,22 @@ namespace surena {
     uint8_t TicTacToe_Ultimate::get_global_target()
     {
         return ((global_target_y==-1?3:global_target_y)<<2)|(global_target_x==-1?3:global_target_x);
+    }
+
+    void TicTacToe_Ultimate::set_global_target(int x, int y)
+    {
+        global_target_x = x;
+        global_target_y = y;
+    }
+
+    void TicTacToe_Ultimate::set_current_player(uint8_t p)
+    {
+        current_player = p;
+    }
+
+    void TicTacToe_Ultimate::set_result(uint8_t p)
+    {
+        winning_player = p;
     }
 
 }

@@ -62,14 +62,6 @@ namespace surena {
         rand_ctr = rng.rand();
     }
 
-    void RandomEngine::apply_internal_update(uint64_t update_id)
-    {
-        if (!gamestate) {
-            return;
-        }
-        gamestate->apply_internal_update(update_id);
-    }
-
     uint8_t RandomEngine::get_result()
     {
         if (!gamestate) {

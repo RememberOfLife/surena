@@ -36,9 +36,6 @@ namespace surena {
             // moves not in the available moves list cause undefined behaviour
             virtual void apply_move(uint64_t move_id) = 0;
 
-            //TODO maybe this should be able to accept some more game specific update struct instead
-            virtual void apply_internal_update(uint64_t update_id) = 0;
-
             // returns the winning playerID, 0 if the game is not over yet or is a draw
             virtual uint8_t get_result() = 0;
 

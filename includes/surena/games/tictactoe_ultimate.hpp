@@ -31,8 +31,6 @@ namespace surena {
 
             void apply_move(uint64_t move_id) override;
 
-            void apply_internal_update(uint64_t update_id) override;
-
             uint8_t get_result() override;
 
             void discretize(uint64_t seed) override;
@@ -61,6 +59,10 @@ namespace surena {
             void set_cell_local(int x, int y, uint8_t p);
 
             uint8_t get_global_target(); // yyxx in least significant bits, 3 is none
+            void set_global_target(int x, int y); // any == -1 is none
+
+            void set_current_player(uint8_t p);
+            void set_result(uint8_t p);
 
     };
 

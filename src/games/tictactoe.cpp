@@ -79,32 +79,6 @@ namespace surena {
         state ^= (current_player ^ next_player) << 18;
     }
 
-    void TicTacToe::apply_internal_update(uint64_t update_id)
-    {
-        // update format (right is LSB):
-        // TTPPYYXX
-        int update_type = (update_id>>6) & 0b11;
-        int update_player = (update_id>>4) & 0b11;
-        int update_y = (update_id>>2) & 0b11;
-        int update_x = update_id & 0b11;
-        switch (update_type) {
-            case 0: {
-                // update board state
-                set_cell(update_x, update_y, update_player);
-            } break;
-            case 1: {
-                // update current player
-                state &= ~(0b11<<18); // reset current player to 0
-                state |= update_player<<18; // insert new current player
-            } break;
-            case 2: {
-                // update result player
-                state &= ~(0b11<<20); // reset result to 0
-                state |= update_player<<20; // insert new result
-            } break;
-        }
-    }
-
     uint8_t TicTacToe::get_result()
     {
         return static_cast<uint8_t>((state >> 20) & 0b11);
@@ -189,6 +163,18 @@ namespace surena {
         v = v << offset;
         v ^= static_cast<uint64_t>(p) << offset;
         state ^= v;
+    }
+
+    void TicTacToe::set_current_player(uint8_t p)
+    {
+        state &= ~(0b11<<18); // reset current player to 0
+        state |= p<<18; // insert new current player
+    }
+
+    void TicTacToe::set_result(uint8_t p)
+    {
+        state &= ~(0b11<<20); // reset result to 0
+        state |= p<<20; // insert new result
     }
 
 }
