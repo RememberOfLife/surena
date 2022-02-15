@@ -24,6 +24,9 @@ namespace surena {
         public:
 
             TicTacToe_Ultimate();
+            
+            void import_state(const char* str) override;
+            uint32_t export_state(char* str) override; 
 
             uint8_t player_to_move() override;
 

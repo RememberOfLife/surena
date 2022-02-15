@@ -187,6 +187,17 @@ namespace surena {
         //TODO
     }
 
+    void Caesar::import_state(const char* str)
+    {
+        //TODO
+    }
+
+    uint32_t Caesar::export_state(char* str)
+    {
+        //TODO
+        return 0;
+    }
+
     uint8_t Caesar::player_to_move()
     {
         return current_player;

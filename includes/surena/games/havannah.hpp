@@ -31,7 +31,8 @@ namespace surena {
                 COLOR_BLACK,
                 COLOR_INVALID,
             };
-            static const char* COLOR_CHARS[4]; // in the same order as they appear in the enum of same name
+            
+            static const char COLOR_CHARS[4]; // in the same order as they appear in the enum of same name
 
             // assuming a flat topped board this is [letter * num]
             // such that num goes vertically on the left downwards
@@ -71,6 +72,9 @@ namespace surena {
         public:
 
             Havannah(int size);
+            
+            void import_state(const char* str) override;
+            uint32_t export_state(char* str) override; 
 
             uint8_t player_to_move() override;
 

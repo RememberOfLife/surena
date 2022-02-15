@@ -23,6 +23,9 @@ namespace surena {
             virtual void search_stop() = 0;
             //TODO constrained, also sync?
 
+            //TODO wrap import/export state from game
+            //TODO sort wrapped game functions and engine specifics
+
             // returns the playerID to move from this state, 0 if the game is over
             virtual uint8_t player_to_move() = 0;
 

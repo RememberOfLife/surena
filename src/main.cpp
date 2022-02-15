@@ -4,6 +4,7 @@
 #include "surena/engines/singlethreadedmcts.hpp"
 #include "surena/games/alhambra.hpp"
 #include "surena/games/caesar.hpp"
+#include "surena/games/chess.hpp"
 #include "surena/games/tictactoe_ultimate.hpp"
 #include "surena/games/tictactoe.hpp"
 #include "surena/games/havannah.hpp"
@@ -20,17 +21,17 @@ int main()
 {
     printf("surena v%s\n", surena::version);
     surena::Engine* engine = new surena::SinglethreadedMCTS();
-    surena::Game* thegame = new surena::TicTacToe();
+    surena::Game* thegame = new surena::Chess();
     engine->set_gamestate(thegame);
     while (engine->player_to_move() != 0) {
-        if (engine->player_to_move() == 2) {
-            engine->search_start(5000);
-            engine->debug_print();
-            engine->apply_move(engine->get_best_move());
-            thegame->debug_print();
-            continue;
-        }
-        printf("player to move: %d\n", engine->player_to_move());
+        // if (engine->player_to_move() == 2) {
+        //     engine->search_start(5000);
+        //     engine->debug_print();
+        //     engine->apply_move(engine->get_best_move());
+        //     thegame->debug_print();
+        //     continue;
+        // }
+        printf("player to move %d: ", engine->player_to_move());
         std::string move_string;
         std::cin >> move_string;
         engine->apply_move(engine->get_move_id(move_string));

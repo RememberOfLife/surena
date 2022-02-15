@@ -20,7 +20,12 @@ namespace surena {
             // random events are represented using the 0xFF player id
             // simultaneous move games present the union of all moves for all simultaneously moving players as available moves and the applied moves for every simultaneously moving player until all are gathered for processing
 
-            //TODO import/export position functions
+            // there are no state guarantees if this is passed an invalid state string, //TODO is this sane? maybe return a bool + no-crash guarantee?
+            // load the gamestate from the given string, does nothing if NULL
+            virtual void import_state(const char* str) = 0;
+            // if data is NULL then this returns the minimum size of buffer to allocate for data
+            // returns the length of the state string written, 0 if failure
+            virtual uint32_t export_state(char* str) = 0; 
 
             //TODO state id (e.g. zobrist)
             //virtual uint64_t id() = 0;
@@ -51,6 +56,7 @@ namespace surena {
             virtual Game* clone() = 0;
             virtual void copy_from(Game* target) = 0;
 
+            //TODO redo these to be like import/export state on char*
             // move id transformation functions
             // uint64_t <-> string
             virtual uint64_t get_move_id(std::string move_string) = 0;

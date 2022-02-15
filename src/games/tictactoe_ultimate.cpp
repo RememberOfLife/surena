@@ -18,6 +18,17 @@ namespace surena {
         }
     }
 
+    void TicTacToe_Ultimate::import_state(const char* str)
+    {
+        //TODO
+    }
+
+    uint32_t TicTacToe_Ultimate::export_state(char* str)
+    {
+        //TODO
+        return 0;
+    }
+
     uint8_t TicTacToe_Ultimate::player_to_move()
     {
         return current_player;

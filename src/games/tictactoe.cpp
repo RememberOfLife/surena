@@ -13,6 +13,17 @@ namespace surena {
         state(PLAYER_X << 18) // player one starts
     {}
 
+    void TicTacToe::import_state(const char* str)
+    {
+        //TODO
+    }
+
+    uint32_t TicTacToe::export_state(char* str)
+    {
+        //TODO
+        return 0;
+    }
+
     uint8_t TicTacToe::player_to_move()
     {
         return static_cast<uint8_t>((state >> 18) & 0b11);

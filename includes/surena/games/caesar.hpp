@@ -116,6 +116,9 @@ namespace surena {
             Caesar(uint8_t gameboard_nodes[], gameboardNodeId gameboard_ids[]);
 
             ~Caesar();
+            
+            void import_state(const char* str) override;
+            uint32_t export_state(char* str) override; 
 
             uint8_t player_to_move() override;
 
