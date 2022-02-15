@@ -48,7 +48,7 @@ namespace surena {
             piece board[8][8]; // board[y][x] starting with origin (0,0) on bottom left of the board
             uint32_t halfmove_clock = 0;
             uint32_t fullmove_clock = 1;
-            uint8_t enpassant_target = 0xFF;
+            uint8_t enpassant_target = 0xFF; // left nibble is x, right nibble is y
             bool castling_white_king : 1;
             bool castling_white_queen : 1;
             bool castling_black_king : 1;

@@ -148,8 +148,73 @@ namespace surena {
 
     uint32_t Chess::export_state(char* str)
     {
-        //TODO
-        return 0;
+        if (str == NULL) {
+            return 128;
+        }
+        const char* ostr = str;
+        // save board
+        int y = 7;
+        int x = 0;
+        for (int y = 7; y >= 0; y--) {
+            int empty_squares = 0;
+            for (int x = 0; x < 8; x++) {
+                if (board[y][x].player == PLAYER_NONE) {
+                    // square is empty, count following empty squares and just print the number once
+                    empty_squares++;
+                } else {
+                    // if the current square isnt empty, print its representation, before that print empty squares, if applicable
+                    if (empty_squares > 0) {
+                        str += sprintf(str, "%d", empty_squares);
+                        empty_squares = 0;
+                    }
+                    str += sprintf(str, "%c", PIECE_TYPE_CHARS[board[y][x].type] + (board[y][x].player == PLAYER_BLACK ? 32 : 0));
+                }
+            }
+            if (empty_squares > 0) {
+                str += sprintf(str, "%d", empty_squares);
+            }
+            if (y > 0) {
+                str += sprintf(str, "/");
+            }
+        }
+        // save current player 
+        switch (current_player) {
+            case PLAYER_NONE: {
+                str += sprintf(str, " - ");
+            } break;
+            case PLAYER_WHITE: {
+                str += sprintf(str, " w ");
+            } break;
+            case PLAYER_BLACK: {
+                str += sprintf(str, " b ");
+            } break;
+        }
+        // save castling rights
+        if (!castling_white_king && !castling_white_queen && !castling_black_king && !castling_black_queen) {
+            str += sprintf(str, "-");
+        } else {
+            if (castling_white_king) {
+                str += sprintf(str, "K");
+            }
+            if (castling_white_queen) {
+                str += sprintf(str, "Q");
+            }
+            if (castling_black_king) {
+                str += sprintf(str, "k");
+            }
+            if (castling_black_queen) {
+                str += sprintf(str, "q");
+            }
+        }
+        // save enpassant target
+        if (enpassant_target == 0xFF) {
+            str += sprintf(str, " - ");
+        } else {
+            str += sprintf(str, " %c%c ", 'a'+((enpassant_target>>4)&0x0F), '1'+(enpassant_target&0x0F));
+        }
+        // save halfmove and fullmove clock
+        str += sprintf(str, "%d %d", halfmove_clock, fullmove_clock);
+        return str-ostr;
     }
 
     uint8_t Chess::player_to_move()
@@ -223,6 +288,9 @@ namespace surena {
     void Chess::debug_print()
     {
         printf("##### debug print board #####\n");
+        char* fen = (char*)malloc(export_state(NULL));
+        export_state(fen);
+        printf("%s\n", fen);
         printf("castling rights: ");
         printf(castling_white_king ? "K" : "-");
         printf(castling_white_queen ? "Q" : "-");
@@ -233,7 +301,7 @@ namespace surena {
         if (enpassant_target == 0xFF) {
             printf("--");
         } else {
-            printf("%c%c", 'a'+(enpassant_target&0xF0), '1'+(enpassant_target&0x0F));
+            printf("%c%c", 'a'+((enpassant_target>>4)&0x0F), '1'+(enpassant_target&0x0F));
         }
         printf("\n\n");
         for (int y = 7; y >= 0; y--) {
