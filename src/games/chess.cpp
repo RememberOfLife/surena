@@ -242,7 +242,42 @@ namespace surena {
         int ty = move_id & 0x0F;
         board[ty][tx] = board[oy][ox];
         board[oy][ox] = piece{PLAYER_NONE, PIECE_TYPE_NONE};
-        //TODO manage castling moves
+        // if move is enpassant capture, also remove the double pushed pawn
+        if (enpassant_target == (move_id&0xFF)) {
+            board[ty + (current_player)][tx] = piece{PLAYER_NONE, PIECE_TYPE_NONE};
+        }
+        // set new enpassant target on double pushed pawn
+        // piece is pawn and has moved vertically more than 1 square
+        if (board[ty][tx].type == PIECE_TYPE_PAWN) {
+            if (ty-oy > 1) {
+                enpassant_target = (tx<<4)|(oy+1);
+            }
+            if (oy-ty > 1) {
+                enpassant_target = (tx<<4)|(ty+1);
+            }
+        }
+        // perform castling
+        // piece is king and has moved horizontally more than one 
+        if (board[ty][tx].type == PIECE_TYPE_KING) {
+            if (tx-ox > 1) { // kingside
+                board[ty][ox+1] = board[ty][7];
+                board[ty][7] = piece{PLAYER_NONE, PIECE_TYPE_NONE};
+            }
+            if (ox-tx > 1) { // queenside
+                board[ty][ox-1] = board[ty][0];
+                board[ty][0] = piece{PLAYER_NONE, PIECE_TYPE_NONE};
+            }
+        }
+        // pawn promotion
+        // piece is pawn and target is y=0 or y=7, promote to supplied type
+        if (board[ty][tx].type == PIECE_TYPE_PAWN && (ty == 0 || ty == 7)) {
+            board[ty][tx].type = static_cast<PIECE_TYPE>((move_id >> 16) & 0x0F);
+        }
+        //TODO draw on halfmove clock, should this happen here? probably just offer a move to claim draw, but for both players..
+        //TODO does draw on threfold repetition happen here?
+        //TODO detect win by checkmate and draw by stalemate
+        // swap current player
+        current_player = current_player == PLAYER_WHITE ? PLAYER_BLACK : PLAYER_WHITE;
     }
 
     uint8_t Chess::get_result()
@@ -275,22 +310,55 @@ namespace surena {
     
     uint64_t Chess::get_move_id(std::string move_string)
     {
-        //TODO
-        return 0;
+        if (move_string.length() < 4 || move_string.length() > 5) {
+            return UINT64_MAX;
+        }
+        int ox = move_string[0]-'a';
+        int oy = move_string[1]-'1';
+        int tx = move_string[2]-'a';
+        int ty = move_string[3]-'1';
+        PIECE_TYPE promotion = PIECE_TYPE_NONE;
+        if (move_string.length() == 5) {
+            // encode promotion
+            switch (move_string[4]) {
+                case 'q': {
+                    promotion = PIECE_TYPE_QUEEN;
+                } break;
+                case 'r': {
+                    promotion = PIECE_TYPE_ROOK;
+                } break;
+                case 'b': {
+                    promotion = PIECE_TYPE_BISHOP;
+                } break;
+                case 'n': {
+                    promotion = PIECE_TYPE_KNIGHT;
+                } break;
+            }
+        }
+        return (promotion<<16)|(ox<<12)|(oy<<8)|(tx<<4)|(ty);
     }
 
     std::string Chess::get_move_string(uint64_t move_id)
     {
-        //TODO
-        return "----";
+        int ox = (move_id >> 12) & 0x0F;
+        int oy = (move_id >> 8) & 0x0F;
+        int tx = (move_id >> 4) & 0x0F;
+        int ty = move_id & 0x0F;
+        PIECE_TYPE promotion = static_cast<PIECE_TYPE>((move_id >> 16) & 0x0F);
+        std::string move_string = "";
+        move_string += ('a'+ox);
+        move_string += ('1'+oy);
+        move_string += ('a'+tx);
+        move_string += ('1'+ty);
+        if (promotion != PIECE_TYPE_NONE) {
+            move_string += PIECE_TYPE_CHARS[promotion]+32;
+        }
+        return move_string;
     }
 
     void Chess::debug_print()
     {
         printf("##### debug print board #####\n");
-        char* fen = (char*)malloc(export_state(NULL));
-        export_state(fen);
-        printf("%s\n", fen);
         printf("castling rights: ");
         printf(castling_white_king ? "K" : "-");
         printf(castling_white_queen ? "Q" : "-");
