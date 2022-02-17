@@ -263,18 +263,18 @@ namespace surena {
         //TODO better detection for win by checkmate and draw by stalemate
         if (get_moves().size() == 0) {
             // this is at least a stalemate here, now see if the other player would have a way to capture the king next turn
-            PLAYER last_player = current_player == PLAYER_WHITE ? PLAYER_BLACK : PLAYER_WHITE;
+            current_player = current_player == PLAYER_WHITE ? PLAYER_BLACK : PLAYER_WHITE;
             std::vector<uint64_t> peudo_moves = get_moves_pseudo_legal();
             for (int i = 0; i < peudo_moves.size(); i++) {
                 int cm_tx = (peudo_moves[i] >> 4) & 0x0F;
                 int cm_ty = peudo_moves[i] & 0x0F;
                 if (board[cm_ty][cm_tx].type == PIECE_TYPE_KING) {
-                    winning_player = last_player;
-                    last_player = PLAYER_NONE;
+                    winning_player = current_player;
+                    current_player = PLAYER_NONE;
                     return;
                 }
             }
-            last_player = PLAYER_NONE;
+            current_player = PLAYER_NONE;
             winning_player = RESULT_DRAW;
             return;
         }
