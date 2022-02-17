@@ -224,60 +224,60 @@ namespace surena {
 
     std::vector<uint64_t> Chess::get_moves()
     {
+        //TODO encode things like check in the move, for move string printing in ptn?
+        //TODO this is an extremely slow and ugly movegen, use bitboards instead of mailbox
         std::vector<uint64_t> moves{};
         // if game is over, return empty move list
         if (player_to_move() == 0) {
             return moves;
         }
-        //TODO encode things like check in the move, for move string printing in ptn?
-        //TODO
-        return moves;
+        moves = get_moves_pseudo_legal();
+        // check move legality by checking king capture
+        std::vector<uint64_t> legal_moves{};
+        surena::Chess pseudo_game;
+        for (int i = 0; i < moves.size(); i++) {
+            pseudo_game.copy_from(this);
+            pseudo_game.apply_move_internal(moves[i], true);
+            bool is_legal = true;
+            std::vector<uint64_t> response_moves = pseudo_game.get_moves_pseudo_legal();
+            for (int j = 0; j < response_moves.size(); j++) {
+                int cm_tx = (response_moves[j] >> 4) & 0x0F;
+                int cm_ty = response_moves[j] & 0x0F;
+                if (pseudo_game.get_cell(cm_tx, cm_ty).type == PIECE_TYPE_KING) {
+                    is_legal = false;
+                    break;
+                }
+            }
+            if (is_legal) {
+                legal_moves.push_back(moves[i]);
+            }
+        }
+        return legal_moves;
     }
 
     void Chess::apply_move(uint64_t move_id)
     {
-        int ox = (move_id >> 12) & 0x0F;
-        int oy = (move_id >> 8) & 0x0F;
-        int tx = (move_id >> 4) & 0x0F;
-        int ty = move_id & 0x0F;
-        board[ty][tx] = board[oy][ox];
-        board[oy][ox] = piece{PLAYER_NONE, PIECE_TYPE_NONE};
-        // if move is enpassant capture, also remove the double pushed pawn
-        if (enpassant_target == (move_id&0xFF)) {
-            board[ty + (current_player)][tx] = piece{PLAYER_NONE, PIECE_TYPE_NONE};
-        }
-        // set new enpassant target on double pushed pawn
-        // piece is pawn and has moved vertically more than 1 square
-        if (board[ty][tx].type == PIECE_TYPE_PAWN) {
-            if (ty-oy > 1) {
-                enpassant_target = (tx<<4)|(oy+1);
-            }
-            if (oy-ty > 1) {
-                enpassant_target = (tx<<4)|(ty+1);
-            }
-        }
-        // perform castling
-        // piece is king and has moved horizontally more than one 
-        if (board[ty][tx].type == PIECE_TYPE_KING) {
-            if (tx-ox > 1) { // kingside
-                board[ty][ox+1] = board[ty][7];
-                board[ty][7] = piece{PLAYER_NONE, PIECE_TYPE_NONE};
-            }
-            if (ox-tx > 1) { // queenside
-                board[ty][ox-1] = board[ty][0];
-                board[ty][0] = piece{PLAYER_NONE, PIECE_TYPE_NONE};
-            }
-        }
-        // pawn promotion
-        // piece is pawn and target is y=0 or y=7, promote to supplied type
-        if (board[ty][tx].type == PIECE_TYPE_PAWN && (ty == 0 || ty == 7)) {
-            board[ty][tx].type = static_cast<PIECE_TYPE>((move_id >> 16) & 0x0F);
-        }
+        apply_move_internal(move_id); // this swaps players after the move on its own
         //TODO draw on halfmove clock, should this happen here? probably just offer a move to claim draw, but for both players..
         //TODO does draw on threfold repetition happen here?
-        //TODO detect win by checkmate and draw by stalemate
-        // swap current player
-        current_player = current_player == PLAYER_WHITE ? PLAYER_BLACK : PLAYER_WHITE;
+        //TODO better detection for win by checkmate and draw by stalemate
+        if (get_moves().size() == 0) {
+            // this is at least a stalemate here, now see if the other player would have a way to capture the king next turn
+            PLAYER last_player = current_player == PLAYER_WHITE ? PLAYER_BLACK : PLAYER_WHITE;
+            std::vector<uint64_t> peudo_moves = get_moves_pseudo_legal();
+            for (int i = 0; i < peudo_moves.size(); i++) {
+                int cm_tx = (peudo_moves[i] >> 4) & 0x0F;
+                int cm_ty = peudo_moves[i] & 0x0F;
+                if (board[cm_ty][cm_tx].type == PIECE_TYPE_KING) {
+                    winning_player = last_player;
+                    last_player = PLAYER_NONE;
+                    return;
+                }
+            }
+            last_player = PLAYER_NONE;
+            winning_player = RESULT_DRAW;
+            return;
+        }
     }
 
     uint8_t Chess::get_result()
@@ -410,6 +410,247 @@ namespace surena {
     void Chess::set_result(PLAYER p)
     {
         winning_player = p;
+    }
+
+    void Chess::apply_move_internal(uint64_t move_id, bool replace_castling_by_kings)
+    {
+        int ox = (move_id >> 12) & 0x0F;
+        int oy = (move_id >> 8) & 0x0F;
+        int tx = (move_id >> 4) & 0x0F;
+        int ty = move_id & 0x0F;
+        board[ty][tx] = board[oy][ox];
+        board[oy][ox] = piece{PLAYER_NONE, PIECE_TYPE_NONE};
+        // if move is enpassant capture, also remove the double pushed pawn
+        if (enpassant_target == (move_id&0xFF) && board[ty][tx].type == PIECE_TYPE_PAWN) {
+            board[oy][ox+(tx-ox)] = piece{PLAYER_NONE, PIECE_TYPE_NONE};
+        }
+        // enpassant caputure is only valid immediately after the double push
+        enpassant_target = 0xFF;
+        // set new enpassant target on double pushed pawn
+        // piece is pawn and has moved vertically more than 1 square
+        if (board[ty][tx].type == PIECE_TYPE_PAWN) {
+            if (ty-oy > 1) {
+                enpassant_target = (tx<<4)|(oy+1);
+            }
+            if (oy-ty > 1) {
+                enpassant_target = (tx<<4)|(ty+1);
+            }
+        }
+        // perform castling
+        // piece is king and has moved horizontally more than one 
+        if (board[ty][tx].type == PIECE_TYPE_KING) {
+            if (tx-ox > 1) { // kingside
+                board[ty][ox+1] = board[ty][7];
+                if (replace_castling_by_kings) {
+                    board[ty][ox+1] = piece{board[ty][7].player, PIECE_TYPE_KING};
+                    board[oy][ox] = piece{board[ty][7].player, PIECE_TYPE_KING};
+                }
+                board[ty][7] = piece{PLAYER_NONE, PIECE_TYPE_NONE};
+            }
+            if (ox-tx > 1) { // queenside
+                board[ty][ox-1] = board[ty][0];
+                if (replace_castling_by_kings) {
+                    board[ty][ox-1] = piece{board[ty][0].player, PIECE_TYPE_KING};
+                    board[oy][ox] = piece{board[ty][0].player, PIECE_TYPE_KING};
+                }
+                board[ty][0] = piece{PLAYER_NONE, PIECE_TYPE_NONE};
+            }
+        }
+        // pawn promotion
+        // piece is pawn and target is y=0 or y=7, promote to supplied type
+        if (board[ty][tx].type == PIECE_TYPE_PAWN && (ty == 0 || ty == 7)) {
+            board[ty][tx].type = static_cast<PIECE_TYPE>((move_id >> 16) & 0x0F);
+        }
+        // revoke castling rights if any exist
+        if (castling_white_king || castling_white_queen || castling_black_king || castling_black_queen) {
+            if (board[ty][tx].type == PIECE_TYPE_KING) {
+                if (current_player == PLAYER_WHITE) {
+                    castling_white_king = false;
+                    castling_white_queen = false;
+                }
+                if (current_player == PLAYER_BLACK) {
+                    castling_black_king = false;
+                    castling_black_queen = false;
+                }
+            }
+            if (board[ty][tx].type == PIECE_TYPE_ROOK) {
+                // check which side to revoke castling for
+                if (ox == 0) {
+                    if (current_player == PLAYER_WHITE) {
+                        castling_white_queen = false;
+                    }
+                    if (current_player == PLAYER_BLACK) {
+                        castling_black_queen = false;
+                    }
+                }
+                if (ox == 7) {
+                    if (current_player == PLAYER_WHITE) {
+                        castling_white_king = false;
+                    }
+                    if (current_player == PLAYER_BLACK) {
+                        castling_black_king = false;
+                    }
+                }
+            }
+        }
+        // swap current player
+        current_player = current_player == PLAYER_WHITE ? PLAYER_BLACK : PLAYER_WHITE;
+    }
+
+    std::vector<uint64_t> Chess::get_moves_pseudo_legal()
+    {
+        // directions are: N,S,W,E,NW,SE,NE,SW
+        const int directions_x[8] = {0, 0, -1, 1, -1, 1, 1, -1};
+        const int directions_y[8] = {1, -1, 0, 0, 1, -1, 1, -1};
+        // vectors are clockwise from the top
+        const int knight_vx[8] = {1, 2, 2, 1, -1, -2, -2, -1};
+        const int knight_vy[8] = {2, 1, -1, -2, -2, -1, 1, 2};
+        // vector are: WHITE{NW,N,NE,2N}, BLACK{SW,S,SE,2S}
+        const int pawn_cvx[8] = {-1, 0, 1, 0, -1, 0, 1, 0};
+        const int pawn_cvy[8] = {1, 1, 1, 2, -1, -1, -1, -2};
+        std::vector<uint64_t> moves{};
+        for (int y = 0; y < 8; y++) {
+            for (int x = 0; x < 8; x++) {
+                piece current_piece = board[y][x];
+                if (current_piece.player != current_player) {
+                    continue;
+                }
+                // gen move for this piece
+                switch (current_piece.type) {
+                    case PIECE_TYPE_KING: {
+                        for (int d = 0; d < 8; d++) {
+                            int tx = x + directions_x[d];
+                            int ty = y + directions_y[d];
+                            if (tx < 0 || tx > 7 || ty < 0 || ty > 7) {
+                                continue;
+                            }
+                            piece target_piece = board[ty][tx];
+                            if (target_piece.player == current_player) {
+                                continue;
+                            }
+                            moves.push_back((x<<12)|(y<<8)|(tx<<4)|(ty));
+                        }
+                        // king is not allowed to move through attacked squares while castling, this is handled elsewhere for now
+                        if (current_player == PLAYER_WHITE) {
+                            if (castling_white_king && board[y][x+1].type == PIECE_TYPE_NONE && board[y][x+2].type == PIECE_TYPE_NONE &&
+                                board[y][7].player == current_player && board[y][7].type == PIECE_TYPE_ROOK) {
+                                moves.push_back((x<<12)|(y<<8)|((x+2)<<4)|(y));
+                            }
+                            if (castling_white_queen && board[y][x-1].type == PIECE_TYPE_NONE && board[y][x-2].type == PIECE_TYPE_NONE && board[y][x-3].type == PIECE_TYPE_NONE &&
+                                board[y][0].player == current_player && board[y][0].type == PIECE_TYPE_ROOK) {
+                                moves.push_back((x<<12)|(y<<8)|((x-2)<<4)|(y));
+                            }
+                        }
+                        if (current_player == PLAYER_BLACK) {
+                            if (castling_black_king && board[y][x+1].type == PIECE_TYPE_NONE && board[y][x+2].type == PIECE_TYPE_NONE &&
+                                board[y][7].player == current_player && board[y][7].type == PIECE_TYPE_ROOK) {
+                                moves.push_back((x<<12)|(y<<8)|((x+2)<<4)|(y));
+                            }
+                            if (castling_black_queen && board[y][x-1].type == PIECE_TYPE_NONE && board[y][x-2].type == PIECE_TYPE_NONE && board[y][x-3].type == PIECE_TYPE_NONE &&
+                                board[y][0].player == current_player && board[y][0].type == PIECE_TYPE_ROOK) {
+                                moves.push_back((x<<12)|(y<<8)|((x-2)<<4)|(y));
+                            }
+                        }
+                    } break;
+                    case PIECE_TYPE_QUEEN:
+                    case PIECE_TYPE_ROOK:
+                    case PIECE_TYPE_BISHOP: {
+                        int dmin = current_piece.type == PIECE_TYPE_BISHOP ? 4 : 0;
+                        int dmax = current_piece.type == PIECE_TYPE_ROOK ? 4 : 8;
+                        for (int d = dmin; d < dmax; d++) {
+                            for (int s = 1; true; s++) {
+                                int tx = x + s*directions_x[d];
+                                int ty = y + s*directions_y[d];
+                                if (tx < 0 || tx > 7 || ty < 0 || ty > 7) {
+                                    break;
+                                }
+                                piece target_piece = board[ty][tx];
+                                if (target_piece.player == current_player) {
+                                    break;
+                                }
+                                moves.push_back((x<<12)|(y<<8)|(tx<<4)|(ty));
+                                if (target_piece.player != current_piece.player && target_piece.type != PIECE_TYPE_NONE) {
+                                    break;
+                                }
+                            }
+                        }
+                    } break;
+                    case PIECE_TYPE_KNIGHT: {
+                        for (int d = 0; d < 8; d++) {
+                            int tx = x + knight_vx[d];
+                            int ty = y + knight_vy[d];
+                            if (tx < 0 || tx > 7 || ty < 0 || ty > 7) {
+                                continue;
+                            }
+                            piece target_piece = board[ty][tx];
+                            if (target_piece.player == current_player) {
+                                continue;
+                            }
+                            moves.push_back((x<<12)|(y<<8)|(tx<<4)|(ty));
+                        }
+                    } break;
+                    case PIECE_TYPE_PAWN: {
+                        int dmin = current_player == PLAYER_BLACK ? 4 : 0;
+                        int dmax = current_player == PLAYER_WHITE ? 4 : 8;
+                        for (int d = dmin; d < dmax; d++) {
+                            int tx = x + pawn_cvx[d];
+                            int ty = y + pawn_cvy[d];
+                            if (tx < 0 || tx > 7 || ty < 0 || ty > 7) {
+                                continue;
+                            }
+                            piece target_piece = board[ty][tx];
+                            if (target_piece.player == current_player) {
+                                continue;
+                            }
+                            if (tx != x && target_piece.type == PIECE_TYPE_NONE && enpassant_target != ((tx<<4)|(ty))) {
+                                // pawn would move diagonally, but there isnt any piece there to capture, and it also isnt an en passant target
+                                continue;
+                            }
+                            if (y != 1 && y != 6 && (ty-y > 1 || y-ty > 1) ) {
+                                // do not allow double pawn push if it isnt in its starting position
+                                continue;
+                            }
+                            if ((y == 1 || y == 6) && (ty-y > 1 || y-ty > 1) && board[y+pawn_cvy[d-2]][tx].type != PIECE_TYPE_NONE) {
+                                // double pawn push only allowed over empty squares
+                                continue;
+                            }
+                            if (tx-x == 0 && target_piece.type != PIECE_TYPE_NONE) {
+                                // can only advance straight forward into open spaces
+                                continue;
+                            }
+                            if (ty == 0 || ty == 7) {
+                                // pawn promotion, instead add 4 moves for the 4 types of promotions
+                                moves.push_back((PIECE_TYPE_QUEEN<<16)|(x<<12)|(y<<8)|(tx<<4)|(ty));
+                                moves.push_back((PIECE_TYPE_ROOK<<16)|(x<<12)|(y<<8)|(tx<<4)|(ty));
+                                moves.push_back((PIECE_TYPE_BISHOP<<16)|(x<<12)|(y<<8)|(tx<<4)|(ty));
+                                moves.push_back((PIECE_TYPE_KNIGHT<<16)|(x<<12)|(y<<8)|(tx<<4)|(ty));
+                                continue;
+                            }
+                            moves.push_back((x<<12)|(y<<8)|(tx<<4)|(ty));
+                        }
+                    } break;
+                    default: break;
+                }
+            }
+        }
+        return moves;
+    }
+
+    // this chess implementation is valid against all chessprogrammingwiki positions, tested up to depth 4
+    uint64_t Chess::count_positions(int depth)
+    {
+        std::vector<uint64_t> moves = get_moves();
+        if (depth == 1) {
+            return moves.size(); // bulk counting since get_moves generates only legal moves
+        }
+        uint64_t positions = 0;
+        surena::Chess test_game;
+        for (int i = 0; i < moves.size(); i++) {
+            test_game.copy_from(this);
+            test_game.apply_move_internal(moves[i]);
+            positions += test_game.count_positions(depth - 1);
+        }
+        return positions;
     }
 
 }

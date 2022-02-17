@@ -12,7 +12,7 @@
 #include "surena/game.hpp"
 
 namespace surena {
-    const char* version = "0.3.0";
+    const char* version = "0.4.0";
 }
 
 // args https://github.com/p-ranav/argparse
@@ -23,6 +23,7 @@ int main()
     surena::Engine* engine = new surena::SinglethreadedMCTS();
     surena::Game* thegame = new surena::Chess();
     engine->set_gamestate(thegame);
+    thegame->debug_print();
     while (engine->player_to_move() != 0) {
         // if (engine->player_to_move() == 2) {
         //     engine->search_start(5000);

@@ -7,7 +7,7 @@ General purpose board game backend and some AI to go with it.
 |---|---|
 |Alhambra|FROZEN|
 |Caesar|FROZEN|
-|Chess|WIP|
+|Chess|DONE|
 |Havannah|DONE|
 |TicTacToe|DONE|
 |TicTacToe.Ultimate|DONE|

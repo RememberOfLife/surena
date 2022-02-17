@@ -90,6 +90,14 @@ namespace surena {
             void set_current_player(PLAYER p);
             void set_result(PLAYER p);
 
+            uint64_t count_positions(int depth); // simple perft
+
+        private:
+
+            void apply_move_internal(uint64_t move_id, bool replace_castling_by_kings = false);
+
+            std::vector<uint64_t> get_moves_pseudo_legal();
+
     };
 
 }
