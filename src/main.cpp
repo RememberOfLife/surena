@@ -21,17 +21,17 @@ int main()
 {
     printf("surena v%s\n", surena::version);
     surena::Engine* engine = new surena::SinglethreadedMCTS();
-    surena::Game* thegame = new surena::Chess();
+    surena::Game* thegame = new surena::TicTacToe();
     engine->set_gamestate(thegame);
     thegame->debug_print();
     while (engine->player_to_move() != 0) {
-        // if (engine->player_to_move() == 2) {
-        //     engine->search_start(5000);
-        //     engine->debug_print();
-        //     engine->apply_move(engine->get_best_move());
-        //     thegame->debug_print();
-        //     continue;
-        // }
+        if (engine->player_to_move() == 2) {
+            engine->search_start(5000);
+            engine->debug_print();
+            engine->apply_move(engine->get_best_move());
+            thegame->debug_print();
+            continue;
+        }
         printf("player to move %d: ", engine->player_to_move());
         std::string move_string;
         std::cin >> move_string;

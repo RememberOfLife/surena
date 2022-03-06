@@ -75,7 +75,7 @@ namespace surena {
                     float curr_weigth = (
                         (static_cast<float>(curr_node->reward_count) / static_cast<float>(curr_node->playout_count)) +
                         (
-                            10.4f *
+                            10.4f * //TODO make this an option for the engine
                             sqrtf( logf(static_cast<float>(parent_playouts)) / static_cast<float>(curr_node->playout_count) )
                         )
                     );
@@ -99,7 +99,12 @@ namespace surena {
                     if (target_node->parent) {
                         parent_player_to_move = target_node->parent->player_to_move;
                     }
-                    target_node->reward_count += (reward_player == parent_player_to_move) ? 1 : 0;
+                    // give reward 2 if winning player, if draw then give reward 1 to all
+                    if (reward_player == parent_player_to_move) {
+                        target_node->reward_count += 2;
+                    } else if (reward_player == 0) {
+                        target_node->reward_count += 1;
+                    }
                     target_node = target_node->parent;
                 }
                 continue;
@@ -124,7 +129,12 @@ namespace surena {
                     if (target_node->parent){
                         parent_player_to_move = target_node->parent->player_to_move;
                     }
-                    backprop_node->reward_count += (reward_player == parent_player_to_move) ? 1 : 0;
+                    // give reward 2 if winning player, if draw then give reward 1 to all
+                    if (reward_player == parent_player_to_move) {
+                        backprop_node->reward_count += 2;
+                    } else if (reward_player == 0) {
+                        backprop_node->reward_count += 1;
+                    }
                     backprop_node = backprop_node->parent;
                 }
             }
