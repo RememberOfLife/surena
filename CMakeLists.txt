@@ -1,5 +1,20 @@
 cmake_minimum_required(VERSION 3.18)
-project(surena)
+set (CMAKE_CXX_STANDARD 11)
+
+project(surena C CXX)
+
+include(CheckIPOSupported)
+check_ipo_supported(RESULT supported OUTPUT error)
+if(NOT CMAKE_BUILD_TYPE MATCHES "[Dd][Ee][Bb][Uu][Gg].*")
+    if(supported)
+        message(STATUS "IPO/LTO enabled")
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+    else()
+        message(STATUS "IPO/LTO not supported: <${error}>")
+    endif()
+else()
+    message(STATUS "IPO/LTO disabled in non-release build")
+endif()
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -26,6 +41,8 @@ set(SOURCES
 )
 
 add_executable(surena ${SOURCES})
+
+# target_compile_options(mirabel PRIVATE "-Wall")
 
 target_include_directories(surena PRIVATE ${INCLUDES})
 

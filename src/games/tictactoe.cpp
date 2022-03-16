@@ -15,13 +15,117 @@ namespace surena {
 
     void TicTacToe::import_state(const char* str)
     {
-        //TODO
+        // load to diy tictactoe format, somewhat like chess fen
+        int y = 2;
+        int x = 0;
+        // get square fillings
+        bool advance_segment = false;
+        while (!advance_segment) {
+            switch (*str) {
+                case 'X': {
+                    set_cell(x++, y, PLAYER_X);
+                } break;
+                case 'O': {
+                    set_cell(x++, y, PLAYER_O);
+                } break;
+                case '1':
+                case '2':
+                case '3': { // empty squares
+                    for (int place_empty = (*str)-'0'; place_empty > 0; place_empty--) {
+                    set_cell(x++, y, PLAYER_NONE);
+                    }
+                } break;
+                case '/': { // advance to next
+                    y--;
+                    x = 0;
+                } break;
+                case ' ': { // advance to next segment
+                    advance_segment = true;
+                } break;
+            }
+            str++;
+        }
+        // current player
+        switch (*str) {
+            case '-': {
+                set_current_player(PLAYER_NONE);
+            } break;
+            case 'X': {
+                set_current_player(PLAYER_X);
+            } break;
+            case 'O': {
+                set_current_player(PLAYER_O);
+            } break;
+        }
+        str += 2;
+        // result player
+        switch (*str) {
+            case '-': {
+                set_result(PLAYER_NONE);
+            } break;
+            case 'X': {
+                set_result(PLAYER_X);
+            } break;
+            case 'O': {
+                set_result(PLAYER_O);
+            } break;
+        }
     }
 
     uint32_t TicTacToe::export_state(char* str)
     {
-        //TODO
-        return 0;
+        // save to diy tictactoe format, somewhat like chess fen
+        if (str == NULL) {
+            return 16; // max 15 + 1 zero terminator byte
+        }
+        const char* ostr = str;
+        // save board
+        for (int y = 2; y >= 0; y--) {
+            int empty_squares = 0;
+            for (int x = 0; x < 3; x++) {
+                if (get_cell(x, y) == PLAYER_NONE) {
+                    empty_squares++;
+                } else {
+                    // if the current square isnt empty, print its representation, before that print empty squares, if applicable
+                    if (empty_squares > 0) {
+                        str += sprintf(str, "%d", empty_squares);
+                        empty_squares = 0;
+                    }
+                    str += sprintf(str, "%c", (get_cell(x, y) == PLAYER_X ? 'X' : 'O'));
+                }
+            }
+            if (empty_squares > 0) {
+                str += sprintf(str, "%d", empty_squares);
+            }
+            if (y > 0) {
+                str += sprintf(str, "/");
+            }
+        }
+        // current player
+        switch (player_to_move()) {
+            case PLAYER_NONE: {
+                str += sprintf(str, " -");
+            } break;
+            case PLAYER_X: {
+                str += sprintf(str, " X");
+            } break;
+            case PLAYER_O: {
+                str += sprintf(str, " O");
+            } break;
+        }
+        // result player
+        switch (get_result()) {
+            case PLAYER_NONE: {
+                str += sprintf(str, " -");
+            } break;
+            case PLAYER_X: {
+                str += sprintf(str, " X");
+            } break;
+            case PLAYER_O: {
+                str += sprintf(str, " O");
+            } break;
+        }
+        return str-ostr;
     }
 
     uint8_t TicTacToe::player_to_move()
