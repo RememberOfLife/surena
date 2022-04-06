@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
+set (CMAKE_C_STANDARD 11)
 set (CMAKE_CXX_STANDARD 11)
 
 project(surena C CXX)
@@ -36,6 +37,9 @@ set(SOURCES
     src/games/tictactoe.cpp
 
     src/util/fast_prng.cpp
+    src/util/semver.c
+
+    src/game.c
 
     src/main.cpp
 )

@@ -8,18 +8,19 @@
 #include "surena/games/tictactoe_ultimate.hpp"
 #include "surena/games/tictactoe.hpp"
 #include "surena/games/havannah.hpp"
+#include "surena/util/semver.h"
 #include "surena/engine.hpp"
 #include "surena/game.hpp"
 
 namespace surena {
-    const char* version = "0.4.0";
+    const semver version = {0, 5, 0};
 }
 
 // args https://github.com/p-ranav/argparse
 
 int main()
 {
-    printf("surena v%s\n", surena::version);
+    printf("surena v%d.%d.%d\n", surena::version.major, surena::version.minor, surena::version.patch);
     surena::Engine* engine = new surena::SinglethreadedMCTS();
     surena::Game* thegame = new surena::TicTacToe();
     engine->set_gamestate(thegame);

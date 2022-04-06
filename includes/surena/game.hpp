@@ -6,6 +6,8 @@
 
 namespace surena {
 
+    //TODO inherit from C_API struct
+    //TODO expose all the C_API methods
     class Game {
 
         public:
