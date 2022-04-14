@@ -15,6 +15,7 @@ const char* general_error_strings[] = {
     [ERR_INVALID_INPUT] = "invalid input",
     [ERR_INVALID_OPTIONS] = "invalid options",
     [ERR_UNSTABLE_POSITION] = "unstable position",
+    [ERR_SYNC_CTR_MISMATCH] = "sync ctr mismatch",
 };
 
 const char* get_general_error_string(error_code err)

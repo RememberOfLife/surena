@@ -26,20 +26,21 @@ set(INCLUDES
 )
 
 set(SOURCES
-    src/engines/randomengine.cpp
-    src/engines/singlethreadedmcts.cpp
+    # src/engines/randomengine.cpp
+    # src/engines/singlethreadedmcts.cpp
 
-    src/games/alhambra.cpp
-    src/games/caesar.cpp
-    src/games/chess.cpp
-    src/games/havannah.cpp
-    src/games/tictactoe_ultimate.cpp
-    src/games/tictactoe.cpp
+    # src/games/alhambra.cpp
+    # src/games/caesar.cpp
+    # src/games/chess.cpp
+    # src/games/havannah.cpp
+    # src/games/tictactoe_ultimate.cpp
+    # src/games/tictactoe.cpp
 
     src/util/fast_prng.cpp
     src/util/semver.c
 
     src/game.c
+    # src/game.cpp
 
     src/main.cpp
 )

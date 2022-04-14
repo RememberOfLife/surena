@@ -1,72 +1,75 @@
 #pragma once
 
 #include <cstdint>
-#include <string>
-#include <vector>
+
+#include "surena/game.h"
 
 namespace surena {
 
-    //TODO inherit from C_API struct
-    //TODO expose all the C_API methods
     class Game {
 
         public:
+            
+            game gbe; // game backend
+
+            // game names version and features are directly accessed from the game backend
 
             virtual ~Game() = default;
 
-            //TODO should the game expose some functionality to see what type of special moves it has?
-            // i.e. something like feature flags that returns a flat union for things like randomness, simultaneous moves, hidden information?
-            
-            //NOTE:
-            // imperfect information can be collapsed into one possible legal state by using discretize, use as much gathered information about unknown players as possible when collapsing
-            // random events are represented using the 0xFF player id
-            // simultaneous move games present the union of all moves for all simultaneously moving players as available moves and the applied moves for every simultaneously moving player until all are gathered for processing
+            const char* get_error_string(error_code err);
 
-            // there are no state guarantees if this is passed an invalid state string, //TODO is this sane? maybe return a bool + no-crash guarantee?
-            // load the gamestate from the given string, does nothing if NULL
-            virtual void import_state(const char* str) = 0;
-            // if data is NULL then this returns the minimum size of buffer to allocate for data
-            // returns the length of the state string written, 0 if failure
-            virtual uint32_t export_state(char* str) = 0; 
+            error_code init();
 
-            //TODO state id (e.g. zobrist)
-            //virtual uint64_t id() = 0;
+            error_code free();
 
-            // returns the playerID to move from this state, 0 if the game is over
-            virtual uint8_t player_to_move() = 0;
+            error_code clone(game** ret_clone);
 
-            // returns an unordered list of available moves
-            virtual std::vector<uint64_t> get_moves() = 0;
-            //TODO unordered iterator over all available moves
+            error_code copy_from(game* other);
 
-            // performs a move on the gamestate, non reversible
-            // moves not in the available moves list cause undefined behaviour
-            virtual void apply_move(uint64_t move_id) = 0;
+            error_code compare(game* other, bool ret_equal);
 
-            // returns the winning playerID, 0 if the game is not over yet or is a draw
-            virtual uint8_t get_result() = 0;
+            error_code import_state(const char* str);
 
-            //TODO evaluation function
+            error_code export_state(size_t* ret_size, char* str);
 
-            // discretize the gamestate into a random legal state influenced by the seed and internal state set
-            // only to be called once, irreversible
-            virtual void discretize(uint64_t seed) = 0;
+            error_code get_player_count(uint8_t* ret_count);
 
-            // playouts the game by randomly playing legal moves until the game is over, returns get_result
-            virtual uint8_t perform_playout(uint64_t seed) = 0;
+            error_code players_to_move(uint8_t* ret_count, player_id* players);
 
-            virtual Game* clone() = 0;
-            virtual void copy_from(Game* target) = 0;
+            error_code get_concrete_moves(uint32_t* ret_count, move_code* moves, player_id player);
 
-            //TODO redo these to be like import/export state on char*
-            // move id transformation functions
-            // uint64_t <-> string
-            virtual uint64_t get_move_id(std::string move_string) = 0;
-            virtual std::string get_move_string(uint64_t move_id) = 0;
+            error_code get_concrete_move_probabilities(uint32_t* ret_count, float* move_probabilities, player_id player);
 
-            virtual void debug_print() = 0;
+            error_code get_concrete_moves_ordered(uint32_t* ret_count, move_code* moves, player_id player);
 
-            //TODO general description string?
+            error_code get_actions(uint32_t* ret_count, move_code* moves, player_id player);
+
+            error_code is_legal_move(player_id player, move_code move, uint32_t sync_ctr);
+
+            error_code move_to_action(move_code* ret_action, move_code move);
+
+            error_code is_action(bool* ret_is_action, move_code move);
+            error_code make_move(player_id player, move_code move);
+
+            error_code get_results(uint8_t* ret_count, player_id* players);
+
+            error_code id(uint64_t* ret_id);
+
+            error_code eval(float* ret_eval, player_id player);
+
+            error_code discretize(uint64_t seed);
+
+            error_code playout(uint64_t seed);
+
+            error_code redact_keep_state(player_id* players, uint32_t count);
+
+            error_code get_move_code(move_code* ret_move, const char* str);
+
+            error_code get_move_str(size_t* ret_size, char* str_buf, move_code move);
+
+            error_code debug_print(size_t* ret_size, char* str_buf);
+
+            // internal methods are exposed by every Game on its own, or accessed through the game backend
 
     };
 

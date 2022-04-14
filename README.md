@@ -33,6 +33,7 @@ General purpose board game backend and some AI to go with it.
 
 
 ## todos
+* replace prng by squirrelnoise5
 * engine search timeout should be uint32_t
 * engine needs compat. check for games
 

@@ -10,11 +10,13 @@ extern "C" {
 
 #include "surena/util/semver.h"
 
-#define SURENA_GAME_API_VERSION ((uint64_t)1)
+#define SURENA_GAME_API_VERSION ((uint64_t)2)
 
 typedef uint32_t error_code;
 // general purpose error codes
 enum ERR {
+    //TODO state_uninitialized
+    //TODO not_implemented
     ERR_OK = 0,
     ERR_STATE_UNRECOVERABLE,
     ERR_STATE_CORRUPTED,
@@ -23,6 +25,7 @@ enum ERR {
     ERR_INVALID_INPUT,
     ERR_INVALID_OPTIONS,
     ERR_UNSTABLE_POSITION,
+    ERR_SYNC_CTR_MISMATCH,
     ERR_ENUM_DEFAULT_OFFSET, // not an error, start game method specific error enums at this offset
 };
 // returns NULL if the err is not a general error
@@ -70,7 +73,9 @@ typedef struct game_feature_flags {
 
 typedef struct game game; // forward declare the game for the game methods
 
-typedef struct game_method {
+typedef struct game_methods {
+    //TODO do str buf functions return the byte size, or character size excluding the null terminator
+
     // the game methods functions work ONLY on the data supplied to it in the game
     // i.e. they are threadsafe across multiple games, but not within one game instance
     // use of lookup tables and similar constant read only game external structures is ok
@@ -93,23 +98,25 @@ typedef struct game_method {
     const semver version;
     const game_feature_flags features; // these will never change depending on options
 
-    // returns the error string representing the error code
-    // returns NULL if the error code is not a valid error on this game method
-    // the string is still owned by the game method backend, do not free it
-    const char* (*get_error_string)(error_code err);
-
     // the game method specific internal method struct, NULL if not available
     // use the {base,variant,impl} name to make sure you know what this will be
     // e.g. these would expose get_cell and set_cell on a tictactoe board to enable rw-access to the state 
     void* internal_methods;
 
-    // initializes a new game specific data object into self
+    // returns the error string representing the error code
+    // returns NULL if the error code is not a valid error on this game method
+    // the string is still owned by the game method backend, do not free it
+    const char* (*get_error_string)(error_code err);
+
+    // construct and initialize a new game specific data object into self
     // options, if any, have to already be set on the supplied game
     // returns non ok if initialization failed because of invalid options
-    error_code (*init)(game* self);
+    // if this fails then no game data should be allocated
+    error_code (*create)(game* self);
+    //TODO does this load the default game state by default?
 
     // deconstruct and release any (complex) game specific data
-    error_code (*free)(game* self);
+    error_code (*destroy)(game* self);
 
     // returns a newly allocated deep clone of the self game state
     error_code (*clone)(game* self, game** ret_clone);
@@ -120,7 +127,7 @@ typedef struct game_method {
 
     // returns true iff self and other are perceived equal state (by the game method)
     // e.g. this includes move counters in chess, but not any exchangable backend data structures
-    error_code (*compare)(game* self, game* other, bool ret_equal);
+    error_code (*compare)(game* self, game* other, bool* ret_equal);
 
     // load the game state from the given string
     // if str is NULL then the initial position is loaded
@@ -134,7 +141,7 @@ typedef struct game_method {
     //=====
 
     // writes the game state to a universal state string
-    // returns the length of the state string written, 0 if failure
+    // returns the length of the state string written, 0 if failure, excluding null character
     // if str is NULL, returns the minimum required byte size of the string buffer
     error_code (*export_state)(game* self, size_t* ret_size, char* str);
 
@@ -170,6 +177,7 @@ typedef struct game_method {
     // moves written are ordered according to the game method, from perceived strongest to weakest
     error_code (*get_concrete_moves_ordered)(game* self, uint32_t* ret_count, move_code* moves, player_id player);
 
+    // FEATURE: random_moves || hidden_information
     // writes the available action moves for the player from this position
     // writes no action moves if there are no action moves available
     // if moves is NULL, returns the max count this will require
@@ -178,13 +186,16 @@ typedef struct game_method {
     // returns whether or not this move would be legal to make on the current state
     // equivalent to the fallback check of: move in list of get_moves?
     // should be optimized by the game method if possible
+    // REAL commutative moves in a situation for simultaneous moves can be performed on dissimilar sync ctrs, at the games discretion
     error_code (*is_legal_move)(game* self, player_id player, move_code move, uint32_t sync_ctr);
-    //TODO return move rejection codes for simultaneous moves on dissimilar game states
+    //TODO does this *only* take valid moves in the first place?
 
+    // FEATURE: random_moves || hidden_information
     // returns the action representing the information set transformation of the (concrete) LEGAL move (action instance)
     // if move is already an action then it is directly returned unaltered
     error_code (*move_to_action)(game* self, move_code* ret_action, move_code move);
 
+    // FEATURE: random_moves || hidden_information
     // convenience wrapper
     // returns true if the move represents an action
     error_code (*is_action)(game* self, bool* ret_is_action, move_code move);
@@ -228,30 +239,32 @@ typedef struct game_method {
     // if PLAYER_RAND is not in players, then the seed (and all internal hidden information) is redacted as well
     error_code (*redact_keep_state)(game* self, player_id* players, uint32_t count);
 
+    //TODO do move code/str functions need the player too? also more safety guarantees for them
+
     // returns the game method specific move code representing the universal move string
     // if the move string does not represent a valid move this returns MOVE_NONE (NOTE: avoid crashes)
     error_code (*get_move_code)(game* self, move_code* ret_move, const char* str);
 
     // writes the universal move string representing the game specific move code
     // if str_buf is NULL, returns the size required
-    // returns number of characters written to string buffer on success
+    // returns number of characters written to string buffer on success, excluding null character
     error_code (*get_move_str)(game* self, size_t* ret_size, char* str_buf, move_code move);
 
     // OPTIONAL SUPPORT
     // debug print the game state into the str_buf
     // if str_buf is NULL, returns the size required
-    // returns the number of characters written to string buffer on success
+    // returns the number of characters written to string buffer on success, excluding null character
     error_code (*debug_print)(game* self, size_t* ret_size, char* str_buf);
 
-} game_method;
+} game_methods;
 
-typedef struct game {
+struct game {
     uint32_t sync_ctr; // inc by one everytime a move is made, the game method does this itself
     uint32_t padding; //TODO use this properly for something
     void* data;
     void* options;
-    game_method* method;
-} game;
+    const game_methods* methods;
+};
 
 #ifdef __cplusplus
 }
