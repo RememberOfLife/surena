@@ -1,20 +1,126 @@
 #include <cstdint>
 #include <cstdio>
-#include <string>
-#include <vector>
+#include <cstdlib>
+#include <cstring>
 
 #include "surena/util/fast_prng.hpp"
+#include "surena/util/semver.h"
+#include "surena/game.h"
 
-#include "surena/games/tictactoe.hpp"
+#include "surena/games/tictactoe.h"
 
 namespace surena {
 
-    TicTacToe::TicTacToe():
-        state(PLAYER_X << 18) // player one starts
-    {}
+    /*
+    board as:
+    789
+    456
+    123
+    state bits: ... RR CC 998877 665544 332211
+    where RR is results and CC is current player
+    */
+    
+    // game data state representation and general getter
 
-    void TicTacToe::import_state(const char* str)
+    typedef struct data_repr {
+        uint32_t state;
+    } data_repr;
+
+    data_repr& _get_repr(game* self)
     {
+        return *((data_repr*)(self->data));
+    }
+
+    // forward declare everything to allow for inlining at least in this unit
+
+    static const char* _get_error_string(error_code err);
+    static error_code _create(game* self);
+    static error_code _destroy(game* self);
+    static error_code _clone(game* self, game** ret_clone);
+    static error_code _copy_from(game* self, game* other);
+    static error_code _compare(game* self, game* other, bool* ret_equal);
+    static error_code _import_state(game* self, const char* str);
+    static error_code _export_state(game* self, size_t* ret_size, char* str);
+    static error_code _get_player_count(game* self, uint8_t* ret_count);
+    static error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players);
+    static error_code _get_concrete_moves(game* self, uint32_t* ret_count, move_code* moves, player_id player);
+    static error_code _is_legal_move(game* self, player_id player, move_code move, uint32_t sync_ctr);
+    static error_code _make_move(game* self, player_id player, move_code move);
+    static error_code _get_results(game* self, uint8_t* ret_count, player_id* players);
+    static error_code _id(game* self, uint64_t* ret_id);
+    static error_code _playout(game* self, uint64_t seed);
+    static error_code _get_move_code(game* self, move_code* ret_move, const char* str);
+    static error_code _get_move_str(game* self, size_t* ret_size, char* str_buf, move_code move);
+    static error_code _debug_print(game* self, size_t* ret_size, char* str_buf);
+
+    static error_code _get_cell(game* self, int x, int y, player_id* p);
+    static error_code _set_cell(game* self, int x, int y, player_id p);
+    static error_code _set_current_player(game* self, player_id p);
+    static error_code _set_result(game* self, player_id p);
+
+    // implementation
+
+    static const char* _get_error_string(error_code err)
+    {
+        const char* gen_err_str = get_general_error_string(err);
+        if (gen_err_str != NULL) {
+            return gen_err_str;
+        }
+        return "unknown error";
+    }
+
+    static error_code _create(game* self)
+    {
+        self->data = malloc(sizeof(data_repr));
+        if (self->data == NULL) {
+            return ERR_OUT_OF_MEMORY;
+        }
+        return ERR_OK;
+    }
+
+    static error_code _destroy(game* self)
+    {
+        free(self->data);
+        return ERR_OK;
+    }
+
+    static error_code _clone(game* self, game** ret_clone)
+    {
+        game* clone = (game*)malloc(sizeof(game));
+        if (clone == NULL) {
+            return ERR_OUT_OF_MEMORY;
+        }
+        *clone = *self;
+        error_code ec = clone->methods->create(clone);
+        if (ec != ERR_OK) {
+            return ec;
+        }
+        memcpy(clone->data, self->data, sizeof(data_repr));
+        *ret_clone = clone;
+        return ERR_OK;
+    }
+    
+    static error_code _copy_from(game* self, game* other)
+    {
+        *self = *other;
+        memcpy(self->data, other->data, sizeof(data_repr));
+        return ERR_OK;
+    }
+
+    static error_code _compare(game* self, game* other, bool* ret_equal)
+    {
+        *ret_equal = (self->sync_ctr == other->sync_ctr) && (memcmp(self->data, other->data, sizeof(data_repr)) == 0);
+        return ERR_OK;
+    }
+
+    static error_code _import_state(game* self, const char* str)
+    {
+        data_repr& data = _get_repr(self);
+        if (str == NULL) {
+            data.state = 1 << 18; // player one starts
+            return ERR_OK;
+        }
+        data.state = 0;
         // load to diy tictactoe format, somewhat like chess fen
         int y = 2;
         int x = 0;
@@ -23,16 +129,28 @@ namespace surena {
         while (!advance_segment) {
             switch (*str) {
                 case 'X': {
-                    set_cell(x++, y, PLAYER_X);
+                    if (x > 2 || y < 0) {
+                        // out of bounds board
+                        return ERR_INVALID_OPTIONS;
+                    }
+                    _set_cell(self, x++, y, 1);
                 } break;
                 case 'O': {
-                    set_cell(x++, y, PLAYER_O);
+                    if (x > 2 || y < 0) {
+                        // out of bounds board
+                        return ERR_INVALID_OPTIONS;
+                    }
+                    _set_cell(self, x++, y, 2);
                 } break;
                 case '1':
                 case '2':
                 case '3': { // empty squares
                     for (int place_empty = (*str)-'0'; place_empty > 0; place_empty--) {
-                    set_cell(x++, y, PLAYER_NONE);
+                        if (x > 2) {
+                            // out of bounds board
+                            return ERR_INVALID_OPTIONS;
+                        }
+                        _set_cell(self, x++, y, PLAYER_NONE);
                     }
                 } break;
                 case '/': { // advance to next
@@ -42,37 +160,55 @@ namespace surena {
                 case ' ': { // advance to next segment
                     advance_segment = true;
                 } break;
+                default: {
+                    // failure, ran out of str to use or got invalid character
+                    return ERR_INVALID_OPTIONS;
+                } break;
             }
             str++;
         }
         // current player
         switch (*str) {
             case '-': {
-                set_current_player(PLAYER_NONE);
+                _set_current_player(self, PLAYER_NONE);
             } break;
             case 'X': {
-                set_current_player(PLAYER_X);
+                _set_current_player(self, 1);
             } break;
             case 'O': {
-                set_current_player(PLAYER_O);
+                _set_current_player(self, 2);
+            } break;
+            default: {
+                // failure, ran out of str to use or got invalid character
+                return ERR_INVALID_OPTIONS;
             } break;
         }
-        str += 2;
+        str++;
+        if (*str != ' ') {
+            // failure, ran out of str to use or got invalid character
+            return ERR_INVALID_OPTIONS;
+        }
+        str++;
         // result player
         switch (*str) {
             case '-': {
-                set_result(PLAYER_NONE);
+                _set_result(self, PLAYER_NONE);
             } break;
             case 'X': {
-                set_result(PLAYER_X);
+                _set_result(self, 1);
             } break;
             case 'O': {
-                set_result(PLAYER_O);
+                _set_result(self, 2);
+            } break;
+            default: {
+                // failure, ran out of str to use or got invalid character
+                return ERR_INVALID_OPTIONS;
             } break;
         }
+        return ERR_OK;
     }
 
-    uint32_t TicTacToe::export_state(char* str)
+    static error_code _export_state(game* self, size_t* ret_size, char* str)
     {
         // save to diy tictactoe format, somewhat like chess fen
         if (str == NULL) {
@@ -80,18 +216,20 @@ namespace surena {
         }
         const char* ostr = str;
         // save board
+        player_id cell_player;
         for (int y = 2; y >= 0; y--) {
             int empty_squares = 0;
             for (int x = 0; x < 3; x++) {
-                if (get_cell(x, y) == PLAYER_NONE) {
+                _get_cell(self, x, y, &cell_player);
+                if (cell_player == PLAYER_NONE) {
                     empty_squares++;
                 } else {
-                    // if the current square isnt empty, print its representation, before that print empty squares, if applicable
+                    // if the current square isnt empty, print its representation, before that print empty squares, if any
                     if (empty_squares > 0) {
                         str += sprintf(str, "%d", empty_squares);
                         empty_squares = 0;
                     }
-                    str += sprintf(str, "%c", (get_cell(x, y) == PLAYER_X ? 'X' : 'O'));
+                    str += sprintf(str, "%c", (cell_player == 1 ? 'X' : 'O'));
                 }
             }
             if (empty_squares > 0) {
@@ -102,194 +240,386 @@ namespace surena {
             }
         }
         // current player
-        switch (player_to_move()) {
+        player_id ptm;
+        uint8_t ptm_count;
+        _players_to_move(self, &ptm_count, &ptm);
+        if (ptm_count == 0) {
+            ptm = PLAYER_NONE;
+        }
+        switch (ptm) {
             case PLAYER_NONE: {
                 str += sprintf(str, " -");
             } break;
-            case PLAYER_X: {
+            case 1: {
                 str += sprintf(str, " X");
             } break;
-            case PLAYER_O: {
+            case 2: {
                 str += sprintf(str, " O");
             } break;
         }
         // result player
-        switch (get_result()) {
+        player_id res;
+        uint8_t res_count;
+        _get_results(self, &res_count, &res);
+        if (res_count == 0) {
+            res = PLAYER_NONE;
+        }
+        switch (res) {
             case PLAYER_NONE: {
                 str += sprintf(str, " -");
             } break;
-            case PLAYER_X: {
+            case 1: {
                 str += sprintf(str, " X");
             } break;
-            case PLAYER_O: {
+            case 2: {
                 str += sprintf(str, " O");
             } break;
         }
-        return str-ostr;
+        *ret_size = str-ostr;
+        return ERR_OK;
     }
 
-    uint8_t TicTacToe::player_to_move()
+    static error_code _get_player_count(game* self, uint8_t* ret_count)
     {
-        return static_cast<uint8_t>((state >> 18) & 0b11);
+        *ret_count = 2;
+        return ERR_OK;
     }
 
-    std::vector<uint64_t> TicTacToe::get_moves()
+    static error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players)
     {
-        std::vector<uint64_t> moves{};
-        // if game is over, return empty move list
-        if (player_to_move() == 0) {
-            return moves;
+        *ret_count = 1;
+        if (players == NULL) {
+            return ERR_OK;
         }
+        data_repr& data = _get_repr(self);
+        player_id ptm = (data.state >> 18) & 0b11;
+        if (ptm == PLAYER_NONE) {
+            *ret_count = 0;
+            return ERR_OK;
+        }
+        *players = ptm;
+        return ERR_OK;
+    }
+
+    static error_code _get_concrete_moves(game* self, uint32_t* ret_count, move_code* moves, player_id player)
+    {
+        if (moves == NULL) {
+            *ret_count = 9;
+            return ERR_OK;
+        }
+        player_id ptm;
+        uint8_t ptm_count;
+        _players_to_move(self, &ptm_count, &ptm);
+        if (ptm_count == 0 || player != ptm) {
+            *ret_count = 0;
+            return ERR_OK;
+        }
+        uint32_t count = 0;
+        player_id cell_player;
         for (int y = 0; y < 3; y++) {
             for (int x = 0; x < 3; x++) {
-                if (get_cell(x, y) == 0) {
-                    moves.emplace_back((y<<2)|x);
+                _get_cell(self, x, y, &cell_player);
+                if (cell_player == PLAYER_NONE) {
+                    moves[count++] = (y << 2) | x;
                 }
             }
         }
-        return moves;
+        *ret_count = count;
+        return ERR_OK;
     }
 
-    void TicTacToe::apply_move(uint64_t move_id)
+    static error_code _is_legal_move(game* self, player_id player, move_code move, uint32_t sync_ctr)
     {
+        if (self->sync_ctr != sync_ctr) {
+            return ERR_SYNC_CTR_MISMATCH;
+        }
+        if (move == MOVE_NONE) {
+            return ERR_INVALID_INPUT;
+        }
+        player_id ptm;
+        uint8_t ptm_count;
+        _players_to_move(self, &ptm_count, &ptm);
+        if (ptm != player) {
+            return ERR_INVALID_INPUT;
+        }
+        int x = move & 0b11;
+        int y = (move >> 2) & 0b11;
+        if (x > 2 || y > 2) {
+            return ERR_INVALID_INPUT;
+        }
+        player_id cell_player;
+        _get_cell(self, x, y, &cell_player);
+        if (cell_player != PLAYER_NONE) {
+            return ERR_INVALID_INPUT;
+        }
+        return ERR_OK;
+    }
+
+    static error_code _make_move(game* self, player_id player, move_code move)
+    {
+        self->sync_ctr++;
+        data_repr& data = _get_repr(self);
         // set move as current player
-        int x = move_id & 0b11;
-        int y = (move_id >> 2) & 0b11;
-        int current_player = (state >> 18) & 0b11;
-        set_cell(x, y, current_player);
+        int x = move & 0b11;
+        int y = (move >> 2) & 0b11;
+        int current_player = (data.state >> 18) & 0b11;
+        _set_cell(self, x, y, current_player);
         // detect win for current player
         bool win = false;
         for (int i = 0; i < 3; i++) {
-            if (get_cell(0, i) == get_cell(1, i) && get_cell(0, i) == get_cell(2, i) && get_cell(0, i) != 0
-            || get_cell(i, 0) == get_cell(i, 1) && get_cell(i, 0) == get_cell(i, 2) && get_cell(i, 0) != 0) {
+            player_id cell_player_0i;
+            player_id cell_player_1i;
+            player_id cell_player_2i;
+            player_id cell_player_i0;
+            player_id cell_player_i1;
+            player_id cell_player_i2;
+            _get_cell(self, 0, i, &cell_player_0i);
+            _get_cell(self, 1, i, &cell_player_1i);
+            _get_cell(self, 2, i, &cell_player_2i);
+            _get_cell(self, i, 0, &cell_player_i0);
+            _get_cell(self, i, 1, &cell_player_i1);
+            _get_cell(self, i, 2, &cell_player_i2);
+            if (cell_player_0i == cell_player_1i && cell_player_0i == cell_player_2i && cell_player_0i != 0
+                || cell_player_i0 == cell_player_i1 && cell_player_i0 == cell_player_i2 && cell_player_i0 != 0) {
                 win = true;
             }
         }
-        if ((get_cell(0, 0) == get_cell(1, 1) && get_cell(0, 0) == get_cell(2, 2)
-        || get_cell(0, 2) == get_cell(1, 1) && get_cell(0, 2) == get_cell(2, 0)) && get_cell(1, 1) != 0) {
+        player_id cell_player_00;
+        player_id cell_player_11;
+        player_id cell_player_22;
+        player_id cell_player_02;
+        player_id cell_player_20;
+        _get_cell(self, 0, 0, &cell_player_00);
+        _get_cell(self, 1, 1, &cell_player_11);
+        _get_cell(self, 2, 2, &cell_player_22);
+        _get_cell(self, 0, 2, &cell_player_02);
+        _get_cell(self, 2, 0, &cell_player_20);
+        if ((cell_player_00 == cell_player_11 && cell_player_00 == cell_player_22
+            || cell_player_02 == cell_player_11 && cell_player_02 == cell_player_20) && cell_player_11 != 0) {
             win = true;
         }
         if (win) {
             // current player has won, mark result as current player and set current player to 0
-            state &= ~(0b11<<20); // reset result to 0, otherwise result may be 4 after an internal state update
-            state |= current_player << 20;
-            state &= ~(0b11<<18);
-            return;
+            data.state &= ~(0b11<<20); // reset result to 0, otherwise result may be 4 after an internal state update
+            data.state |= current_player << 20;
+            data.state &= ~(0b11<<18);
+            return ERR_OK;
         }
         // detect draw
         bool draw = true;
         for (int i = 0; i < 18; i += 2) {
-            if (((state >> i) & 0b11) == 0) {
+            if (((data.state >> i) & 0b11) == 0) {
                 draw = false;
                 break;
             }
         }
         if (draw) {
             // set current player to 0, result is 0 already
-            state &= ~(0b11<<18);
-            return;
+            data.state &= ~(0b11<<18);
+            return ERR_OK;
         }
         // switch player
-        int next_player = (current_player == PLAYER_X) ? PLAYER_O : PLAYER_X;
-        state ^= (current_player ^ next_player) << 18;
+        _set_current_player(self, (current_player == 1) ? 2 : 1);
+        printf("player switched\n");
+        return ERR_OK;
     }
 
-    uint8_t TicTacToe::get_result()
+    static error_code _get_results(game* self, uint8_t* ret_count, player_id* players)
     {
-        return static_cast<uint8_t>((state >> 20) & 0b11);
+        if (players == NULL) {
+            *ret_count = 1;
+            return ERR_OK;
+        }
+        data_repr& data = _get_repr(self);
+        player_id result = (player_id)((data.state >> 20) & 0b11);
+        if (result == PLAYER_NONE) {
+            *ret_count = 0;
+            return ERR_OK;
+        }
+        players[0] = result;
+        *ret_count = 1;
+        return ERR_OK;
     }
 
-    void TicTacToe::discretize(uint64_t seed)
-    {}
-
-    uint8_t TicTacToe::perform_playout(uint64_t seed)
+    static error_code _id(game* self, uint64_t* ret_id)
     {
+        data_repr& data = _get_repr(self);
+        fast_prng rng(data.state);
+        *ret_id = ((uint64_t)rng.rand() << 32) | rng.rand();
+        return ERR_OK;
+    }
+
+    static error_code _playout(game* self, uint64_t seed)
+    {
+        data_repr& data = _get_repr(self);
         fast_prng rng(seed);
-        while (player_to_move() != 0) {
-            std::vector<uint64_t> moves_available = get_moves();
-            apply_move(moves_available[rng.rand()%moves_available.size()]);
+        move_code moves[9];
+        uint32_t moves_count;
+        player_id ptm;
+        uint8_t ptm_count;
+        _players_to_move(self, &ptm_count, &ptm);
+        while (ptm_count > 0) {
+            _get_concrete_moves(self, &moves_count, moves, ptm);
+            _make_move(self, ptm ,moves[rng.rand()%moves_count]);
+            _players_to_move(self, &ptm_count, &ptm);
         }
-        return get_result();
+        return ERR_OK;
     }
 
-    surena::Game* TicTacToe::clone() 
+    static error_code _get_move_code(game* self, move_code* ret_move, const char* str)
     {
-        return new TicTacToe(*this);
-    }
-
-    void TicTacToe::copy_from(Game* target) 
-    {
-        *this = *static_cast<TicTacToe*>(target);
-    }
-    
-    uint64_t TicTacToe::get_move_id(std::string move_string)
-    {
-        if (move_string.length() != 2) {
-            return UINT64_MAX;
+        if (strlen(str) >= 1 && str[0] == '-') {
+            *ret_move = MOVE_NONE;
+            return ERR_INVALID_INPUT;
         }
-        uint64_t move_id = 0;
-        move_id |= (move_string[0]-'A');
-        move_id |= (move_string[1]-'0') << 2;
-        return move_id;
+        if (strlen(str) != 2) {
+            *ret_move = MOVE_NONE;
+            return ERR_INVALID_INPUT;
+        }
+        move_code move_id = 0;
+        int x = (str[0]-'a');
+        int y = (str[1]-'0');
+        if (x < 0 || x > 2 || y < 0 || y > 2) {
+            *ret_move = MOVE_NONE;
+            return ERR_INVALID_INPUT;
+        }
+        move_id |= x;
+        move_id |= (y << 2);
+        *ret_move = move_id;
+        return ERR_OK;
     }
 
-    std::string TicTacToe::get_move_string(uint64_t move_id)
+    static error_code _get_move_str(game* self, size_t* ret_size, char* str_buf, move_code move)
     {
-        int x = move_id & 0b11;
-        int y = (move_id >> 2) & 0b11;
-        std::string move_string = "";
-        move_string += ('A'+x);
-        move_string += ('0'+y);
-        return move_string;
+        if (str_buf == NULL) {
+            *ret_size = 3;
+            return ERR_OK;
+        }
+        if (move == MOVE_NONE) {
+            *ret_size = sprintf(str_buf, "-");
+            return ERR_OK;
+        }
+        int x = move & 0b11;
+        int y = (move >> 2) & 0b11;
+        *ret_size = sprintf(str_buf, "%c%c", 'a' + x, '0' + y);
+        return ERR_OK;
     }
 
-    void TicTacToe::debug_print()
+    static error_code _debug_print(game* self, size_t* ret_size, char* str_buf)
     {
+        if (str_buf == NULL) {
+            *ret_size = 13;
+            return ERR_OK;
+        }
+        player_id cell_player;
         for (int y = 2; y >= 0; y--) {
             for (int x = 0; x < 3; x++) {
-                switch (get_cell(x, y)) {
-                    case (PLAYER_X): {
-                        printf("X");
+                _get_cell(self, x, y, &cell_player);
+                switch (cell_player) {
+                    case 1: {
+                        str_buf += sprintf(str_buf, "X");
                     } break;
-                    case (PLAYER_O):{ 
-                        printf("O");
+                    case 2:{ 
+                        str_buf += sprintf(str_buf, "O");
                     } break;
                     default: {
-                        printf(".");
+                        str_buf += sprintf(str_buf, ".");
                     } break;
                 }
             }
-            printf("\n");
+            str_buf += sprintf(str_buf, "\n");
         }
+        return ERR_OK;
     }
 
-    uint8_t TicTacToe::get_cell(int x, int y)
+    //=====
+    // game internal methods
+    
+    static error_code _get_cell(game* self, int x, int y, player_id* p)
     {
+        data_repr& data = _get_repr(self);
         // shift over the correct 2 bits representing the player at that position
-        int v = (state >> (y*6+x*2)) & 0b11;
-        return static_cast<uint8_t>(v);
+        *p = ((data.state >> (y*6+x*2)) & 0b11);
+        return ERR_OK;
     }
 
-    void TicTacToe::set_cell(int x, int y, uint8_t p)
+    static error_code _set_cell(game* self, int x, int y, player_id p)
     {
-        uint64_t v = get_cell(x, y);
+        data_repr& data = _get_repr(self);   
+        player_id pc;
+        _get_cell(self, x, y, &pc);
         int offset = (y*6+x*2);
         // new_state = current_value xor (current_value xor new_value)
-        v = v << offset;
-        v ^= static_cast<uint64_t>(p) << offset;
-        state ^= v;
+        data.state ^= ((((uint32_t)pc) << offset) ^ (((uint32_t)p) << offset));
+        return ERR_OK;
     }
-
-    void TicTacToe::set_current_player(uint8_t p)
+    
+    static error_code _set_current_player(game* self, player_id p)
     {
-        state &= ~(0b11<<18); // reset current player to 0
-        state |= p<<18; // insert new current player
+        data_repr& data = _get_repr(self);   
+        data.state &= ~(0b11<<18); // reset current player to 0
+        data.state |= p<<18; // insert new current player
+        return ERR_OK;
     }
-
-    void TicTacToe::set_result(uint8_t p)
+    
+    static error_code _set_result(game* self, player_id p)
     {
-        state &= ~(0b11<<20); // reset result to 0
-        state |= p<<20; // insert new result
+        data_repr& data = _get_repr(self);        
+        data.state &= ~(0b11<<20); // reset result to 0
+        data.state |= p<<20; // insert new result
+        return ERR_OK;
     }
 
 }
+
+static const tictactoe_internal_methods tictactoe_gbe_internal_methods{
+    .get_cell = surena::_get_cell,
+    .set_cell = surena::_set_cell,
+    .set_current_player = surena::_set_current_player,
+    .set_result = surena::_set_result,
+};
+
+const game_methods tictactoe_gbe{
+
+    .game_name = "TicTacToe",
+    .variant_name = "Standard",
+    .impl_name = "surena_default",
+    .version = semver{0, 1, 0},
+    .features = game_feature_flags{
+        .random_moves = false,
+        .hidden_information = false,
+        .simultaneous_moves = false,
+    },
+    .internal_methods = (void*)&tictactoe_gbe_internal_methods,
+    
+    .get_error_string = surena::_get_error_string,
+    .create = surena::_create,
+    .destroy = surena::_destroy,
+    .clone = surena::_clone,
+    .copy_from = surena::_copy_from,
+    .compare = surena::_compare,
+    .import_state = surena::_import_state,
+    .export_state = surena::_export_state,
+    .get_player_count = surena::_get_player_count,
+    .players_to_move = surena::_players_to_move,
+    .get_concrete_moves = surena::_get_concrete_moves,
+    .get_concrete_move_probabilities = NULL,
+    .get_concrete_moves_ordered = NULL,
+    .get_actions = NULL,
+    .is_legal_move = surena::_is_legal_move,
+    .move_to_action = NULL,
+    .is_action = NULL,
+    .make_move = surena::_make_move,
+    .get_results = surena::_get_results,
+    .id = surena::_id,
+    .eval = NULL,
+    .discretize = NULL,
+    .playout = surena::_playout,
+    .redact_keep_state = NULL,
+    .get_move_code = surena::_get_move_code,
+    .get_move_str = surena::_get_move_str,
+    .debug_print = surena::_debug_print,
+    
+};
+
+//TODO fix X/O enum

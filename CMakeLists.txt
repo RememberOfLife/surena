@@ -34,7 +34,7 @@ set(SOURCES
     # src/games/chess.cpp
     # src/games/havannah.cpp
     # src/games/tictactoe_ultimate.cpp
-    # src/games/tictactoe.cpp
+    src/games/tictactoe.cpp
 
     src/util/fast_prng.cpp
     src/util/semver.c
