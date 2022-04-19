@@ -6,7 +6,7 @@
 // #include "surena/games/alhambra.hpp"
 // #include "surena/games/caesar.hpp"
 // #include "surena/games/chess.hpp"
-// #include "surena/games/tictactoe_ultimate.hpp"
+#include "surena/games/tictactoe_ultimate.h"
 #include "surena/games/tictactoe.h"
 // #include "surena/games/havannah.hpp"
 #include "surena/util/semver.h"
@@ -14,7 +14,7 @@
 #include "surena/game.h"
 
 namespace surena {
-    const semver version = {0, 6, 0};
+    const semver version = {0, 7, 0};
 }
 
 // args https://github.com/p-ranav/argparse
@@ -44,9 +44,12 @@ int main(int argc, char* argv[])
         .padding = 0,
         .data = NULL,
         .options = NULL,
-        .methods = &tictactoe_gbe,
+        .methods = &tictactoe_ultimate_gbe,
     };
     thegame.methods->create(&thegame);
+    printf("created game: %s.%s.%s %d.%d.%d\n",
+        thegame.methods->game_name, thegame.methods->variant_name, thegame.methods->impl_name,
+        thegame.methods->version.major, thegame.methods->version.minor, thegame.methods->version.patch);
     ec = thegame.methods->import_state(&thegame, initial_position);
     if (ec != ERR_OK) {
         printf("failed to import state \"%s\": %d\n", initial_position, ec);
@@ -55,7 +58,9 @@ int main(int argc, char* argv[])
     size_t print_buf_size;
     thegame.methods->debug_print(&thegame, &print_buf_size, NULL);
     char* print_buf = (char*)malloc(print_buf_size);
-    char move_str[3];
+    size_t move_str_size;
+    thegame.methods->get_move_str(&thegame, &move_str_size, NULL, MOVE_NONE);
+    char* move_str = (char*)malloc(move_str_size);
     player_id ptm;
     uint8_t ptm_count;
     thegame.methods->players_to_move(&thegame, &ptm_count, &ptm);

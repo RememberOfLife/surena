@@ -10,23 +10,22 @@
 #include "surena/games/tictactoe.h"
 
 namespace surena {
-
-    /*
-    board as:
-    789
-    456
-    123
-    state bits: ... RR CC 998877 665544 332211
-    where RR is results and CC is current player
-    */
     
     // game data state representation and general getter
 
     typedef struct data_repr {
+        /*
+        board as:
+        789
+        456
+        123
+        state bits (MSB<->LSB): ... RR CC 998877 665544 332211
+        where RR is results and CC is current player
+        */
         uint32_t state;
     } data_repr;
 
-    data_repr& _get_repr(game* self)
+    static data_repr& _get_repr(game* self)
     {
         return *((data_repr*)(self->data));
     }
@@ -121,7 +120,7 @@ namespace surena {
             return ERR_OK;
         }
         data.state = 0;
-        // load to diy tictactoe format, somewhat like chess fen
+        // load from diy tictactoe format, somewhat like chess fen, "board p_cur p_res"
         int y = 2;
         int x = 0;
         // get square fillings
@@ -426,8 +425,8 @@ namespace surena {
 
     static error_code _get_results(game* self, uint8_t* ret_count, player_id* players)
     {
+        *ret_count = 1;
         if (players == NULL) {
-            *ret_count = 1;
             return ERR_OK;
         }
         data_repr& data = _get_repr(self);
@@ -437,7 +436,6 @@ namespace surena {
             return ERR_OK;
         }
         players[0] = result;
-        *ret_count = 1;
         return ERR_OK;
     }
 
