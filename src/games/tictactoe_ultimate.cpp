@@ -5,6 +5,7 @@
 
 #include "surena/util/fast_prng.hpp"
 #include "surena/util/semver.h"
+#include "surena/game_funused.h"
 #include "surena/game.h"
 
 #include "surena/games/tictactoe_ultimate.h"
@@ -31,7 +32,6 @@ namespace surena {
     }
 
     // forward declare everything to allow for inlining at least in this unit
-
     static const char* _get_error_string(error_code err);
     static error_code _create(game* self);
     static error_code _destroy(game* self);
@@ -43,11 +43,19 @@ namespace surena {
     static error_code _get_player_count(game* self, uint8_t* ret_count);
     static error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players);
     static error_code _get_concrete_moves(game* self, uint32_t* ret_count, move_code* moves, player_id player);
+    GF_UNUSED(get_concrete_move_probabilities);
+    GF_UNUSED(get_concrete_moves_ordered);
+    GF_UNUSED(get_actions);
     static error_code _is_legal_move(game* self, player_id player, move_code move, uint32_t sync_ctr);
+    GF_UNUSED(move_to_action);
+    GF_UNUSED(is_action);
     static error_code _make_move(game* self, player_id player, move_code move);
     static error_code _get_results(game* self, uint8_t* ret_count, player_id* players);
     static error_code _id(game* self, uint64_t* ret_id);
+    GF_UNUSED(eval);
+    GF_UNUSED(discretize);
     static error_code _playout(game* self, uint64_t seed);
+    GF_UNUSED(redact_keep_state);
     static error_code _get_move_code(game* self, move_code* ret_move, const char* str);
     static error_code _get_move_str(game* self, size_t* ret_size, char* str_buf, move_code move);
     static error_code _debug_print(game* self, size_t* ret_size, char* str_buf);
@@ -242,6 +250,13 @@ namespace surena {
         _get_cell_local(self, x, y, &cell_player);
         if (cell_player != PLAYER_NONE) {
             return ERR_INVALID_INPUT;
+        }
+        data_repr& data = _get_repr(self);
+        // check if we're playing into the global target, if any
+        if (data.global_target_x >= 0 && data.global_target_y >= 0) {
+            if ((x / 3 != data.global_target_x) || (y / 3 != data.global_target_y)) {
+                return ERR_INVALID_INPUT;
+            }
         }
         return ERR_OK;
     }
@@ -598,33 +613,7 @@ const game_methods tictactoe_ultimate_gbe{
     },
     .internal_methods = (void*)&tictactoe_ultimate_gbe_internal_methods,
     
-    .get_error_string = surena::_get_error_string,
-    .create = surena::_create,
-    .destroy = surena::_destroy,
-    .clone = surena::_clone,
-    .copy_from = surena::_copy_from,
-    .compare = surena::_compare,
-    .import_state = surena::_import_state,
-    .export_state = surena::_export_state,
-    .get_player_count = surena::_get_player_count,
-    .players_to_move = surena::_players_to_move,
-    .get_concrete_moves = surena::_get_concrete_moves,
-    .get_concrete_move_probabilities = NULL,
-    .get_concrete_moves_ordered = NULL,
-    .get_actions = NULL,
-    .is_legal_move = surena::_is_legal_move,
-    .move_to_action = NULL,
-    .is_action = NULL,
-    .make_move = surena::_make_move,
-    .get_results = surena::_get_results,
-    .id = surena::_id,
-    .eval = NULL,
-    .discretize = NULL,
-    .playout = surena::_playout,
-    .redact_keep_state = NULL,
-    .get_move_code = surena::_get_move_code,
-    .get_move_str = surena::_get_move_str,
-    .debug_print = surena::_debug_print,
+    #include "surena/game_impl.h"
     
 };
 

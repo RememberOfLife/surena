@@ -33,9 +33,12 @@ extern const game_methods thegame_gbe;
 ```
 
 //TODO namespace isn't *really* necessary, but makes accessing surena internals easier
+//TODO find some way to remove the forward declaration boilerplate
+use `GF_UNUSED(game_function_name);` to mark a feature function as not supported, for both true features and feature flags
 thegame.cpp
 ```cpp
 #include "surena/util/semver.h"
+#include "surena/game_funused.h"
 #include "surena/game.h"
 
 #include "surena/games/thegame.h"
@@ -52,8 +55,6 @@ namespace surena {
     {
         return *((data_repr*)(self->data));
     }
-
-    // forward declare everything to allow for inlining at least in this unit
 
     static const char* _get_error_string(error_code err);
     static error_code _create(game* self);
@@ -249,33 +250,7 @@ const game_methods tictactoe_gbe{
     },
     .internal_methods = NULL, // (void*)&thegame_gbe_internal_methods,
     
-    .get_error_string = surena::_get_error_string,
-    .create = surena::_create,
-    .destroy = surena::_destroy,
-    .clone = surena::_clone,
-    .copy_from = surena::_copy_from,
-    .compare = surena::_compare,
-    .import_state = surena::_import_state,
-    .export_state = surena::_export_state,
-    .get_player_count = surena::_get_player_count,
-    .players_to_move = surena::_players_to_move,
-    .get_concrete_moves = surena::_get_concrete_moves,
-    .get_concrete_move_probabilities = surena::_get_concrete_move_probabilities,
-    .get_concrete_moves_ordered = surena::_get_concrete_moves_ordered,
-    .get_actions = surena::_get_actions,
-    .is_legal_move = surena::_is_legal_move,
-    .move_to_action = surena::_move_to_action,
-    .is_action = surena::_is_action,
-    .make_move = surena::_make_move,
-    .get_results = surena::_get_results,
-    .id = surena::_id,
-    .eval = surena::_eval,
-    .discretize = surena::_discretize,
-    .playout = surena::_playout,
-    .redact_keep_state = surena::_redact_keep_state,
-    .get_move_code = surena::_get_move_code,
-    .get_move_str = surena::_get_move_str,
-    .debug_print = surena::_debug_print,
+    #include "surena/game_impl.h"
     
 };
 ```
