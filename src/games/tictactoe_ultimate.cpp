@@ -4,6 +4,7 @@
 #include <cstring>
 
 #include "surena/util/fast_prng.hpp"
+#include "surena/util/noise.hpp"
 #include "surena/util/semver.h"
 #include "surena/game_funused.h"
 #include "surena/game.h"
@@ -324,15 +325,12 @@ namespace surena {
 
     static error_code _id(game* self, uint64_t* ret_id)
     {
-        //TODO this is likely horrible
         data_repr& data = _get_repr(self);
-        uint64_t r_id = data.global_board;
-        r_id += data.global_target_x + data.global_target_y + data.current_player;
+        uint32_t r_id = squirrelnoise5((int32_t)data.global_board, data.global_target_x + data.global_target_y + data.current_player);
         for (int i = 0; i < 9; i++) {
-            r_id ^= (uint64_t)data.board[i];
-            r_id *= (uint64_t)data.board[i];
+            r_id = squirrelnoise5((int32_t)data.board[i / 3][i % 3], r_id);
         }
-        *ret_id = r_id;
+        *ret_id = ((uint64_t)r_id << 32) | (uint64_t)squirrelnoise5(r_id, r_id);
         return ERR_OK;
     }
 
@@ -395,7 +393,7 @@ namespace surena {
     static error_code _debug_print(game* self, size_t* ret_size, char* str_buf)
     {
         if (str_buf == NULL) {
-            *ret_size = 143; //TODO size correct?
+            *ret_size = 180; // slightly oversized
             return ERR_OK;
         }
         data_repr& data = _get_repr(self);

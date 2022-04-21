@@ -37,6 +37,7 @@ set(SOURCES
     src/games/tictactoe.cpp
 
     src/util/fast_prng.cpp
+    src/util/noise.cpp
     src/util/semver.c
 
     src/game.c

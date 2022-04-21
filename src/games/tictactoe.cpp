@@ -4,6 +4,7 @@
 #include <cstring>
 
 #include "surena/util/fast_prng.hpp"
+#include "surena/util/noise.hpp"
 #include "surena/util/semver.h"
 #include "surena/game_funused.h"
 #include "surena/game.h"
@@ -427,7 +428,6 @@ namespace surena {
         }
         // switch player
         _set_current_player(self, (current_player == 1) ? 2 : 1);
-        printf("player switched\n");
         return ERR_OK;
     }
 
@@ -450,8 +450,8 @@ namespace surena {
     static error_code _id(game* self, uint64_t* ret_id)
     {
         data_repr& data = _get_repr(self);
-        fast_prng rng(data.state);
-        *ret_id = ((uint64_t)rng.rand() << 32) | rng.rand();
+        uint32_t state_noise = squirrelnoise5(data.state, 0);
+        *ret_id = ((uint64_t)state_noise << 32) | (uint64_t)squirrelnoise5(state_noise, state_noise);
         return ERR_OK;
     }
 

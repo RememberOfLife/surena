@@ -6,9 +6,9 @@
 // #include "surena/games/alhambra.hpp"
 // #include "surena/games/caesar.hpp"
 // #include "surena/games/chess.hpp"
+// #include "surena/games/havannah.hpp"
 #include "surena/games/tictactoe_ultimate.h"
 #include "surena/games/tictactoe.h"
-// #include "surena/games/havannah.hpp"
 #include "surena/util/semver.h"
 // #include "surena/engine.hpp"
 #include "surena/game.h"
@@ -67,11 +67,24 @@ int main(int argc, char* argv[])
     while (ptm_count > 0) {
         printf("================================\n");
         thegame.methods->debug_print(&thegame, &print_buf_size, print_buf);
+        if (thegame.methods->id) {
+            uint64_t theid;
+            thegame.methods->id(&thegame, &theid);
+            printf("#ID#%lx\n", theid);
+        }
         printf("%s", print_buf);
         printf("player to move %d: ", ptm);
-        scanf("%2s", move_str);
+        int src = scanf("%2s", move_str);
+        if (src == EOF) {
+            printf("\naborted\n");
+            return 1;
+        }
         move_code themove;
-        ec = thegame.methods->get_move_code(&thegame, &themove, move_str);
+        if (src == 1) { // valid input
+            ec = thegame.methods->get_move_code(&thegame, &themove, move_str);
+        } else { // invalid input
+            themove = MOVE_NONE;
+        }
         if (ec == ERR_OK) {
             ec = thegame.methods->is_legal_move(&thegame, ptm, themove, thegame.sync_ctr);
         }
