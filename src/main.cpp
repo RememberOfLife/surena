@@ -55,6 +55,9 @@ int main(int argc, char* argv[])
         printf("failed to import state \"%s\": %d\n", initial_position, ec);
         return 1;
     }
+    size_t state_str_size;
+    thegame.methods->export_state(&thegame, &state_str_size, NULL);
+    char* state_str = (char*)malloc(state_str_size);
     size_t print_buf_size;
     thegame.methods->debug_print(&thegame, &print_buf_size, NULL);
     char* print_buf = (char*)malloc(print_buf_size);
@@ -67,6 +70,8 @@ int main(int argc, char* argv[])
     while (ptm_count > 0) {
         printf("================================\n");
         thegame.methods->debug_print(&thegame, &print_buf_size, print_buf);
+        thegame.methods->export_state(&thegame, &state_str_size, state_str);
+        printf("state: \"%s\"\n", state_str);
         if (thegame.methods->id) {
             uint64_t theid;
             thegame.methods->id(&thegame, &theid);

@@ -131,21 +131,134 @@ namespace surena {
     static error_code _import_state(game* self, const char* str)
     {
         data_repr& data = _get_repr(self);
-        if (str == NULL) {
-            for (int y = 0; y < 3; y++) {
-                for (int x = 0; x < 3; x++) {
-                    data.board[y][x] = 0;
-                }
+        for (int y = 0; y < 3; y++) {
+            for (int x = 0; x < 3; x++) {
+                data.board[y][x] = 0;
             }
+        }
+        data.global_board = 0;
+        data.global_target_x = -1;
+        data.global_target_y = -1;
+        if (str == NULL) {
             data.current_player = 1;
             data.winning_player = 0;
-            data.global_board = 0;
-            data.global_target_x = -1;
-            data.global_target_y = -1;
             return ERR_OK;
         }
         // load from diy tictactoe format, "board target p_cur p_res"
-        //TODO
+        int y = 8;
+        int x = 0;
+        // get square fillings
+        bool advance_segment = false;
+        while (!advance_segment) {
+            switch (*str) {
+                case 'X': {
+                    if (x > 8 || y < 0) {
+                        // out of bounds board
+                        return ERR_INVALID_OPTIONS;
+                    }
+                    _set_cell_local(self, x++, y, 1);
+                } break;
+                case 'O': {
+                    if (x > 8 || y < 0) {
+                        // out of bounds board
+                        return ERR_INVALID_OPTIONS;
+                    }
+                    _set_cell_local(self, x++, y, 2);
+                } break;
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9': { // empty squares
+                    for (int place_empty = (*str)-'0'; place_empty > 0; place_empty--) {
+                        if (x > 8) {
+                            // out of bounds board
+                            return ERR_INVALID_OPTIONS;
+                        }
+                        _set_cell_local(self, x++, y, PLAYER_NONE);
+                    }
+                } break;
+                case '/': { // advance to next
+                    y--;
+                    x = 0;
+                } break;
+                case ' ': { // advance to next segment
+                    advance_segment = true;
+                } break;
+                default: {
+                    // failure, ran out of str to use or got invalid character
+                    return ERR_INVALID_OPTIONS;
+                } break;
+            }
+            str++;
+        }
+        // update global board
+        for (int iy = 0; iy < 3; iy++) {
+            for (int ix = 0; ix < 3; ix++) {
+                uint8_t local_result;
+                _check_result(self, data.board[iy][ix], &local_result);
+                if (local_result > 0) {
+                    _set_cell_global(self, ix, iy, local_result);
+                }
+            }
+        }
+        // get global target, if any, otherwise its reset already
+        if (*str != '-') {
+            data.global_target_x = (*str)-'a';
+            str++;
+            data.global_target_y = (*str)-'1';
+            if (data.global_target_x < 0 || data.global_target_x > 2 || data.global_target_y < 0 || data.global_target_y > 2) {
+                return ERR_INVALID_OPTIONS;
+            }
+        }
+        str++;
+        if (*str != ' ') {
+            // failure, ran out of str to use or got invalid character
+            return ERR_INVALID_OPTIONS;
+        }
+        str++;
+        // current player
+        switch (*str) {
+            case '-': {
+                _set_current_player(self, PLAYER_NONE);
+            } break;
+            case 'X': {
+                _set_current_player(self, 1);
+            } break;
+            case 'O': {
+                _set_current_player(self, 2);
+            } break;
+            default: {
+                // failure, ran out of str to use or got invalid character
+                return ERR_INVALID_OPTIONS;
+            } break;
+        }
+        str++;
+        if (*str != ' ') {
+            // failure, ran out of str to use or got invalid character
+            return ERR_INVALID_OPTIONS;
+        }
+        str++;
+        // result player
+        switch (*str) {
+            case '-': {
+                _set_result(self, PLAYER_NONE);
+            } break;
+            case 'X': {
+                _set_result(self, 1);
+            } break;
+            case 'O': {
+                _set_result(self, 2);
+            } break;
+            default: {
+                // failure, ran out of str to use or got invalid character
+                return ERR_INVALID_OPTIONS;
+            } break;
+        }
         return ERR_OK;
     }
 
@@ -155,7 +268,74 @@ namespace surena {
             *ret_size = 37; // max 36 + 1 zero terminator byte
             return ERR_OK;
         }
-        //TODO
+        data_repr& data = _get_repr(self);
+        const char* ostr = str;
+        player_id cell_player;
+        for (int y = 8; y >= 0; y--) {
+            int empty_squares = 0;
+            for (int x = 0; x < 9; x++) {
+                _get_cell_local(self, x, y, &cell_player);
+                if (cell_player == PLAYER_NONE) {
+                    empty_squares++;
+                } else {
+                    // if the current square isnt empty, print its representation, before that print empty squares, if any
+                    if (empty_squares > 0) {
+                        str += sprintf(str, "%d", empty_squares);
+                        empty_squares = 0;
+                    }
+                    str += sprintf(str, "%c", (cell_player == 1 ? 'X' : 'O'));
+                }
+            }
+            if (empty_squares > 0) {
+                str += sprintf(str, "%d", empty_squares);
+            }
+            if (y > 0) {
+                str += sprintf(str, "/");
+            }
+        }
+        // global target
+        if (data.global_target_x >= 0 && data.global_target_y >= 0) {
+            str += sprintf(str, " %c%c", 'a'+data.global_target_x, '0'+data.global_target_y);
+        } else {
+            str += sprintf(str, " -");
+        }
+        // current player
+        player_id ptm;
+        uint8_t ptm_count;
+        _players_to_move(self, &ptm_count, &ptm);
+        if (ptm_count == 0) {
+            ptm = PLAYER_NONE;
+        }
+        switch (ptm) {
+            case PLAYER_NONE: {
+                str += sprintf(str, " -");
+            } break;
+            case 1: {
+                str += sprintf(str, " X");
+            } break;
+            case 2: {
+                str += sprintf(str, " O");
+            } break;
+        }
+        // result player
+        player_id res;
+        uint8_t res_count;
+        _get_results(self, &res_count, &res);
+        if (res_count == 0) {
+            res = PLAYER_NONE;
+        }
+        switch (res) {
+            case PLAYER_NONE: {
+                str += sprintf(str, " -");
+            } break;
+            case 1: {
+                str += sprintf(str, " X");
+            } break;
+            case 2: {
+                str += sprintf(str, " O");
+            } break;
+        }
+        *ret_size = str-ostr;
         return ERR_OK;
     }
 
