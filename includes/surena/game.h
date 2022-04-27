@@ -115,6 +115,13 @@ typedef struct game_methods_s {
     // the string is still owned by the game method backend, do not free it
     const char* (*get_error_string)(error_code err);
 
+    // OPTIONAL SUPPORT
+    //TODO
+    // error_code (*import_options)(game* self, const char* str);
+    // OPTIONAL SUPPORT
+    //TODO
+    // error_code (*export_options)(game* self, size_t* ret_size, char* str);
+
     // construct and initialize a new game specific data object into self
     // options, if any, have to already be set on the supplied game
     // returns non ok if initialization failed because of invalid options

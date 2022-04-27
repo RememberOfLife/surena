@@ -23,6 +23,8 @@
 .discretize = (discretize_gf_t)surena::_discretize,
 .playout = (playout_gf_t)surena::_playout,
 .redact_keep_state = (redact_keep_state_gf_t)surena::_redact_keep_state,
+.export_sync_data = (export_sync_data_gf_t)surena::_export_sync_data,
+.import_sync_data = (import_sync_data_gf_t)surena::_import_sync_data,
 .get_move_code = (get_move_code_gf_t)surena::_get_move_code,
 .get_move_str = (get_move_str_gf_t)surena::_get_move_str,
 .debug_print = (debug_print_gf_t)surena::_debug_print,

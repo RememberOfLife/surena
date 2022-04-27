@@ -6,7 +6,7 @@ extern "C" {
 
 #include "surena/game.h"
 
-typedef struct tictactoe_internal_methods {
+typedef struct tictactoe_internal_methods_s {
 
     // x grows right, y grows up
     error_code (*get_cell)(game* self, int x, int y, player_id* p);

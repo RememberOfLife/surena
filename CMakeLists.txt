@@ -33,6 +33,7 @@ set(SOURCES
     # src/games/caesar.cpp
     # src/games/chess.cpp
     # src/games/havannah.cpp
+    src/games/oshisumo.cpp
     src/games/tictactoe_ultimate.cpp
     src/games/tictactoe.cpp
 

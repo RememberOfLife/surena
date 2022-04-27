@@ -57,8 +57,8 @@ namespace surena {
     GF_UNUSED(discretize);
     static error_code _playout(game* self, uint64_t seed);
     GF_UNUSED(redact_keep_state);
-    GF_UNUSED(export_sync_data_gf_t);
-    GF_UNUSED(import_sync_data_gf_t);
+    GF_UNUSED(export_sync_data);
+    GF_UNUSED(import_sync_data);
     static error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move);
     static error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
     static error_code _debug_print(game* self, size_t* ret_size, char* str_buf);

@@ -7,6 +7,7 @@
 // #include "surena/games/caesar.hpp"
 // #include "surena/games/chess.hpp"
 // #include "surena/games/havannah.hpp"
+#include "surena/games/oshisumo.hpp"
 #include "surena/games/tictactoe_ultimate.h"
 #include "surena/games/tictactoe.h"
 #include "surena/util/semver.h"
@@ -46,7 +47,7 @@ int main(int argc, char* argv[])
         .padding = 0,
         .data = NULL,
         .options = NULL,
-        .methods = &tictactoe_ultimate_gbe,
+        .methods = &oshisumo_gbe,
     };
     thegame.methods->create(&thegame);
     printf("created game: %s.%s.%s %d.%d.%d\n",
