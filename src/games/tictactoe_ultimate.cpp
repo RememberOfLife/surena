@@ -6,7 +6,7 @@
 #include "surena/util/fast_prng.hpp"
 #include "surena/util/noise.hpp"
 #include "surena/util/semver.h"
-#include "surena/game_funused.h"
+#include "surena/game_gftypes.h"
 #include "surena/game.h"
 
 #include "surena/games/tictactoe_ultimate.h"
@@ -43,7 +43,7 @@ namespace surena {
     static error_code _export_state(game* self, size_t* ret_size, char* str);
     static error_code _get_player_count(game* self, uint8_t* ret_count);
     static error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players);
-    static error_code _get_concrete_moves(game* self, uint32_t* ret_count, move_code* moves, player_id player);
+    static error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves);
     GF_UNUSED(get_concrete_move_probabilities);
     GF_UNUSED(get_concrete_moves_ordered);
     GF_UNUSED(get_actions);
@@ -57,8 +57,10 @@ namespace surena {
     GF_UNUSED(discretize);
     static error_code _playout(game* self, uint64_t seed);
     GF_UNUSED(redact_keep_state);
-    static error_code _get_move_code(game* self, move_code* ret_move, const char* str);
-    static error_code _get_move_str(game* self, size_t* ret_size, char* str_buf, move_code move);
+    GF_UNUSED(export_sync_data_gf_t);
+    GF_UNUSED(import_sync_data_gf_t);
+    static error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move);
+    static error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
     static error_code _debug_print(game* self, size_t* ret_size, char* str_buf);
 
     static error_code _check_result(game* self, uint32_t state, player_id* ret_p);
@@ -361,7 +363,7 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _get_concrete_moves(game* self, uint32_t* ret_count, move_code* moves, player_id player)
+    static error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves)
     {
         if (moves == NULL) {
             *ret_count = 81;
@@ -524,14 +526,14 @@ namespace surena {
         uint8_t ptm_count;
         _players_to_move(self, &ptm_count, &ptm);
         while (ptm_count > 0) {
-            _get_concrete_moves(self, &moves_count, moves, ptm);
+            _get_concrete_moves(self, ptm, &moves_count, moves);
             _make_move(self, ptm ,moves[rng.rand()%moves_count]);
             _players_to_move(self, &ptm_count, &ptm);
         }
         return ERR_OK;
     }
 
-    static error_code _get_move_code(game* self, move_code* ret_move, const char* str)
+    static error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move)
     {
         if (strlen(str) >= 1 && str[0] == '-') {
             *ret_move = MOVE_NONE;
@@ -554,7 +556,7 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _get_move_str(game* self, size_t* ret_size, char* str_buf, move_code move)
+    static error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf)
     {
         if (str_buf == NULL) {
             *ret_size = 3;
@@ -580,7 +582,7 @@ namespace surena {
         player_id cell_player;
         char global_target_str[3];
         size_t global_target_str_len;
-        _get_move_str(self, &global_target_str_len, global_target_str, (data.global_target_y << 4) | data.global_target_x);
+        _get_move_str(self, PLAYER_NONE, (data.global_target_y << 4) | data.global_target_x, &global_target_str_len, global_target_str);
         str_buf += sprintf(str_buf, "global target: %s\n", (data.global_target_x >= 0 && data.global_target_y >= 0) ? global_target_str : "-");
         for (int gy = 2; gy >= 0; gy--) {
             for (int ly = 2; ly >= 0; ly--) {

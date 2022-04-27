@@ -48,7 +48,11 @@ set(SOURCES
 
 add_executable(surena ${SOURCES})
 
-# target_compile_options(mirabel PRIVATE "-Wall")
+target_compile_options(surena PRIVATE
+    #"-Wall"
+    "-Werror" # warnings as errors
+    "-Wfatal-errors" # stop after first error
+)
 
 target_include_directories(surena PRIVATE ${INCLUDES})
 

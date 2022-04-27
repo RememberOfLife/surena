@@ -38,6 +38,8 @@ int main(int argc, char* argv[])
         //TODO make this a loop and switch on games to play and engines to use
     }
 
+    //TODO setup game options if required
+
     error_code ec;
     game thegame{
         .sync_ctr = 0,
@@ -62,7 +64,7 @@ int main(int argc, char* argv[])
     thegame.methods->debug_print(&thegame, &print_buf_size, NULL);
     char* print_buf = (char*)malloc(print_buf_size);
     size_t move_str_size;
-    thegame.methods->get_move_str(&thegame, &move_str_size, NULL, MOVE_NONE);
+    thegame.methods->get_move_str(&thegame, PLAYER_NONE, MOVE_NONE, &move_str_size, NULL);
     char* move_str = (char*)malloc(move_str_size);
     player_id ptm;
     uint8_t ptm_count;
@@ -86,7 +88,7 @@ int main(int argc, char* argv[])
         }
         move_code themove;
         if (src == 1) { // valid input
-            ec = thegame.methods->get_move_code(&thegame, &themove, move_str);
+            ec = thegame.methods->get_move_code(&thegame, PLAYER_NONE, move_str, &themove);
         } else { // invalid input
             themove = MOVE_NONE;
         }

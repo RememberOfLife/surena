@@ -16,6 +16,10 @@ extern "C" {
 
 #include "surena/game.h"
 
+typedef struct thegame_options {
+    uint32_t var;
+} thegame_options;
+
 typedef struct thegame_internal_methods {
 
     // docs for internal_call
@@ -38,7 +42,7 @@ use `GF_UNUSED(game_function_name);` to mark a feature function as not supported
 thegame.cpp
 ```cpp
 #include "surena/util/semver.h"
-#include "surena/game_funused.h"
+#include "surena/game_gftypes.h"
 #include "surena/game.h"
 
 #include "surena/games/thegame.h"
@@ -46,6 +50,12 @@ thegame.cpp
 namespace surena {
     
     // game data state representation and general getter
+    
+    typedef thegame_options opts_repr;
+    opts_repr& _get_opts(game* self)
+    {
+        return *((opts_repr*)(self->options));
+    }
 
     typedef struct data_repr {
         uint32_t state;
@@ -66,22 +76,24 @@ namespace surena {
     static error_code _export_state(game* self, size_t* ret_size, char* str);
     static error_code _get_player_count(game* self, uint8_t* ret_count);
     static error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players);
-    static error_code _get_concrete_moves(game* self, uint32_t* ret_count, move_code* moves, player_id player);
-    static error_code _get_concrete_move_probabilities(game* self, uint32_t* ret_count, float* move_probabilities, player_id player);
-    static error_code _get_concrete_moves_ordered(game* self, uint32_t* ret_count, move_code* moves, player_id player);
-    static error_code _get_actions(game* self, uint32_t* ret_count, move_code* moves, player_id player);
+    static error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves);
+    static error_code _get_concrete_move_probabilities(game* self, player_id player, uint32_t* ret_count, float* move_probabilities);
+    static error_code _get_concrete_moves_ordered(game* self, player_id player, uint32_t* ret_count, move_code* moves);
+    static error_code _get_actions(game* self, player_id player, uint32_t* ret_count, move_code* moves);
     static error_code _is_legal_move(game* self, player_id player, move_code move, uint32_t sync_ctr);
-    static error_code _move_to_action(game* self, move_code* ret_action, move_code move);
-    static error_code _is_action(game* self, bool* ret_is_action, move_code move);
+    static error_code _move_to_action(game* self, move_code move, move_code* ret_action);
+    static error_code _is_action(game* self, move_code move, bool* ret_is_action);
     static error_code _make_move(game* self, player_id player, move_code move);
     static error_code _get_results(game* self, uint8_t* ret_count, player_id* players);
     static error_code _id(game* self, uint64_t* ret_id);
-    static error_code _eval(game* self, float* ret_eval, player_id player);
+    static error_code _eval(game* self, player_id player, float* ret_eval);
     static error_code _discretize(game* self, uint64_t seed);
     static error_code _playout(game* self, uint64_t seed);
-    static error_code _redact_keep_state(game* self, player_id* players, uint32_t count);
-    static error_code _get_move_code(game* self, move_code* ret_move, const char* str);
-    static error_code _get_move_str(game* self, size_t* ret_size, char* str_buf, move_code move);
+    static error_code _redact_keep_state(game* self, uint8_t count, player_id* players);
+    static error_code _export_sync_data_gf_t(game* self, sync_data** sync_data_start, sync_data** sync_data_end);
+    static error_code _import_sync_data_gf_t(game* self, void* data_start, void* data_end);
+    static error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move);
+    static error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
     static error_code _debug_print(game* self, size_t* ret_size, char* str_buf);
 
     /* same for internals */
@@ -138,22 +150,22 @@ namespace surena {
         //TODO
     }
 
-    static error_code _get_concrete_moves(game* self, uint32_t* ret_count, move_code* moves, player_id player)
+    static error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves)
     {
         //TODO
     }
 
-    static error_code _get_concrete_move_probabilities(game* self, uint32_t* ret_count, float* move_probabilities, player_id player)
+    static error_code _get_concrete_move_probabilities(game* self, player_id player, uint32_t* ret_count, float* move_probabilities)
     {
         //TODO
     }
 
-    static error_code _get_concrete_moves_ordered(game* self, uint32_t* ret_count, move_code* moves, player_id player)
+    static error_code _get_concrete_moves_ordered(game* self, player_id player, uint32_t* ret_count, move_code* moves)
     {
         //TODO
     }
 
-    static error_code _get_actions(game* self, uint32_t* ret_count, move_code* moves, player_id player)
+    static error_code _get_actions(game* self, player_id player, uint32_t* ret_count, move_code* moves)
     {
         //TODO
     }
@@ -163,12 +175,12 @@ namespace surena {
         //TODO
     }
 
-    static error_code _move_to_action(game* self, move_code* ret_action, move_code move)
+    static error_code _move_to_action(game* self, move_code move, move_code* ret_action)
     {
         //TODO
     }
 
-    static error_code _is_action(game* self, bool* ret_is_action, move_code move)
+    static error_code _is_action(game* self, move_code move, bool* ret_is_action)
     {
         //TODO
     }
@@ -188,7 +200,7 @@ namespace surena {
         //TODO
     }
 
-    static error_code _eval(game* self, float* ret_eval, player_id player)
+    static error_code _eval(game* self, player_id player, float* ret_eval)
     {
         //TODO
     }
@@ -203,17 +215,27 @@ namespace surena {
         //TODO
     }
 
-    static error_code _redact_keep_state(game* self, player_id* players, uint32_t count)
+    static error_code _redact_keep_state(game* self, uint8_t count, player_id* players)
     {
         //TODO
     }
 
-    static error_code _get_move_code(game* self, move_code* ret_move, const char* str)
+    static error_code _export_sync_data_gf_t(game* self, sync_data** sync_data_start, sync_data** sync_data_end)
     {
         //TODO
     }
 
-    static error_code _get_move_str(game* self, size_t* ret_size, char* str_buf, move_code move)
+    static error_code _import_sync_data_gf_t(game* self, void* data_start, void* data_end)
+    {
+        //TODO
+    }
+
+    static error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move)
+    {
+        //TODO
+    }
+
+    static error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf)
     {
         //TODO
     }

@@ -12,6 +12,7 @@ const char* general_error_strings[] = {
     [ERR_STATE_CORRUPTED] = "state corrupted",
     [ERR_OUT_OF_MEMORY] = "out of memory",
     [ERR_FEATURE_UNSUPPORTED] = "feature unsupported",
+    [ERR_STATE_UNINITIALIZED] = "state uninitialized",
     [ERR_INVALID_INPUT] = "invalid input",
     [ERR_INVALID_OPTIONS] = "invalid options",
     [ERR_UNSTABLE_POSITION] = "unstable position",
