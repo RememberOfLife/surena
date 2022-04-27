@@ -10,7 +10,7 @@ extern "C" {
 
 #include "surena/util/semver.h"
 
-#define SURENA_GAME_API_VERSION ((uint64_t)3)
+#define SURENA_GAME_API_VERSION ((uint64_t)4)
 
 typedef uint32_t error_code;
 // general purpose error codes
@@ -116,11 +116,22 @@ typedef struct game_methods_s {
     const char* (*get_error_string)(error_code err);
 
     // OPTIONAL SUPPORT
-    //TODO
-    // error_code (*import_options)(game* self, const char* str);
+    // import the internal options struct into the self
+    // the game mallocs the internally kept options itself
+    // if options_struct is NULL then the default options are loaded
+    // importing any options while there are already options loaded is undefined behaviour
+    error_code (*import_options_bin)(game* self, void* options_struct);
+
     // OPTIONAL SUPPORT
-    //TODO
-    // error_code (*export_options)(game* self, size_t* ret_size, char* str);
+    // same as import_options_bin but imports the options from a supplied string
+    // if str is NULL then the default options are loaded
+    error_code (*import_options_str)(game* self, const char* str);
+
+    // OPTIONAL SUPPORT
+    // write this games options to a universal options string
+    // returns the length of the options string written, 0 if failure, excluding null character
+    // if str is NULL, returns the minimum required byte size of the string buffer
+    error_code (*export_options_str)(game* self, size_t* ret_size, char* str);
 
     // construct and initialize a new game specific data object into self
     // options, if any, have to already be set on the supplied game
@@ -128,21 +139,24 @@ typedef struct game_methods_s {
     // if this fails then no game data should be allocated
     error_code (*create)(game* self);
 
-    // deconstruct and release any (complex) game specific data
+    // deconstruct and release any (complex) game specific data, if it has been created already
+    // same for options specific data, if it exists
     error_code (*destroy)(game* self);
 
-    // returns a newly allocated deep clone of the self game state
-    error_code (*clone)(game* self, game** ret_clone);
+    // fills clone_target with a deep clone of the self game state
+    // undefined behaviour is self == clone_target
+    error_code (*clone)(game* self, game* clone_target);
 
-    // deep clone the game state of self into other
-    // other is restricted to games using the same options, otherwise undefined behaviour
+    // deep clone the game state of other into self
+    // other is restricted to already created games using the same options, otherwise undefined behaviour
+    // undefined behaviour is self == other
     error_code (*copy_from)(game* self, game* other);
 
     // returns true iff self and other are perceived equal state (by the game method)
     // e.g. this includes move counters in chess, but not any exchangable backend data structures
     error_code (*compare)(game* self, game* other, bool* ret_equal);
 
-    // load the game state from the given string
+    // load the game state from the given string, beware this may be called on running games
     // if str is NULL then the initial position is loaded
     // errors while parsing are handled (NOTE: avoid crashes)
     // when this fails the underlying object is left in an empty state
@@ -283,8 +297,8 @@ typedef struct game_methods_s {
 struct game_s {
     uint32_t sync_ctr; // inc by one everytime a move is made, the game method does this itself
     uint32_t padding; //TODO use this properly for something
-    void* data;
-    void* options;
+    void* data; // owned by the game method
+    void* options; // owned by the game method
     const game_methods* methods;
 };
 

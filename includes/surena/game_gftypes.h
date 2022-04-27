@@ -5,8 +5,11 @@
 // provide typedefs for all the game functions
 typedef const char* (*get_error_string_gf_t)(error_code err);
 typedef error_code (*create_gf_t)(game* self);
+typedef error_code (*import_options_bin_gf_t)(game* self, void* options_struct);
+typedef error_code (*import_options_str_gf_t)(game* self, const char* str);
+typedef error_code (*export_options_str_gf_t)(game* self, size_t* ret_size, char* str);
 typedef error_code (*destroy_gf_t)(game* self);
-typedef error_code (*clone_gf_t)(game* self, game** ret_clone);
+typedef error_code (*clone_gf_t)(game* self, game* clone_target);
 typedef error_code (*copy_from_gf_t)(game* self, game* other);
 typedef error_code (*compare_gf_t)(game* self, game* other, bool* ret_equal);
 typedef error_code (*import_state_gf_t)(game* self, const char* str);

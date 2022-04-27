@@ -67,6 +67,9 @@ namespace surena {
     }
 
     static const char* _get_error_string(error_code err);
+    static error_code _import_options_bin(game* self, void* options_struct);
+    static error_code _import_options_str(game* self, const char* str);
+    static error_code _export_options_str(game* self, size_t* ret_size, char* str);
     static error_code _create(game* self);
     static error_code _destroy(game* self);
     static error_code _clone(game* self, game** ret_clone);
@@ -105,6 +108,21 @@ namespace surena {
         //TODO
     }
 
+    static error_code _import_options_bin(game* self, void* options_struct)
+    {
+        //TODO
+    }
+
+    static error_code _import_options_str(game* self, const char* str)
+    {
+        //TODO
+    }
+    
+    static error_code _export_options_str(game* self, size_t* ret_size, char* str)
+    {
+        //TODO
+    }
+    
     static error_code _create(game* self)
     {
         //TODO

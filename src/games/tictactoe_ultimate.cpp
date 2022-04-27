@@ -34,9 +34,12 @@ namespace surena {
 
     // forward declare everything to allow for inlining at least in this unit
     static const char* _get_error_string(error_code err);
+    GF_UNUSED(import_options_bin);
+    GF_UNUSED(import_options_str);
+    GF_UNUSED(export_options_str);
     static error_code _create(game* self);
     static error_code _destroy(game* self);
-    static error_code _clone(game* self, game** ret_clone);
+    static error_code _clone(game* self, game* clone_target);
     static error_code _copy_from(game* self, game* other);
     static error_code _compare(game* self, game* other, bool* ret_equal);
     static error_code _import_state(game* self, const char* str);
@@ -101,8 +104,9 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _clone(game* self, game** ret_clone)
+    static error_code _clone(game* self, game* clone_target)
     {
+        //TODO
         game* clone = (game*)malloc(sizeof(game));
         if (clone == NULL) {
             return ERR_OUT_OF_MEMORY;
@@ -113,7 +117,7 @@ namespace surena {
             return ec;
         }
         memcpy(clone->data, self->data, sizeof(data_repr));
-        *ret_clone = clone;
+        clone_target = clone;
         return ERR_OK;
     }
     

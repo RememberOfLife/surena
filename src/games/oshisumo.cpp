@@ -26,9 +26,12 @@ namespace surena {
     }
 
     static const char* _get_error_string(error_code err);
+    static error_code _import_options_bin(game* self, void* options_struct);
+    static error_code _import_options_str(game* self, const char* str);
+    static error_code _export_options_str(game* self, size_t* ret_size, char* str);
     static error_code _create(game* self);
     static error_code _destroy(game* self);
-    static error_code _clone(game* self, game** ret_clone);
+    static error_code _clone(game* self, game* clone_target);
     static error_code _copy_from(game* self, game* other);
     static error_code _compare(game* self, game* other, bool* ret_equal);
     static error_code _import_state(game* self, const char* str);
@@ -72,6 +75,24 @@ namespace surena {
         return "unknown error";
     }
 
+    static error_code _import_options_bin(game* self, void* options_struct)
+    {
+        //TODO
+        return ERR_STATE_UNINITIALIZED;
+    }
+
+    static error_code _import_options_str(game* self, const char* str)
+    {
+        //TODO
+        return ERR_STATE_UNINITIALIZED;
+    }
+    
+    static error_code _export_options_str(game* self, size_t* ret_size, char* str)
+    {
+        //TODO
+        return ERR_STATE_UNINITIALIZED;
+    }
+
     static error_code _create(game* self)
     {
         //TODO
@@ -84,7 +105,7 @@ namespace surena {
         return ERR_STATE_UNINITIALIZED;
     }
 
-    static error_code _clone(game* self, game** ret_clone)
+    static error_code _clone(game* self, game* clone_target)
     {
         //TODO
         return ERR_STATE_UNINITIALIZED;

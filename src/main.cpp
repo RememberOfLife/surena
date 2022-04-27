@@ -39,8 +39,6 @@ int main(int argc, char* argv[])
         //TODO make this a loop and switch on games to play and engines to use
     }
 
-    //TODO setup game options if required
-
     error_code ec;
     game thegame{
         .sync_ctr = 0,
@@ -49,13 +47,21 @@ int main(int argc, char* argv[])
         .options = NULL,
         .methods = &oshisumo_gbe,
     };
-    thegame.methods->create(&thegame);
+    if (thegame.methods->import_options_str) {
+        //TODO setup game options if required
+        ec = thegame.methods->import_options_str(&thegame, NULL); 
+    }
+    ec = thegame.methods->create(&thegame);
+    if (ec != ERR_OK) {
+        printf("failed to import state \"%s\": #%d %s\n", initial_position, ec, thegame.methods->get_error_string(ec));
+        return 1;
+    }
     printf("created game: %s.%s.%s %d.%d.%d\n",
         thegame.methods->game_name, thegame.methods->variant_name, thegame.methods->impl_name,
         thegame.methods->version.major, thegame.methods->version.minor, thegame.methods->version.patch);
     ec = thegame.methods->import_state(&thegame, initial_position);
     if (ec != ERR_OK) {
-        printf("failed to import state \"%s\": %d\n", initial_position, ec);
+        printf("failed to import state \"%s\": #%d %s\n", initial_position, ec, thegame.methods->get_error_string(ec));
         return 1;
     }
     size_t state_str_size;
