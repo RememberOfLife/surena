@@ -57,6 +57,7 @@ target_compile_options(surena PRIVATE
 
 target_include_directories(surena PRIVATE ${INCLUDES})
 
-target_link_libraries(surena PUBLIC Threads::Threads)
+target_link_libraries(surena dl)
+target_link_libraries(surena Threads::Threads)
 
 set_target_properties(surena PROPERTIES EXPORT_COMPILE_COMMANDS true)

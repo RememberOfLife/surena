@@ -145,14 +145,14 @@ namespace surena {
                 case 'X': {
                     if (x > 2 || y < 0) {
                         // out of bounds board
-                        return ERR_INVALID_OPTIONS;
+                        return ERR_INVALID_INPUT;
                     }
                     _set_cell(self, x++, y, 1);
                 } break;
                 case 'O': {
                     if (x > 2 || y < 0) {
                         // out of bounds board
-                        return ERR_INVALID_OPTIONS;
+                        return ERR_INVALID_INPUT;
                     }
                     _set_cell(self, x++, y, 2);
                 } break;
@@ -162,7 +162,7 @@ namespace surena {
                     for (int place_empty = (*str)-'0'; place_empty > 0; place_empty--) {
                         if (x > 2) {
                             // out of bounds board
-                            return ERR_INVALID_OPTIONS;
+                            return ERR_INVALID_INPUT;
                         }
                         _set_cell(self, x++, y, PLAYER_NONE);
                     }
@@ -176,7 +176,7 @@ namespace surena {
                 } break;
                 default: {
                     // failure, ran out of str to use or got invalid character
-                    return ERR_INVALID_OPTIONS;
+                    return ERR_INVALID_INPUT;
                 } break;
             }
             str++;
@@ -194,13 +194,13 @@ namespace surena {
             } break;
             default: {
                 // failure, ran out of str to use or got invalid character
-                return ERR_INVALID_OPTIONS;
+                return ERR_INVALID_INPUT;
             } break;
         }
         str++;
         if (*str != ' ') {
             // failure, ran out of str to use or got invalid character
-            return ERR_INVALID_OPTIONS;
+            return ERR_INVALID_INPUT;
         }
         str++;
         // result player
@@ -216,7 +216,7 @@ namespace surena {
             } break;
             default: {
                 // failure, ran out of str to use or got invalid character
-                return ERR_INVALID_OPTIONS;
+                return ERR_INVALID_INPUT;
             } break;
         }
         return ERR_OK;
