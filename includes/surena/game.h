@@ -10,7 +10,7 @@ extern "C" {
 
 #include "surena/util/semver.h"
 
-#define SURENA_GAME_API_VERSION ((uint64_t)4)
+#define SURENA_GAME_API_VERSION ((uint64_t)5)
 
 typedef uint32_t error_code;
 // general purpose error codes
@@ -99,6 +99,8 @@ typedef struct game_methods_s {
     // where not otherwise noted: interfaces that return their required size/count are stable for the games specific options
 
     // the concatenation of game_name+variant_name+impl_name+version uniquely identifies this game method
+    // minimum length of 1 character each, with allowed character set:
+    // "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789" additionally '-' and '_' but not at the start or end
     const char* game_name;
     const char* variant_name;
     const char* impl_name;

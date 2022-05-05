@@ -94,23 +94,21 @@ namespace surena {
     static error_code _destroy(game* self)
     {
         free(self->data);
+        self->data = NULL;
         return ERR_OK;
     }
 
     static error_code _clone(game* self, game* clone_target)
     {
-        //TODO
-        game* clone = (game*)malloc(sizeof(game));
-        if (clone == NULL) {
-            return ERR_OUT_OF_MEMORY;
+        if (clone_target == NULL) {
+            return ERR_INVALID_INPUT;
         }
-        *clone = *self;
-        error_code ec = clone->methods->create(clone);
+        *clone_target = *self;
+        error_code ec = clone_target->methods->create(clone_target);
         if (ec != ERR_OK) {
             return ec;
         }
-        memcpy(clone->data, self->data, sizeof(data_repr));
-        clone_target = clone;
+        memcpy(clone_target->data, self->data, sizeof(data_repr));
         return ERR_OK;
     }
     

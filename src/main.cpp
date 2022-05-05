@@ -97,10 +97,14 @@ int main(int argc, char** argv)
     }
 
     // for debugging
-    // game_method = &oshisumo_gbe;
+    game_method = &oshisumo_gbe;
 
     if (game_method == NULL) {
-        printf("no game specified, quitting\n");
+        printf("no game method specified\n");
+        exit(1);
+    }
+    if (game_method->debug_print == NULL) {
+        printf("game method does not support debug print\n");
         exit(1);
     }
 
@@ -112,6 +116,9 @@ int main(int argc, char** argv)
         .options = NULL,
         .methods = game_method,
     };
+    printf("game method: %s.%s.%s %d.%d.%d\n",
+        thegame.methods->game_name, thegame.methods->variant_name, thegame.methods->impl_name,
+        thegame.methods->version.major, thegame.methods->version.minor, thegame.methods->version.patch);
     if (thegame.methods->import_options_str) {
         ec = thegame.methods->import_options_str(&thegame, game_options); 
         if (ec != ERR_OK) {
@@ -121,14 +128,18 @@ int main(int argc, char** argv)
     } else if (game_options != NULL) {
         printf("game does not support string options import, ignoring\n");
     }
+    if (thegame.methods->export_options_str) {
+        size_t options_str_size;
+        thegame.methods->export_options_str(&thegame, &options_str_size, NULL);
+        char* options_str = (char*)malloc(options_str_size);
+        thegame.methods->export_options_str(&thegame, &options_str_size, options_str);
+        printf("options: \"%s\"\n", options_str);
+    }
     ec = thegame.methods->create(&thegame);
     if (ec != ERR_OK) {
-        printf("failed to import state \"%s\": #%d %s\n", initial_position, ec, thegame.methods->get_error_string(ec));
+        printf("failed to create: #%d %s\n", ec, thegame.methods->get_error_string(ec));
         exit(1);
     }
-    printf("created game: %s.%s.%s %d.%d.%d\n",
-        thegame.methods->game_name, thegame.methods->variant_name, thegame.methods->impl_name,
-        thegame.methods->version.major, thegame.methods->version.minor, thegame.methods->version.patch);
     ec = thegame.methods->import_state(&thegame, initial_position);
     if (ec != ERR_OK) {
         printf("failed to import state \"%s\": #%d %s\n", initial_position, ec, thegame.methods->get_error_string(ec));
@@ -152,10 +163,24 @@ int main(int argc, char** argv)
         thegame.methods->debug_print(&thegame, &print_buf_size, print_buf);
         thegame.methods->export_state(&thegame, &state_str_size, state_str);
         printf("state: \"%s\"\n", state_str);
+        bool extra_state = false;
         if (thegame.methods->id) {
+            extra_state = true;
             uint64_t theid;
             thegame.methods->id(&thegame, &theid);
-            printf("#ID#%lx\n", theid);
+            printf("ID#%016lx", theid);
+        }
+        if (thegame.methods->eval) {
+            if (extra_state) {
+                printf(" ");
+            }
+            extra_state = true;
+            float theeval;
+            thegame.methods->eval(&thegame, ptm, &theeval);
+            printf("EVAL:%.5f", theeval);
+        }
+        if (extra_state) {
+            printf("\n");
         }
         printf("%s", print_buf);
         if (ptm_count == 0) {
