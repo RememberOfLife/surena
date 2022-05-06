@@ -114,7 +114,7 @@ namespace surena {
     
     static error_code _copy_from(game* self, game* other)
     {
-        *self = *other;
+        self->sync_ctr = other->sync_ctr;
         memcpy(self->data, other->data, sizeof(data_repr));
         return ERR_OK;
     }

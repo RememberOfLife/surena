@@ -4,6 +4,8 @@
 extern "C" {
 #endif
 
+#include <stdint.h>
+
 #include "surena/game.h"
 
 const uint8_t OSHISUMO_NONE = UINT8_MAX;

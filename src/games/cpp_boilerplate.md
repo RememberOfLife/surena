@@ -16,11 +16,11 @@ extern "C" {
 
 #include "surena/game.h"
 
-typedef struct thegame_options {
+typedef struct thegame_options_s {
     uint32_t var;
 } thegame_options;
 
-typedef struct thegame_internal_methods {
+typedef struct thegame_internal_methods_s {
 
     // docs for internal_call
     error_code (*internal_call)(game* self, int x);
@@ -52,7 +52,7 @@ namespace surena {
     // game data state representation and general getter
     
     typedef thegame_options opts_repr;
-    opts_repr& _get_opts(game* self)
+    static opts_repr& _get_opts(game* self)
     {
         return *((opts_repr*)(self->options));
     }
@@ -61,7 +61,7 @@ namespace surena {
         uint32_t state;
     } data_repr;
 
-    data_repr& _get_repr(game* self)
+    static data_repr& _get_repr(game* self)
     {
         return *((data_repr*)(self->data));
     }
@@ -72,7 +72,7 @@ namespace surena {
     static error_code _export_options_str(game* self, size_t* ret_size, char* str);
     static error_code _create(game* self);
     static error_code _destroy(game* self);
-    static error_code _clone(game* self, game** ret_clone);
+    static error_code _clone(game* self, game* clone_target);
     static error_code _copy_from(game* self, game* other);
     static error_code _compare(game* self, game* other, bool* ret_equal);
     static error_code _import_state(game* self, const char* str);
@@ -133,7 +133,7 @@ namespace surena {
         //TODO
     }
 
-    static error_code _clone(game* self, game** ret_clone)
+    static error_code _clone(game* self, game* clone_target)
     {
         //TODO
     }

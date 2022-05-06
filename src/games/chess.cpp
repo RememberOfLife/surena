@@ -1,59 +1,204 @@
 #include <cstdint>
 #include <cstdio>
-#include <string>
-#include <vector>
+#include <cstdlib>
+#include <cstring>
 
-#include "surena/util/fast_prng.hpp"
+#include "surena/util/noise.hpp"
+#include "surena/util/semver.h"
+#include "surena/game_gftypes.h"
+#include "surena/game.h"
 
-#include "surena/games/chess.hpp"
+#include "surena/games/chess.h"
 
 namespace surena {
+    
+    // game data state representation and general getter
 
-    const char Chess::PIECE_TYPE_CHARS[7] = {'-', 'K', 'Q', 'R', 'B', 'N', 'P'}; // none, king, queen, rook, bishop, knight, pawn
+    typedef struct data_repr {
+        CHESS_piece board[8][8]; // board[y][x] starting with origin (0,0) on bottom left of the board
+        uint32_t halfmove_clock = 0;
+        uint32_t fullmove_clock = 1;
+        uint8_t enpassant_target = 0xFF; // left nibble is x, right nibble is y
+        CHESS_PLAYER current_player : 2;
+        CHESS_PLAYER winning_player : 2;
+        bool castling_white_king : 1;
+        bool castling_white_queen : 1;
+        bool castling_black_king : 1;
+        bool castling_black_queen : 1;
+    } data_repr;
 
-    Chess::Chess()
+    static data_repr& _get_repr(game* self)
     {
-        for (int y = 0; y < 8; y++) {
-            for (int x = 0; x < 8; x++) {
-                board[y][x] = piece{PLAYER_NONE, PIECE_TYPE_KING};
-            }
-        }
-        import_state("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+        return *((data_repr*)(self->data));
     }
 
-    void Chess::import_state(const char* str)
+    static const char* _get_error_string(error_code err);
+    GF_UNUSED(import_options_bin);
+    GF_UNUSED(import_options_str);
+    GF_UNUSED(export_options_str);
+    static error_code _create(game* self);
+    static error_code _destroy(game* self);
+    static error_code _clone(game* self, game* clone_target);
+    static error_code _copy_from(game* self, game* other);
+    static error_code _compare(game* self, game* other, bool* ret_equal);
+    static error_code _import_state(game* self, const char* str);
+    static error_code _export_state(game* self, size_t* ret_size, char* str);
+    static error_code _get_player_count(game* self, uint8_t* ret_count);
+    static error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players);
+    static error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves);
+    GF_UNUSED(get_concrete_move_probabilities);
+    GF_UNUSED(get_concrete_moves_ordered);
+    GF_UNUSED(get_actions);
+    static error_code _is_legal_move(game* self, player_id player, move_code move, uint32_t sync_ctr);
+    GF_UNUSED(move_to_action);
+    GF_UNUSED(is_action);
+    static error_code _make_move(game* self, player_id player, move_code move);
+    static error_code _get_results(game* self, uint8_t* ret_count, player_id* players);
+    static error_code _id(game* self, uint64_t* ret_id);
+    GF_UNUSED(eval);
+    GF_UNUSED(discretize);
+    GF_UNUSED(playout);
+    GF_UNUSED(redact_keep_state);
+    GF_UNUSED(export_sync_data);
+    GF_UNUSED(import_sync_data);
+    static error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move);
+    static error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
+    static error_code _debug_print(game* self, size_t* ret_size, char* str_buf);
+
+    static error_code _get_cell(game* self, int x, int y, CHESS_piece* p);
+    static error_code _set_cell(game* self, int x, int y, CHESS_piece p);
+    static error_code _set_current_player(game* self, player_id p);
+    static error_code _set_result(game* self, player_id p);
+    static error_code _count_positions(game* self, int depth, uint64_t* count);
+    static error_code _apply_move_internal(game* self, move_code move, bool replace_castling_by_kings);
+    static error_code _get_moves_pseudo_legal(game* self, uint32_t* move_cnt, move_code* move_vec);
+
+    // implementation
+
+    static const char* _get_error_string(error_code err)
     {
+        const char* gen_err_str = get_general_error_string(err);
+        if (gen_err_str != NULL) {
+            return gen_err_str;
+        }
+        return "unknown error";
+    }
+
+    static error_code _create(game* self)
+    {
+        self->data = malloc(sizeof(data_repr));
+        if (self->data == NULL) {
+            return ERR_OUT_OF_MEMORY;
+        }
+        return ERR_OK;
+    }
+
+    static error_code _destroy(game* self)
+    {
+        free(self->data);
+        self->data = NULL;
+        return ERR_OK;
+    }
+
+    static error_code _clone(game* self, game* clone_target)
+    {
+        if (clone_target == NULL) {
+            return ERR_INVALID_INPUT;
+        }
+        *clone_target = *self;
+        error_code ec = clone_target->methods->create(clone_target);
+        if (ec != ERR_OK) {
+            return ec;
+        }
+        memcpy(clone_target->data, self->data, sizeof(data_repr));
+        return ERR_OK;
+    }
+
+    static error_code _copy_from(game* self, game* other)
+    {
+        self->sync_ctr = other->sync_ctr;
+        memcpy(self->data, other->data, sizeof(data_repr));
+        return ERR_OK;
+    }
+
+    static error_code _compare(game* self, game* other, bool* ret_equal)
+    {
+        *ret_equal = (self->sync_ctr == other->sync_ctr) && (memcmp(self->data, other->data, sizeof(data_repr)) == 0);
+        return ERR_OK;
+    }
+
+    static error_code _import_state(game* self, const char* str)
+    {
+        data_repr& data = _get_repr(self);
+        for (int y = 0; y < 8; y++) {
+            for (int x = 0; x < 8; x++) {
+                data.board[y][x] = CHESS_piece{CHESS_PLAYER_NONE, CHESS_PIECE_TYPE_NONE}; // reason for this being CHESS_PIECE_TYPE_KING ?
+            }
+        }
+        if (str == NULL) {
+            str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"; // load standard initial position
+        }
+        // defaults
+        data.halfmove_clock = 0;
+        data.fullmove_clock = 1;
+        data.enpassant_target = 0xFF;
+        data.current_player = CHESS_PLAYER_WHITE;
+        data.winning_player = CHESS_PLAYER_NONE;
         // loads state from FEN strings
         int y = 7; // FEN starts on the top left of the board
         int x = 0;
         // loop through the pieces segment
         bool advance_segment = false;
         while (!advance_segment) {
-            PLAYER color = (*str > 96) ? PLAYER_BLACK : PLAYER_WHITE; // check if letter is lowercase
+            CHESS_PLAYER color = (*str > 96) ? CHESS_PLAYER_BLACK : CHESS_PLAYER_WHITE; // check if letter is lowercase
             switch (*str) {
                 case 'k':
                 case 'K': {
-                    board[y][x++] = piece{color, PIECE_TYPE_KING};
+                    if (x > 7 || y < 0) {
+                        // out of bounds board
+                        return ERR_INVALID_INPUT;
+                    }
+                    data.board[y][x++] = CHESS_piece{color, CHESS_PIECE_TYPE_KING};
                 } break;
                 case 'q':
                 case 'Q': {
-                    board[y][x++] = piece{color, PIECE_TYPE_QUEEN};
+                    if (x > 7 || y < 0) {
+                        // out of bounds board
+                        return ERR_INVALID_INPUT;
+                    }
+                    data.board[y][x++] = CHESS_piece{color, CHESS_PIECE_TYPE_QUEEN};
                 } break;
                 case 'r':
                 case 'R': {
-                    board[y][x++] = piece{color, PIECE_TYPE_ROOK};
+                    if (x > 7 || y < 0) {
+                        // out of bounds board
+                        return ERR_INVALID_INPUT;
+                    }
+                    data.board[y][x++] = CHESS_piece{color, CHESS_PIECE_TYPE_ROOK};
                 } break;
                 case 'b':
                 case 'B': {
-                    board[y][x++] = piece{color, PIECE_TYPE_BISHOP};
+                    if (x > 7 || y < 0) {
+                        // out of bounds board
+                        return ERR_INVALID_INPUT;
+                    }
+                    data.board[y][x++] = CHESS_piece{color, CHESS_PIECE_TYPE_BISHOP};
                 } break;
                 case 'n':
                 case 'N': {
-                    board[y][x++] = piece{color, PIECE_TYPE_KNIGHT};
+                    if (x > 7 || y < 0) {
+                        // out of bounds board
+                        return ERR_INVALID_INPUT;
+                    }
+                    data.board[y][x++] = CHESS_piece{color, CHESS_PIECE_TYPE_KNIGHT};
                 } break;
                 case 'p':
                 case 'P': {
-                    board[y][x++] = piece{color, PIECE_TYPE_PAWN};
+                    if (x > 7 || y < 0) {
+                        // out of bounds board
+                        return ERR_INVALID_INPUT;
+                    }
+                    data.board[y][x++] = CHESS_piece{color, CHESS_PIECE_TYPE_PAWN};
                 } break;
                 case '1':
                 case '2':
@@ -64,7 +209,11 @@ namespace surena {
                 case '7':
                 case '8': { // place empty pieces
                     for (int place_empty = (*str)-'0'; place_empty > 0; place_empty--) {
-                        board[y][x++] = piece{PLAYER_NONE, PIECE_TYPE_NONE};
+                        if (x > 7) {
+                            // out of bounds board
+                            return ERR_INVALID_INPUT;
+                        }
+                        data.board[y][x++] = CHESS_piece{CHESS_PLAYER_NONE, CHESS_PIECE_TYPE_NONE};
                     }
                 } break;
                 case '/': { // advance to next
@@ -74,83 +223,141 @@ namespace surena {
                 case ' ': { // advance to next segment
                     advance_segment = true;
                 } break;
+                default: {
+                    // failure, ran out of str to use or got invalid character
+                    return ERR_INVALID_INPUT;
+                } break;
             }
             str++;
         }
         // get active color
         switch (*str) {
+            case '-': {
+                data.current_player = CHESS_PLAYER_NONE;
+            } break;
             case 'w': {
-                current_player = PLAYER_WHITE;
+                data.current_player = CHESS_PLAYER_WHITE;
             } break;
             case 'b': {
-                current_player = PLAYER_BLACK;
+                data.current_player = CHESS_PLAYER_BLACK;
+            } break;
+            default: {
+                // failure, ran out of str to use or got invalid character
+                return ERR_INVALID_INPUT;
             } break;
         }
-        str += 2;
+        str++;
+        if (*str != ' ') {
+            // failure, ran out of str to use or got invalid character
+            return ERR_INVALID_INPUT;
+        }
+        str++;
         // get castling rights, only existing ones are printed, '-' if none, ordered as KQkq
         advance_segment = false;
-        castling_white_king = false;
-        castling_white_queen = false;
-        castling_black_king = false;
-        castling_black_queen = false;
+        data.castling_white_king = false;
+        data.castling_white_queen = false;
+        data.castling_black_king = false;
+        data.castling_black_queen = false;
         while (!advance_segment) {
             switch (*str) {
                 case 'K': {
-                    castling_white_king = true;
+                    data.castling_white_king = true;
                 } break;
                 case 'Q': {
-                    castling_white_queen = true;
+                    data.castling_white_queen = true;
                 } break;
                 case 'k': {
-                    castling_black_king = true;
+                    data.castling_black_king = true;
                 } break;
                 case 'q': {
-                    castling_black_queen = true;
+                    data.castling_black_queen = true;
+                } break;
+                case '-': {
+                    advance_segment = true;
+                    str++;
+                    if (*str != ' ') {
+                        return ERR_INVALID_INPUT;
+                    }
                 } break;
                 case ' ': {
                     advance_segment = true;
                 } break;
+                default: {
+                    // failure, ran out of str to use or got invalid character
+                    return ERR_INVALID_INPUT;
+                } break;
             }
             str++;
+        }
+        if (*str == '\0') {
+            return ERR_INVALID_INPUT;
         }
         // get enpassant target
         if (*str == '-') {
-            enpassant_target = 0xFF;
+            data.enpassant_target = 0xFF;
         } else {
             x = (*str)-'a';
+            if (x < 0 || x > 7) {
+                return ERR_INVALID_INPUT;
+            }
             str++;
+            if (*str == '\0') {
+                return ERR_INVALID_INPUT;
+            }
             y = (*str)-'1';
-            enpassant_target = (x<<4)|y;
+            if (y < 0 || y > 7) {
+                return ERR_INVALID_INPUT;
+            }
+            data.enpassant_target = (x<<4)|y;
         }
-        str += 2;
+        str++;
+        if (*str != ' ') {
+            // failure, ran out of str to use or got invalid character
+            return ERR_INVALID_INPUT;
+        }
+        str++;
         // get halfmove clock
-        halfmove_clock = 0;
+        data.halfmove_clock = 0;
         while (true) {
+            if (*str == '\0') {
+                return ERR_INVALID_INPUT;
+            }
             if ((*str) == ' ') {
                 break;
             }
-            halfmove_clock *= 10;
-            halfmove_clock += (*str)-'0';
+            data.halfmove_clock *= 10;
+            uint32_t ladd = (*str)-'0';
+            if (ladd < 0 || ladd > 9) {
+                return ERR_INVALID_INPUT;
+            }
+            data.halfmove_clock += ladd;
             str++;
         }
         str++;
         // get fullmove clock
-        fullmove_clock = 0;
+        data.fullmove_clock = 0;
         while (true) {
             if ((*str) == '\0') {
                 break;
             }
-            fullmove_clock *= 10;
-            fullmove_clock += (*str)-'0';
+            data.fullmove_clock *= 10;
+            uint32_t ladd = (*str)-'0';
+            if (ladd < 0 || ladd > 9) {
+                return ERR_INVALID_INPUT;
+            }
+            data.fullmove_clock += ladd;
             str++;
         }
+        return ERR_OK;
     }
 
-    uint32_t Chess::export_state(char* str)
+    static error_code _export_state(game* self, size_t* ret_size, char* str)
     {
         if (str == NULL) {
-            return 128;
+            *ret_size = 128;
+            return ERR_OK;
         }
+        data_repr& data = _get_repr(self);
         const char* ostr = str;
         // save board
         int y = 7;
@@ -158,7 +365,7 @@ namespace surena {
         for (int y = 7; y >= 0; y--) {
             int empty_squares = 0;
             for (int x = 0; x < 8; x++) {
-                if (board[y][x].player == PLAYER_NONE) {
+                if (data.board[y][x].player == CHESS_PLAYER_NONE) {
                     // square is empty, count following empty squares and just print the number once
                     empty_squares++;
                 } else {
@@ -167,7 +374,7 @@ namespace surena {
                         str += sprintf(str, "%d", empty_squares);
                         empty_squares = 0;
                     }
-                    str += sprintf(str, "%c", PIECE_TYPE_CHARS[board[y][x].type] + (board[y][x].player == PLAYER_BLACK ? 32 : 0));
+                    str += sprintf(str, "%c", CHESS_PIECE_TYPE_CHARS[data.board[y][x].type] + (data.board[y][x].player == CHESS_PLAYER_BLACK ? 32 : 0));
                 }
             }
             if (empty_squares > 0) {
@@ -178,327 +385,448 @@ namespace surena {
             }
         }
         // save current player 
-        switch (current_player) {
-            case PLAYER_NONE: {
+        switch (data.current_player) {
+            case CHESS_PLAYER_NONE: {
                 str += sprintf(str, " - ");
             } break;
-            case PLAYER_WHITE: {
+            case CHESS_PLAYER_WHITE: {
                 str += sprintf(str, " w ");
             } break;
-            case PLAYER_BLACK: {
+            case CHESS_PLAYER_BLACK: {
                 str += sprintf(str, " b ");
             } break;
         }
         // save castling rights
-        if (!castling_white_king && !castling_white_queen && !castling_black_king && !castling_black_queen) {
+        if (!data.castling_white_king && !data.castling_white_queen && !data.castling_black_king && !data.castling_black_queen) {
             str += sprintf(str, "-");
         } else {
-            if (castling_white_king) {
+            if (data.castling_white_king) {
                 str += sprintf(str, "K");
             }
-            if (castling_white_queen) {
+            if (data.castling_white_queen) {
                 str += sprintf(str, "Q");
             }
-            if (castling_black_king) {
+            if (data.castling_black_king) {
                 str += sprintf(str, "k");
             }
-            if (castling_black_queen) {
+            if (data.castling_black_queen) {
                 str += sprintf(str, "q");
             }
         }
         // save enpassant target
-        if (enpassant_target == 0xFF) {
+        if (data.enpassant_target == 0xFF) {
             str += sprintf(str, " - ");
         } else {
-            str += sprintf(str, " %c%c ", 'a'+((enpassant_target>>4)&0x0F), '1'+(enpassant_target&0x0F));
+            str += sprintf(str, " %c%c ", 'a'+((data.enpassant_target>>4)&0x0F), '1'+(data.enpassant_target&0x0F));
         }
         // save halfmove and fullmove clock
-        str += sprintf(str, "%d %d", halfmove_clock, fullmove_clock);
-        return str-ostr;
+        str += sprintf(str, "%d %d", data.halfmove_clock, data.fullmove_clock);
+        *ret_size = str-ostr;
+        return ERR_OK;
     }
 
-    uint8_t Chess::player_to_move()
+    static error_code _get_player_count(game* self, uint8_t* ret_count)
     {
-        return current_player;
+        *ret_count = 2;
+        return ERR_OK;
     }
 
-    std::vector<uint64_t> Chess::get_moves()
+    static error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players)
     {
+        *ret_count = 1;
+        if (players == NULL) {
+            return ERR_OK;
+        }
+        data_repr& data = _get_repr(self);
+        if (data.current_player == CHESS_PLAYER_NONE) {
+            *ret_count = 0;
+            return ERR_OK;
+        }
+        *players = data.current_player;
+        return ERR_OK;
+    }
+
+    static error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves)
+    {
+        if (moves == NULL) {
+            *ret_count = CHESS_MAX_MOVES;
+            return ERR_OK;
+        }
+        data_repr& data = _get_repr(self);
         //TODO encode things like check in the move, for move string printing in ptn?
         //TODO this is an extremely slow and ugly movegen, use bitboards instead of mailbox
-        std::vector<uint64_t> moves{};
         // if game is over, return empty move list
-        if (player_to_move() == 0) {
-            return moves;
+        if (data.current_player == CHESS_PLAYER_NONE) {
+            *ret_count = 0;
+            return ERR_OK;
         }
-        moves = get_moves_pseudo_legal();
+        uint32_t pseudo_move_cnt;
+        move_code pseudo_moves[CHESS_MAX_MOVES*4]; //TODO calculate proper size for this
+        _get_moves_pseudo_legal(self, &pseudo_move_cnt, pseudo_moves);
         // check move legality by checking king capture
-        std::vector<uint64_t> legal_moves{};
-        surena::Chess pseudo_game;
-        for (int i = 0; i < moves.size(); i++) {
-            pseudo_game.copy_from(this);
-            pseudo_game.apply_move_internal(moves[i], true);
+        game pseudo_game;
+        _clone(self, &pseudo_game);
+        uint32_t move_cnt = 0;
+        for (int i = 0; i < pseudo_move_cnt; i++) {
+            pseudo_game.methods->copy_from(&pseudo_game, self);
+            _apply_move_internal(&pseudo_game, pseudo_moves[i], true);
             bool is_legal = true;
-            std::vector<uint64_t> response_moves = pseudo_game.get_moves_pseudo_legal();
-            for (int j = 0; j < response_moves.size(); j++) {
+            uint32_t response_move_cnt;
+            move_code response_moves[CHESS_MAX_MOVES];
+            _get_moves_pseudo_legal(&pseudo_game, &response_move_cnt, response_moves);
+            for (int j = 0; j < response_move_cnt; j++) {
                 int cm_tx = (response_moves[j] >> 4) & 0x0F;
                 int cm_ty = response_moves[j] & 0x0F;
-                if (pseudo_game.get_cell(cm_tx, cm_ty).type == PIECE_TYPE_KING) {
+                CHESS_piece pseudo_piece;
+                _get_cell(&pseudo_game, cm_tx, cm_ty, &pseudo_piece);
+                if (pseudo_piece.type == CHESS_PIECE_TYPE_KING) {
                     is_legal = false;
                     break;
                 }
             }
             if (is_legal) {
-                legal_moves.push_back(moves[i]);
+                moves[move_cnt++] = pseudo_moves[i];
             }
         }
-        return legal_moves;
+        *ret_count = move_cnt;
+        _destroy(&pseudo_game);
+        return ERR_OK;
     }
 
-    void Chess::apply_move(uint64_t move_id)
+    static error_code _is_legal_move(game* self, player_id player, move_code move, uint32_t sync_ctr)
     {
-        apply_move_internal(move_id); // this swaps players after the move on its own
+        //TODO use better detection
+        if (self->sync_ctr != sync_ctr) {
+            return ERR_SYNC_CTR_MISMATCH;
+        }
+        if (move == MOVE_NONE) {
+            return ERR_INVALID_INPUT;
+        }
+        player_id ptm;
+        uint8_t ptm_count;
+        _players_to_move(self, &ptm_count, &ptm);
+        if (ptm != player) {
+            return ERR_INVALID_INPUT;
+        }
+        uint32_t move_cnt;
+        move_code moves[CHESS_MAX_MOVES];
+        _get_concrete_moves(self, PLAYER_NONE, &move_cnt, moves);
+        while (move_cnt > 0) {
+            move_cnt--;
+            if (moves[move_cnt] == move) {
+                return ERR_OK;
+            }
+        }
+        return ERR_INVALID_INPUT;
+    }
+
+    static error_code _make_move(game* self, player_id player, move_code move)
+    {
+        data_repr& data = _get_repr(self);
+        _apply_move_internal(self, move, false); // this swaps players after the move on its own
         //TODO draw on halfmove clock, should this happen here? probably just offer a move to claim draw, but for both players..
         //TODO does draw on threfold repetition happen here?
         //TODO better detection for win by checkmate and draw by stalemate
-        if (get_moves().size() == 0) {
+        uint32_t available_move_cnt;
+        move_code available_moves[CHESS_MAX_MOVES];
+        _get_concrete_moves(self, PLAYER_NONE, &available_move_cnt, available_moves);
+        if (available_move_cnt == 0) {
             // this is at least a stalemate here, now see if the other player would have a way to capture the king next turn
-            current_player = current_player == PLAYER_WHITE ? PLAYER_BLACK : PLAYER_WHITE;
-            std::vector<uint64_t> peudo_moves = get_moves_pseudo_legal();
-            for (int i = 0; i < peudo_moves.size(); i++) {
-                int cm_tx = (peudo_moves[i] >> 4) & 0x0F;
-                int cm_ty = peudo_moves[i] & 0x0F;
-                if (board[cm_ty][cm_tx].type == PIECE_TYPE_KING) {
-                    winning_player = current_player;
-                    current_player = PLAYER_NONE;
-                    return;
+            data.current_player = data.current_player == CHESS_PLAYER_WHITE ? CHESS_PLAYER_BLACK : CHESS_PLAYER_WHITE;
+            _get_moves_pseudo_legal(self, &available_move_cnt, available_moves);
+            for (int i = 0; i < available_move_cnt; i++) {
+                int cm_tx = (available_moves[i] >> 4) & 0x0F;
+                int cm_ty = available_moves[i] & 0x0F;
+                if (data.board[cm_ty][cm_tx].type == CHESS_PIECE_TYPE_KING) {
+                    data.winning_player = data.current_player;
+                    data.current_player = CHESS_PLAYER_NONE;
+                    return ERR_OK;
                 }
             }
-            current_player = PLAYER_NONE;
-            winning_player = RESULT_DRAW;
-            return;
+            data.current_player = CHESS_PLAYER_NONE;
+            data.winning_player = CHESS_PLAYER_NONE;
+            return ERR_OK;
         }
+        return ERR_OK;
     }
 
-    uint8_t Chess::get_result()
+    static error_code _get_results(game* self, uint8_t* ret_count, player_id* players)
     {
-        return winning_player;
-    }
-
-    void Chess::discretize(uint64_t seed)
-    {}
-
-    uint8_t Chess::perform_playout(uint64_t seed)
-    {
-        fast_prng rng(seed);
-        while (player_to_move() != 0) {
-            std::vector<uint64_t> moves_available = get_moves();
-            apply_move(moves_available[rng.rand()%moves_available.size()]);
+        *ret_count = 1;
+        if (players == NULL) {
+            return ERR_OK;
         }
-        return get_result();
-    }
-
-    surena::Game* Chess::clone() 
-    {
-        return new Chess(*this);
-    }
-
-    void Chess::copy_from(Game* target) 
-    {
-        *this = *static_cast<Chess*>(target);
-    }
-    
-    uint64_t Chess::get_move_id(std::string move_string)
-    {
-        if (move_string.length() < 4 || move_string.length() > 5) {
-            return UINT64_MAX;
+        data_repr& data = _get_repr(self);
+        if (data.current_player != CHESS_PLAYER_NONE) {
+            *ret_count = 0;
+            return ERR_OK;
         }
-        int ox = move_string[0]-'a';
-        int oy = move_string[1]-'1';
-        int tx = move_string[2]-'a';
-        int ty = move_string[3]-'1';
-        PIECE_TYPE promotion = PIECE_TYPE_NONE;
-        if (move_string.length() == 5) {
+        *players = data.winning_player;
+        return ERR_OK;
+    }
+
+    static error_code _id(game* self, uint64_t* ret_id)
+    {
+        //TODO use proper zobrist
+        data_repr& data = _get_repr(self);
+        uint32_t state_noise = strhash((char*)self->data, (char*)self->data+sizeof(data_repr));
+        *ret_id = ((uint64_t)state_noise << 32) | (uint64_t)squirrelnoise5(state_noise, state_noise);
+        return ERR_OK;
+    }
+
+    static error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move)
+    {
+        size_t str_len = strlen(str);
+        if (str_len >= 1 && str[0] == '-') {
+            *ret_move = MOVE_NONE;
+            return ERR_INVALID_INPUT;
+        }
+        if (str_len < 4 || str_len > 5) {
+            *ret_move = MOVE_NONE;
+            return ERR_INVALID_INPUT;
+        }
+        int ox = str[0]-'a';
+        int oy = str[1]-'1';
+        int tx = str[2]-'a';
+        int ty = str[3]-'1';
+        if (ox < 0 || ox > 7 || oy < 0 || oy > 7 || tx < 0 || tx > 7 || ty < 0 || ty > 7) {
+            *ret_move = MOVE_NONE;
+            return ERR_INVALID_INPUT;
+        }
+        CHESS_PIECE_TYPE promotion = CHESS_PIECE_TYPE_NONE;
+        if (str_len == 5) {
             // encode promotion
-            switch (move_string[4]) {
+            switch (str[4]) {
                 case 'q': {
-                    promotion = PIECE_TYPE_QUEEN;
+                    promotion = CHESS_PIECE_TYPE_QUEEN;
                 } break;
                 case 'r': {
-                    promotion = PIECE_TYPE_ROOK;
+                    promotion = CHESS_PIECE_TYPE_ROOK;
                 } break;
                 case 'b': {
-                    promotion = PIECE_TYPE_BISHOP;
+                    promotion = CHESS_PIECE_TYPE_BISHOP;
                 } break;
                 case 'n': {
-                    promotion = PIECE_TYPE_KNIGHT;
+                    promotion = CHESS_PIECE_TYPE_KNIGHT;
+                } break;
+                default: {
+                    return ERR_INVALID_INPUT;
                 } break;
             }
         }
-        return (promotion<<16)|(ox<<12)|(oy<<8)|(tx<<4)|(ty);
+        *ret_move = (promotion<<16)|(ox<<12)|(oy<<8)|(tx<<4)|(ty);
+        return ERR_OK;
     }
 
-    std::string Chess::get_move_string(uint64_t move_id)
+    static error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf)
     {
-        int ox = (move_id >> 12) & 0x0F;
-        int oy = (move_id >> 8) & 0x0F;
-        int tx = (move_id >> 4) & 0x0F;
-        int ty = move_id & 0x0F;
-        PIECE_TYPE promotion = static_cast<PIECE_TYPE>((move_id >> 16) & 0x0F);
-        std::string move_string = "";
-        move_string += ('a'+ox);
-        move_string += ('1'+oy);
-        move_string += ('a'+tx);
-        move_string += ('1'+ty);
-        if (promotion != PIECE_TYPE_NONE) {
-            move_string += PIECE_TYPE_CHARS[promotion]+32;
+        if (str_buf == NULL) {
+            *ret_size = 6;
+            return ERR_OK;
         }
-        return move_string;
+        if (move == MOVE_NONE) {
+            *ret_size = sprintf(str_buf, "-");
+            return ERR_OK;
+        }
+        int ox = (move >> 12) & 0x0F;
+        int oy = (move >> 8) & 0x0F;
+        int tx = (move >> 4) & 0x0F;
+        int ty = move & 0x0F;
+        CHESS_PIECE_TYPE promotion = static_cast<CHESS_PIECE_TYPE>((move >> 16) & 0x0F);
+        *ret_size = sprintf(str_buf, "%c%c%c%c", 'a' + ox, '1' + oy, 'a' + tx, '1' + ty);
+        if (promotion != CHESS_PIECE_TYPE_NONE) {
+            *ret_size += sprintf(str_buf+4, "%c", CHESS_PIECE_TYPE_CHARS[promotion]+32);
+        }
+        return ERR_OK;
     }
 
-    void Chess::debug_print()
+    static error_code _debug_print(game* self, size_t* ret_size, char* str_buf)
     {
-        printf("##### debug print board #####\n");
-        printf("castling rights: ");
-        printf(castling_white_king ? "K" : "-");
-        printf(castling_white_queen ? "Q" : "-");
-        printf(castling_black_king ? "k" : "-");
-        printf(castling_black_queen ? "q" : "-");
-        printf("\n");
-        printf("en passant target: ");
-        if (enpassant_target == 0xFF) {
-            printf("--");
+        if (str_buf == NULL) {
+            *ret_size = 128; //TODO calculate proper size
+            return ERR_OK;
+        }
+        data_repr& data = _get_repr(self);
+        const char* ostr = str_buf;
+        str_buf += sprintf(str_buf, "castling rights: ");
+        str_buf += sprintf(str_buf, data.castling_white_king ? "K" : "-");
+        str_buf += sprintf(str_buf, data.castling_white_queen ? "Q" : "-");
+        str_buf += sprintf(str_buf, data.castling_black_king ? "k" : "-");
+        str_buf += sprintf(str_buf, data.castling_black_queen ? "q" : "-");
+        str_buf += sprintf(str_buf, "\n");
+        str_buf += sprintf(str_buf, "en passant target: ");
+        if (data.enpassant_target == 0xFF) {
+            str_buf += sprintf(str_buf, "--");
         } else {
-            printf("%c%c", 'a'+((enpassant_target>>4)&0x0F), '1'+(enpassant_target&0x0F));
+            str_buf += sprintf(str_buf, "%c%c", 'a'+((data.enpassant_target>>4)&0x0F), '1'+(data.enpassant_target&0x0F));
         }
-        printf("\n\n");
+        str_buf += sprintf(str_buf, "\n\n");
         for (int y = 7; y >= 0; y--) {
-            printf("%c ", '1'+y);
+            str_buf += sprintf(str_buf, "%c ", '1'+y);
             for (int x = 0; x < 8; x++) {
-                if (board[y][x].player == PLAYER_NONE) {
-                    printf("%c", PIECE_TYPE_CHARS[PIECE_TYPE_NONE]);
+                if (data.board[y][x].player == CHESS_PLAYER_NONE) {
+                    str_buf += sprintf(str_buf, "%c", CHESS_PIECE_TYPE_CHARS[CHESS_PIECE_TYPE_NONE]);
                     continue;
                 }
                 // add 32 to make piece chars lower case for black
-                printf("%c", PIECE_TYPE_CHARS[board[y][x].type] + (board[y][x].player == PLAYER_BLACK ? 32 : 0));
+                str_buf += sprintf(str_buf, "%c", CHESS_PIECE_TYPE_CHARS[data.board[y][x].type] + (data.board[y][x].player == CHESS_PLAYER_BLACK ? 32 : 0));
             }
-            printf("\n");
+            str_buf += sprintf(str_buf, "\n");
         }
-        printf("\n  ");
+        str_buf += sprintf(str_buf, "\n  ");
         for (int x = 0; x < 8; x++) {
-            printf("%c", 'a'+x);
+            str_buf += sprintf(str_buf, "%c", 'a'+x);
         }
-        printf("\n");
-        printf("##### +++++ +++++ +++++ #####\n");
+        str_buf += sprintf(str_buf, "\n");
+        *ret_size = str_buf-ostr;
+        return ERR_OK;
     }
 
-    Chess::piece Chess::get_cell(int x, int y)
+    //=====
+    // game internal methods
+
+    static error_code _get_cell(game* self, int x, int y, CHESS_piece* p)
     {
-        return board[y][x];
+        data_repr& data = _get_repr(self);
+        *p = data.board[y][x];
+        return ERR_OK;
     }
 
-    void Chess::set_cell(int x, int y, piece p)
+    static error_code _set_cell(game* self, int x, int y, CHESS_piece p)
     {
-        board[y][x] = p;
+        data_repr& data = _get_repr(self);
+        data.board[y][x] = p;
+        return ERR_OK;
     }
 
-    void Chess::set_current_player(PLAYER p)
+    static error_code _set_current_player(game* self, player_id p)
     {
-        current_player = p;
+        data_repr& data = _get_repr(self);
+        data.current_player = (CHESS_PLAYER)p;
+        return ERR_OK;
     }
 
-    void Chess::set_result(PLAYER p)
+    static error_code _set_result(game* self, player_id p)
     {
-        winning_player = p;
+        data_repr& data = _get_repr(self);
+        data.winning_player = (CHESS_PLAYER)p;
+        return ERR_OK;
     }
 
-    void Chess::apply_move_internal(uint64_t move_id, bool replace_castling_by_kings)
+    static error_code _count_positions(game* self, int depth, uint64_t* count)
     {
-        int ox = (move_id >> 12) & 0x0F;
-        int oy = (move_id >> 8) & 0x0F;
-        int tx = (move_id >> 4) & 0x0F;
-        int ty = move_id & 0x0F;
-        board[ty][tx] = board[oy][ox];
-        board[oy][ox] = piece{PLAYER_NONE, PIECE_TYPE_NONE};
+        // this chess implementation is valid against all chessprogrammingwiki positions, tested up to depth 4
+        uint32_t move_cnt;
+        move_code moves[CHESS_MAX_MOVES];
+        _get_concrete_moves(self, PLAYER_NONE, &move_cnt, moves);
+        if (depth == 1) {
+            *count = move_cnt; // bulk counting since get_moves generates only legal moves
+        }
+        uint64_t positions = 0;
+        game test_game;
+        _clone(self, &test_game);
+        for (int i = 0; i < move_cnt; i++) {
+            _copy_from(&test_game, self);
+            _apply_move_internal(&test_game, moves[i], false);
+            uint64_t test_game_positions;
+            _count_positions(&test_game, depth - 1, &test_game_positions);
+            positions += test_game_positions;
+        }
+        *count = positions;
+        _destroy(&test_game);
+        return ERR_OK;
+    }
+
+    static error_code _apply_move_internal(game* self, move_code move, bool replace_castling_by_kings)
+    {
+        data_repr& data = _get_repr(self);
+        int ox = (move >> 12) & 0x0F;
+        int oy = (move >> 8) & 0x0F;
+        int tx = (move >> 4) & 0x0F;
+        int ty = move & 0x0F;
+        data.board[ty][tx] = data.board[oy][ox];
+        data.board[oy][ox] = CHESS_piece{CHESS_PLAYER_NONE, CHESS_PIECE_TYPE_NONE};
         // if move is enpassant capture, also remove the double pushed pawn
-        if (enpassant_target == (move_id&0xFF) && board[ty][tx].type == PIECE_TYPE_PAWN) {
-            board[oy][ox+(tx-ox)] = piece{PLAYER_NONE, PIECE_TYPE_NONE};
+        if (data.enpassant_target == (move&0xFF) && data.board[ty][tx].type == CHESS_PIECE_TYPE_PAWN) {
+            data.board[oy][ox+(tx-ox)] = CHESS_piece{CHESS_PLAYER_NONE, CHESS_PIECE_TYPE_NONE};
         }
         // enpassant caputure is only valid immediately after the double push
-        enpassant_target = 0xFF;
+        data.enpassant_target = 0xFF;
         // set new enpassant target on double pushed pawn
         // piece is pawn and has moved vertically more than 1 square
-        if (board[ty][tx].type == PIECE_TYPE_PAWN) {
+        if (data.board[ty][tx].type == CHESS_PIECE_TYPE_PAWN) {
             if (ty-oy > 1) {
-                enpassant_target = (tx<<4)|(oy+1);
+                data.enpassant_target = (tx<<4)|(oy+1);
             }
             if (oy-ty > 1) {
-                enpassant_target = (tx<<4)|(ty+1);
+                data.enpassant_target = (tx<<4)|(ty+1);
             }
         }
         // perform castling
         // piece is king and has moved horizontally more than one 
-        if (board[ty][tx].type == PIECE_TYPE_KING) {
+        if (data.board[ty][tx].type == CHESS_PIECE_TYPE_KING) {
             if (tx-ox > 1) { // kingside
-                board[ty][ox+1] = board[ty][7];
+                data.board[ty][ox+1] = data.board[ty][7];
                 if (replace_castling_by_kings) {
-                    board[ty][ox+1] = piece{board[ty][7].player, PIECE_TYPE_KING};
-                    board[oy][ox] = piece{board[ty][7].player, PIECE_TYPE_KING};
+                    data.board[ty][ox+1] = CHESS_piece{data.board[ty][7].player, CHESS_PIECE_TYPE_KING};
+                    data.board[oy][ox] = CHESS_piece{data.board[ty][7].player, CHESS_PIECE_TYPE_KING};
                 }
-                board[ty][7] = piece{PLAYER_NONE, PIECE_TYPE_NONE};
+                data.board[ty][7] = CHESS_piece{CHESS_PLAYER_NONE, CHESS_PIECE_TYPE_NONE};
             }
             if (ox-tx > 1) { // queenside
-                board[ty][ox-1] = board[ty][0];
+                data.board[ty][ox-1] = data.board[ty][0];
                 if (replace_castling_by_kings) {
-                    board[ty][ox-1] = piece{board[ty][0].player, PIECE_TYPE_KING};
-                    board[oy][ox] = piece{board[ty][0].player, PIECE_TYPE_KING};
+                    data.board[ty][ox-1] = CHESS_piece{data.board[ty][0].player, CHESS_PIECE_TYPE_KING};
+                    data.board[oy][ox] = CHESS_piece{data.board[ty][0].player, CHESS_PIECE_TYPE_KING};
                 }
-                board[ty][0] = piece{PLAYER_NONE, PIECE_TYPE_NONE};
+                data.board[ty][0] = CHESS_piece{CHESS_PLAYER_NONE, CHESS_PIECE_TYPE_NONE};
             }
         }
         // pawn promotion
         // piece is pawn and target is y=0 or y=7, promote to supplied type
-        if (board[ty][tx].type == PIECE_TYPE_PAWN && (ty == 0 || ty == 7)) {
-            board[ty][tx].type = static_cast<PIECE_TYPE>((move_id >> 16) & 0x0F);
+        if (data.board[ty][tx].type == CHESS_PIECE_TYPE_PAWN && (ty == 0 || ty == 7)) {
+            data.board[ty][tx].type = static_cast<CHESS_PIECE_TYPE>((move >> 16) & 0x0F);
         }
         // revoke castling rights if any exist
-        if (castling_white_king || castling_white_queen || castling_black_king || castling_black_queen) {
-            if (board[ty][tx].type == PIECE_TYPE_KING) {
-                if (current_player == PLAYER_WHITE) {
-                    castling_white_king = false;
-                    castling_white_queen = false;
+        if (data.castling_white_king || data.castling_white_queen || data.castling_black_king || data.castling_black_queen) {
+            if (data.board[ty][tx].type == CHESS_PIECE_TYPE_KING) {
+                if (data.current_player == CHESS_PLAYER_WHITE) {
+                    data.castling_white_king = false;
+                    data.castling_white_queen = false;
                 }
-                if (current_player == PLAYER_BLACK) {
-                    castling_black_king = false;
-                    castling_black_queen = false;
+                if (data.current_player == CHESS_PLAYER_BLACK) {
+                    data.castling_black_king = false;
+                    data.castling_black_queen = false;
                 }
             }
-            if (board[ty][tx].type == PIECE_TYPE_ROOK) {
+            if (data.board[ty][tx].type == CHESS_PIECE_TYPE_ROOK) {
                 // check which side to revoke castling for
                 if (ox == 0) {
-                    if (current_player == PLAYER_WHITE) {
-                        castling_white_queen = false;
+                    if (data.current_player == CHESS_PLAYER_WHITE) {
+                        data.castling_white_queen = false;
                     }
-                    if (current_player == PLAYER_BLACK) {
-                        castling_black_queen = false;
+                    if (data.current_player == CHESS_PLAYER_BLACK) {
+                        data.castling_black_queen = false;
                     }
                 }
                 if (ox == 7) {
-                    if (current_player == PLAYER_WHITE) {
-                        castling_white_king = false;
+                    if (data.current_player == CHESS_PLAYER_WHITE) {
+                        data.castling_white_king = false;
                     }
-                    if (current_player == PLAYER_BLACK) {
-                        castling_black_king = false;
+                    if (data.current_player == CHESS_PLAYER_BLACK) {
+                        data.castling_black_king = false;
                     }
                 }
             }
         }
         // swap current player
-        current_player = current_player == PLAYER_WHITE ? PLAYER_BLACK : PLAYER_WHITE;
+        data.current_player = data.current_player == CHESS_PLAYER_WHITE ? CHESS_PLAYER_BLACK : CHESS_PLAYER_WHITE;
+        return ERR_OK;
     }
 
-    std::vector<uint64_t> Chess::get_moves_pseudo_legal()
+    static error_code _get_moves_pseudo_legal(game* self, uint32_t* move_cnt, move_code* move_vec)
     {
+        data_repr& data = _get_repr(self);
         // directions are: N,S,W,E,NW,SE,NE,SW
         const int directions_x[8] = {0, 0, -1, 1, -1, 1, 1, -1};
         const int directions_y[8] = {1, -1, 0, 0, 1, -1, 1, -1};
@@ -508,55 +836,55 @@ namespace surena {
         // vector are: WHITE{NW,N,NE,2N}, BLACK{SW,S,SE,2S}
         const int pawn_cvx[8] = {-1, 0, 1, 0, -1, 0, 1, 0};
         const int pawn_cvy[8] = {1, 1, 1, 2, -1, -1, -1, -2};
-        std::vector<uint64_t> moves{};
+        uint32_t gather_move_cnt = 0;
         for (int y = 0; y < 8; y++) {
             for (int x = 0; x < 8; x++) {
-                piece current_piece = board[y][x];
-                if (current_piece.player != current_player) {
+                CHESS_piece current_piece = data.board[y][x];
+                if (current_piece.player != data.current_player) {
                     continue;
                 }
                 // gen move for this piece
                 switch (current_piece.type) {
-                    case PIECE_TYPE_KING: {
+                    case CHESS_PIECE_TYPE_KING: {
                         for (int d = 0; d < 8; d++) {
                             int tx = x + directions_x[d];
                             int ty = y + directions_y[d];
                             if (tx < 0 || tx > 7 || ty < 0 || ty > 7) {
                                 continue;
                             }
-                            piece target_piece = board[ty][tx];
-                            if (target_piece.player == current_player) {
+                            CHESS_piece target_piece = data.board[ty][tx];
+                            if (target_piece.player == data.current_player) {
                                 continue;
                             }
-                            moves.push_back((x<<12)|(y<<8)|(tx<<4)|(ty));
+                            move_vec[gather_move_cnt++] = (x<<12)|(y<<8)|(tx<<4)|(ty);
                         }
                         // king is not allowed to move through attacked squares while castling, this is handled elsewhere for now
-                        if (current_player == PLAYER_WHITE) {
-                            if (castling_white_king && board[y][x+1].type == PIECE_TYPE_NONE && board[y][x+2].type == PIECE_TYPE_NONE &&
-                                board[y][7].player == current_player && board[y][7].type == PIECE_TYPE_ROOK) {
-                                moves.push_back((x<<12)|(y<<8)|((x+2)<<4)|(y));
+                        if (data.current_player == CHESS_PLAYER_WHITE) {
+                            if (data.castling_white_king && data.board[y][x+1].type == CHESS_PIECE_TYPE_NONE && data.board[y][x+2].type == CHESS_PIECE_TYPE_NONE &&
+                                data.board[y][7].player == data.current_player && data.board[y][7].type == CHESS_PIECE_TYPE_ROOK) {
+                                move_vec[gather_move_cnt++] = (x<<12)|(y<<8)|((x+2)<<4)|(y);
                             }
-                            if (castling_white_queen && board[y][x-1].type == PIECE_TYPE_NONE && board[y][x-2].type == PIECE_TYPE_NONE && board[y][x-3].type == PIECE_TYPE_NONE &&
-                                board[y][0].player == current_player && board[y][0].type == PIECE_TYPE_ROOK) {
-                                moves.push_back((x<<12)|(y<<8)|((x-2)<<4)|(y));
+                            if (data.castling_white_queen && data.board[y][x-1].type == CHESS_PIECE_TYPE_NONE && data.board[y][x-2].type == CHESS_PIECE_TYPE_NONE && data.board[y][x-3].type == CHESS_PIECE_TYPE_NONE &&
+                                data.board[y][0].player == data.current_player && data.board[y][0].type == CHESS_PIECE_TYPE_ROOK) {
+                                move_vec[gather_move_cnt++] = (x<<12)|(y<<8)|((x-2)<<4)|(y);
                             }
                         }
-                        if (current_player == PLAYER_BLACK) {
-                            if (castling_black_king && board[y][x+1].type == PIECE_TYPE_NONE && board[y][x+2].type == PIECE_TYPE_NONE &&
-                                board[y][7].player == current_player && board[y][7].type == PIECE_TYPE_ROOK) {
-                                moves.push_back((x<<12)|(y<<8)|((x+2)<<4)|(y));
+                        if (data.current_player == CHESS_PLAYER_BLACK) {
+                            if (data.castling_black_king && data.board[y][x+1].type == CHESS_PIECE_TYPE_NONE && data.board[y][x+2].type == CHESS_PIECE_TYPE_NONE &&
+                                data.board[y][7].player == data.current_player && data.board[y][7].type == CHESS_PIECE_TYPE_ROOK) {
+                                move_vec[gather_move_cnt++] = (x<<12)|(y<<8)|((x+2)<<4)|(y);
                             }
-                            if (castling_black_queen && board[y][x-1].type == PIECE_TYPE_NONE && board[y][x-2].type == PIECE_TYPE_NONE && board[y][x-3].type == PIECE_TYPE_NONE &&
-                                board[y][0].player == current_player && board[y][0].type == PIECE_TYPE_ROOK) {
-                                moves.push_back((x<<12)|(y<<8)|((x-2)<<4)|(y));
+                            if (data.castling_black_queen && data.board[y][x-1].type == CHESS_PIECE_TYPE_NONE && data.board[y][x-2].type == CHESS_PIECE_TYPE_NONE && data.board[y][x-3].type == CHESS_PIECE_TYPE_NONE &&
+                                data.board[y][0].player == data.current_player && data.board[y][0].type == CHESS_PIECE_TYPE_ROOK) {
+                                move_vec[gather_move_cnt++] = (x<<12)|(y<<8)|((x-2)<<4)|(y);
                             }
                         }
                     } break;
-                    case PIECE_TYPE_QUEEN:
-                    case PIECE_TYPE_ROOK:
-                    case PIECE_TYPE_BISHOP: {
-                        int dmin = current_piece.type == PIECE_TYPE_BISHOP ? 4 : 0;
-                        int dmax = current_piece.type == PIECE_TYPE_ROOK ? 4 : 8;
+                    case CHESS_PIECE_TYPE_QUEEN:
+                    case CHESS_PIECE_TYPE_ROOK:
+                    case CHESS_PIECE_TYPE_BISHOP: {
+                        int dmin = current_piece.type == CHESS_PIECE_TYPE_BISHOP ? 4 : 0;
+                        int dmax = current_piece.type == CHESS_PIECE_TYPE_ROOK ? 4 : 8;
                         for (int d = dmin; d < dmax; d++) {
                             for (int s = 1; true; s++) {
                                 int tx = x + s*directions_x[d];
@@ -564,45 +892,45 @@ namespace surena {
                                 if (tx < 0 || tx > 7 || ty < 0 || ty > 7) {
                                     break;
                                 }
-                                piece target_piece = board[ty][tx];
-                                if (target_piece.player == current_player) {
+                                CHESS_piece target_piece = data.board[ty][tx];
+                                if (target_piece.player == data.current_player) {
                                     break;
                                 }
-                                moves.push_back((x<<12)|(y<<8)|(tx<<4)|(ty));
-                                if (target_piece.player != current_piece.player && target_piece.type != PIECE_TYPE_NONE) {
+                                move_vec[gather_move_cnt++] = (x<<12)|(y<<8)|(tx<<4)|(ty);
+                                if (target_piece.player != current_piece.player && target_piece.type != CHESS_PIECE_TYPE_NONE) {
                                     break;
                                 }
                             }
                         }
                     } break;
-                    case PIECE_TYPE_KNIGHT: {
+                    case CHESS_PIECE_TYPE_KNIGHT: {
                         for (int d = 0; d < 8; d++) {
                             int tx = x + knight_vx[d];
                             int ty = y + knight_vy[d];
                             if (tx < 0 || tx > 7 || ty < 0 || ty > 7) {
                                 continue;
                             }
-                            piece target_piece = board[ty][tx];
-                            if (target_piece.player == current_player) {
+                            CHESS_piece target_piece = data.board[ty][tx];
+                            if (target_piece.player == data.current_player) {
                                 continue;
                             }
-                            moves.push_back((x<<12)|(y<<8)|(tx<<4)|(ty));
+                            move_vec[gather_move_cnt++] = (x<<12)|(y<<8)|(tx<<4)|(ty);
                         }
                     } break;
-                    case PIECE_TYPE_PAWN: {
-                        int dmin = current_player == PLAYER_BLACK ? 4 : 0;
-                        int dmax = current_player == PLAYER_WHITE ? 4 : 8;
+                    case CHESS_PIECE_TYPE_PAWN: {
+                        int dmin = data.current_player == CHESS_PLAYER_BLACK ? 4 : 0;
+                        int dmax = data.current_player == CHESS_PLAYER_WHITE ? 4 : 8;
                         for (int d = dmin; d < dmax; d++) {
                             int tx = x + pawn_cvx[d];
                             int ty = y + pawn_cvy[d];
                             if (tx < 0 || tx > 7 || ty < 0 || ty > 7) {
                                 continue;
                             }
-                            piece target_piece = board[ty][tx];
-                            if (target_piece.player == current_player) {
+                            CHESS_piece target_piece = data.board[ty][tx];
+                            if (target_piece.player == data.current_player) {
                                 continue;
                             }
-                            if (tx != x && target_piece.type == PIECE_TYPE_NONE && enpassant_target != ((tx<<4)|(ty))) {
+                            if (tx != x && target_piece.type == CHESS_PIECE_TYPE_NONE && data.enpassant_target != ((tx<<4)|(ty))) {
                                 // pawn would move diagonally, but there isnt any piece there to capture, and it also isnt an en passant target
                                 continue;
                             }
@@ -610,47 +938,60 @@ namespace surena {
                                 // do not allow double pawn push if it isnt in its starting position
                                 continue;
                             }
-                            if ((y == 1 || y == 6) && (ty-y > 1 || y-ty > 1) && board[y+pawn_cvy[d-2]][tx].type != PIECE_TYPE_NONE) {
+                            if ((y == 1 || y == 6) && (ty-y > 1 || y-ty > 1) && data.board[y+pawn_cvy[d-2]][tx].type != CHESS_PIECE_TYPE_NONE) {
                                 // double pawn push only allowed over empty squares
                                 continue;
                             }
-                            if (tx-x == 0 && target_piece.type != PIECE_TYPE_NONE) {
+                            if (tx-x == 0 && target_piece.type != CHESS_PIECE_TYPE_NONE) {
                                 // can only advance straight forward into open spaces
                                 continue;
                             }
                             if (ty == 0 || ty == 7) {
                                 // pawn promotion, instead add 4 moves for the 4 types of promotions
-                                moves.push_back((PIECE_TYPE_QUEEN<<16)|(x<<12)|(y<<8)|(tx<<4)|(ty));
-                                moves.push_back((PIECE_TYPE_ROOK<<16)|(x<<12)|(y<<8)|(tx<<4)|(ty));
-                                moves.push_back((PIECE_TYPE_BISHOP<<16)|(x<<12)|(y<<8)|(tx<<4)|(ty));
-                                moves.push_back((PIECE_TYPE_KNIGHT<<16)|(x<<12)|(y<<8)|(tx<<4)|(ty));
+                                move_vec[gather_move_cnt++] = (CHESS_PIECE_TYPE_QUEEN<<16)|(x<<12)|(y<<8)|(tx<<4)|(ty);
+                                move_vec[gather_move_cnt++] = (CHESS_PIECE_TYPE_ROOK<<16)|(x<<12)|(y<<8)|(tx<<4)|(ty);
+                                move_vec[gather_move_cnt++] = (CHESS_PIECE_TYPE_BISHOP<<16)|(x<<12)|(y<<8)|(tx<<4)|(ty);
+                                move_vec[gather_move_cnt++] = (CHESS_PIECE_TYPE_KNIGHT<<16)|(x<<12)|(y<<8)|(tx<<4)|(ty);
                                 continue;
                             }
-                            moves.push_back((x<<12)|(y<<8)|(tx<<4)|(ty));
+                            move_vec[gather_move_cnt++] = (x<<12)|(y<<8)|(tx<<4)|(ty);
                         }
                     } break;
                     default: break;
                 }
             }
         }
-        return moves;
-    }
-
-    // this chess implementation is valid against all chessprogrammingwiki positions, tested up to depth 4
-    uint64_t Chess::count_positions(int depth)
-    {
-        std::vector<uint64_t> moves = get_moves();
-        if (depth == 1) {
-            return moves.size(); // bulk counting since get_moves generates only legal moves
-        }
-        uint64_t positions = 0;
-        surena::Chess test_game;
-        for (int i = 0; i < moves.size(); i++) {
-            test_game.copy_from(this);
-            test_game.apply_move_internal(moves[i]);
-            positions += test_game.count_positions(depth - 1);
-        }
-        return positions;
+        *move_cnt = gather_move_cnt;
+        return ERR_OK;
     }
 
 }
+
+const char CHESS_PIECE_TYPE_CHARS[7] = {'-', 'K', 'Q', 'R', 'B', 'N', 'P'}; // none, king, queen, rook, bishop, knight, pawn
+
+static const chess_internal_methods chess_gbe_internal_methods{
+    .get_cell = surena::_get_cell,
+    .set_cell = surena::_set_cell,
+    .set_current_player = surena::_set_current_player,
+    .set_result = surena::_set_result,
+    .count_positions = surena::_count_positions,
+    .apply_move_internal = surena::_apply_move_internal,
+    .get_moves_pseudo_legal = surena::_get_moves_pseudo_legal,
+};
+
+const game_methods chess_gbe{
+
+    .game_name = "Chess",
+    .variant_name = "Standard",
+    .impl_name = "surena_default",
+    .version = semver{0, 1, 0},
+    .features = game_feature_flags{
+        .random_moves = false,
+        .hidden_information = false,
+        .simultaneous_moves = false,
+    },
+    .internal_methods = (void*)&chess_gbe_internal_methods,
+    
+    #include "surena/game_impl.h"
+    
+};

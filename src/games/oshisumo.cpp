@@ -7,14 +7,14 @@
 #include "surena/game_gftypes.h"
 #include "surena/game.h"
 
-#include "surena/games/oshisumo.hpp"
+#include "surena/games/oshisumo.h"
 
 namespace surena {
     
     // game data state representation and general getter
     
     typedef oshisumo_options opts_repr;
-    opts_repr& _get_opts(game* self)
+    static opts_repr& _get_opts(game* self)
     {
         return *((opts_repr*)(self->options));
     }
@@ -26,7 +26,7 @@ namespace surena {
         uint8_t sm_acc_buf[2];
     } data_repr;
 
-    data_repr& _get_repr(game* self)
+    static data_repr& _get_repr(game* self)
     {
         return *((data_repr*)(self->data));
     }
@@ -154,7 +154,7 @@ namespace surena {
     
     static error_code _copy_from(game* self, game* other)
     {
-        *self = *other;
+        self->sync_ctr = other->sync_ctr;
         memcpy(self->data, other->data, sizeof(data_repr));
         return ERR_OK;
     }

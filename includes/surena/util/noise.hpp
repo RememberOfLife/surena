@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 /*
@@ -72,7 +73,7 @@ float get_3d_noto(int32_t indexX, int32_t indexY, int32_t indexZ, uint32_t seed=
 float get_4d_noto(int32_t indexX, int32_t indexY, int32_t indexZ, int32_t indexT, uint32_t seed=0);
 
 // strhash function not part of squirrelnoise
-uint32_t strhash(const char* str);
+uint32_t strhash(const char* str, const char* str_end = NULL);
 
 /*
 diy inserts:

@@ -106,6 +106,7 @@ typedef struct game_methods_s {
     const char* impl_name;
     const semver version;
     const game_feature_flags features; // these will never change depending on options
+    //TODO put a struct of lengths here for functions that take buffers?
 
     // the game method specific internal method struct, NULL if not available
     // use the {base,variant,impl} name to make sure you know what this will be

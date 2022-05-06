@@ -4,6 +4,8 @@
 extern "C" {
 #endif
 
+#include <stdint.h>
+
 #include "surena/game.h"
 
 typedef struct tictactoe_internal_methods_s {

@@ -3,21 +3,16 @@
 #include <cstring>
 #include <dlfcn.h>
 
-// #include "surena/engines/singlethreadedmcts.hpp"
-// #include "surena/games/alhambra.hpp"
-// #include "surena/games/caesar.hpp"
-// #include "surena/games/chess.hpp"
-// #include "surena/games/havannah.hpp"
-#include "surena/games/oshisumo.hpp"
+#include "surena/games/chess.h"
+#include "surena/games/oshisumo.h"
 #include "surena/games/tictactoe_ultimate.h"
 #include "surena/games/tictactoe.h"
 #include "surena/util/semver.h"
-// #include "surena/engine.hpp"
 #include "surena/game_plugin.h"
 #include "surena/game.h"
 
 namespace surena {
-    const semver version = {0, 7, 0};
+    const semver version = {0, 8, 0};
 }
 
 // args https://github.com/p-ranav/argparse
@@ -97,7 +92,7 @@ int main(int argc, char** argv)
     }
 
     // for debugging
-    game_method = &oshisumo_gbe;
+    game_method = &chess_gbe;
 
     if (game_method == NULL) {
         printf("no game method specified\n");
@@ -153,6 +148,7 @@ int main(int argc, char** argv)
     char* print_buf = (char*)malloc(print_buf_size);
     size_t move_str_size;
     thegame.methods->get_move_str(&thegame, PLAYER_NONE, MOVE_NONE, &move_str_size, NULL);
+    move_str_size++; // account for reading '\n' later on
     char* move_str = (char*)malloc(move_str_size);
     player_id ptm;
     uint8_t ptm_count;
@@ -160,7 +156,6 @@ int main(int argc, char** argv)
     //TODO adapt loop for simul player games, and what way to print the whole knowing board AND a privacy view hidden board?
     while (true) {
         printf("================================\n");
-        thegame.methods->debug_print(&thegame, &print_buf_size, print_buf);
         thegame.methods->export_state(&thegame, &state_str_size, state_str);
         printf("state: \"%s\"\n", state_str);
         bool extra_state = false;
@@ -182,22 +177,20 @@ int main(int argc, char** argv)
         if (extra_state) {
             printf("\n");
         }
+        thegame.methods->debug_print(&thegame, &print_buf_size, print_buf);
         printf("%s", print_buf);
         if (ptm_count == 0) {
             break;
         }
         printf("player to move %d: ", ptm);
-        int src = scanf("%2s", move_str);
-        if (src == EOF) {
-            printf("\naborted\n");
+        if (fgets(move_str, move_str_size, stdin) == NULL) {
+            printf("\nerror/aborted\n");
             exit(1);
         }
+        move_str[strcspn(move_str, "\n")] = '\0';
+        printf("the str: %s\n", move_str);
         move_code themove;
-        if (src == 1) { // valid input
-            ec = thegame.methods->get_move_code(&thegame, PLAYER_NONE, move_str, &themove);
-        } else { // invalid input
-            themove = MOVE_NONE;
-        }
+        ec = thegame.methods->get_move_code(&thegame, PLAYER_NONE, move_str, &themove);
         if (ec == ERR_OK) {
             ec = thegame.methods->is_legal_move(&thegame, ptm, themove, thegame.sync_ctr);
         }
