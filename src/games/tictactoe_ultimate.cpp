@@ -520,7 +520,6 @@ namespace surena {
 
     static error_code _playout(game* self, uint64_t seed)
     {
-        data_repr& data = _get_repr(self);
         fast_prng rng(seed);
         move_code moves[81];
         uint32_t moves_count;

@@ -327,7 +327,7 @@ namespace surena {
             }
             data.halfmove_clock *= 10;
             uint32_t ladd = (*str)-'0';
-            if (ladd < 0 || ladd > 9) {
+            if (ladd > 9) {
                 return ERR_INVALID_INPUT;
             }
             data.halfmove_clock += ladd;
@@ -342,7 +342,7 @@ namespace surena {
             }
             data.fullmove_clock *= 10;
             uint32_t ladd = (*str)-'0';
-            if (ladd < 0 || ladd > 9) {
+            if (ladd > 9) {
                 return ERR_INVALID_INPUT;
             }
             data.fullmove_clock += ladd;

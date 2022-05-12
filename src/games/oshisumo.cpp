@@ -142,8 +142,9 @@ namespace surena {
         if (clone_target == NULL) {
             return ERR_INVALID_INPUT;
         }
-        *clone_target = *self;
-        _get_opts(clone_target) = _get_opts(self);
+        clone_target->sync_ctr = self->sync_ctr;
+        clone_target->methods = self->methods;
+        _import_options_bin(clone_target, self->options);
         error_code ec = clone_target->methods->create(clone_target);
         if (ec != ERR_OK) {
             return ec;

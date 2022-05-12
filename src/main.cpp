@@ -4,6 +4,7 @@
 #include <dlfcn.h>
 
 #include "surena/games/chess.h"
+#include "surena/games/havannah.h"
 #include "surena/games/oshisumo.h"
 #include "surena/games/tictactoe_ultimate.h"
 #include "surena/games/tictactoe.h"
@@ -12,7 +13,7 @@
 #include "surena/game.h"
 
 namespace surena {
-    const semver version = {0, 8, 0};
+    const semver version = {0, 9, 0};
 }
 
 // args https://github.com/p-ranav/argparse
@@ -92,7 +93,7 @@ int main(int argc, char** argv)
     }
 
     // for debugging
-    game_method = &chess_gbe;
+    game_method = &havannah_gbe;
 
     if (game_method == NULL) {
         printf("no game method specified\n");
