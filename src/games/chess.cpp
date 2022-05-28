@@ -43,7 +43,6 @@ namespace surena {
     static error_code _compare(game* self, game* other, bool* ret_equal);
     static error_code _import_state(game* self, const char* str);
     static error_code _export_state(game* self, size_t* ret_size, char* str);
-    static error_code _get_player_count(game* self, uint8_t* ret_count);
     static error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players);
     static error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves);
     GF_UNUSED(get_concrete_move_probabilities);
@@ -60,6 +59,7 @@ namespace surena {
     GF_UNUSED(playout);
     GF_UNUSED(redact_keep_state);
     GF_UNUSED(export_sync_data);
+    GF_UNUSED(release_sync_data);
     GF_UNUSED(import_sync_data);
     static error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move);
     static error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
@@ -90,6 +90,15 @@ namespace surena {
         if (self->data == NULL) {
             return ERR_OUT_OF_MEMORY;
         }
+        self->sizer = (buf_sizer){
+            .state_str = 128,
+            .player_count = 2,
+            .max_players_to_move = 1,
+            .max_moves = CHESS_MAX_MOVES,
+            .max_results = 1,
+            .move_str = 6,
+            .print_str = 128, // calc proper size
+        };
         return ERR_OK;
     }
 
@@ -354,8 +363,7 @@ namespace surena {
     static error_code _export_state(game* self, size_t* ret_size, char* str)
     {
         if (str == NULL) {
-            *ret_size = 128;
-            return ERR_OK;
+            return ERR_INVALID_INPUT;
         }
         data_repr& data = _get_repr(self);
         const char* ostr = str;
@@ -425,18 +433,12 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _get_player_count(game* self, uint8_t* ret_count)
-    {
-        *ret_count = 2;
-        return ERR_OK;
-    }
-
     static error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players)
     {
-        *ret_count = 1;
         if (players == NULL) {
-            return ERR_OK;
+            return ERR_INVALID_INPUT;
         }
+        *ret_count = 1;
         data_repr& data = _get_repr(self);
         if (data.current_player == CHESS_PLAYER_NONE) {
             *ret_count = 0;
@@ -449,8 +451,7 @@ namespace surena {
     static error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves)
     {
         if (moves == NULL) {
-            *ret_count = CHESS_MAX_MOVES;
-            return ERR_OK;
+            return ERR_INVALID_INPUT;
         }
         data_repr& data = _get_repr(self);
         //TODO encode things like check in the move, for move string printing in ptn?
@@ -552,10 +553,10 @@ namespace surena {
 
     static error_code _get_results(game* self, uint8_t* ret_count, player_id* players)
     {
-        *ret_count = 1;
         if (players == NULL) {
-            return ERR_OK;
+            return ERR_INVALID_INPUT;
         }
+        *ret_count = 1;
         data_repr& data = _get_repr(self);
         if (data.current_player != CHESS_PLAYER_NONE) {
             *ret_count = 0;
@@ -621,8 +622,7 @@ namespace surena {
     static error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf)
     {
         if (str_buf == NULL) {
-            *ret_size = 6;
-            return ERR_OK;
+            return ERR_INVALID_INPUT;
         }
         if (move == MOVE_NONE) {
             *ret_size = sprintf(str_buf, "-");
@@ -643,8 +643,7 @@ namespace surena {
     static error_code _debug_print(game* self, size_t* ret_size, char* str_buf)
     {
         if (str_buf == NULL) {
-            *ret_size = 128; //TODO calculate proper size
-            return ERR_OK;
+            return ERR_INVALID_INPUT;
         }
         data_repr& data = _get_repr(self);
         const char* ostr = str_buf;

@@ -107,9 +107,8 @@ int main(int argc, char** argv)
     error_code ec;
     game thegame{
         .sync_ctr = 0,
-        .padding = 0,
-        .data = NULL,
         .options = NULL,
+        .data = NULL,
         .methods = game_method,
     };
     printf("game method: %s.%s.%s %d.%d.%d\n",
@@ -125,8 +124,7 @@ int main(int argc, char** argv)
         printf("game does not support string options import, ignoring\n");
     }
     if (thegame.methods->export_options_str) {
-        size_t options_str_size;
-        thegame.methods->export_options_str(&thegame, &options_str_size, NULL);
+        size_t options_str_size = thegame.sizer.options_str;
         char* options_str = (char*)malloc(options_str_size);
         thegame.methods->export_options_str(&thegame, &options_str_size, options_str);
         printf("options: \"%s\"\n", options_str);
@@ -141,14 +139,11 @@ int main(int argc, char** argv)
         printf("failed to import state \"%s\": #%d %s\n", initial_position, ec, thegame.methods->get_error_string(ec));
         exit(1);
     }
-    size_t state_str_size;
-    thegame.methods->export_state(&thegame, &state_str_size, NULL);
+    size_t state_str_size = thegame.sizer.state_str;
     char* state_str = (char*)malloc(state_str_size);
-    size_t print_buf_size;
-    thegame.methods->debug_print(&thegame, &print_buf_size, NULL);
+    size_t print_buf_size = thegame.sizer.print_str;
     char* print_buf = (char*)malloc(print_buf_size);
-    size_t move_str_size;
-    thegame.methods->get_move_str(&thegame, PLAYER_NONE, MOVE_NONE, &move_str_size, NULL);
+    size_t move_str_size = thegame.sizer.move_str;
     move_str_size++; // account for reading '\n' later on
     char* move_str = (char*)malloc(move_str_size);
     player_id ptm;

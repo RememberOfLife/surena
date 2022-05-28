@@ -42,7 +42,6 @@ namespace surena {
     static error_code _compare(game* self, game* other, bool* ret_equal);
     static error_code _import_state(game* self, const char* str);
     static error_code _export_state(game* self, size_t* ret_size, char* str);
-    static error_code _get_player_count(game* self, uint8_t* ret_count);
     static error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players);
     static error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves);
     GF_UNUSED(get_concrete_move_probabilities);
@@ -59,6 +58,7 @@ namespace surena {
     static error_code _playout(game* self, uint64_t seed);
     static error_code _redact_keep_state(game* self, uint8_t count, player_id* players);
     static error_code _export_sync_data(game* self, sync_data** sync_data_start, sync_data** sync_data_end);
+    static error_code _release_sync_data(game* self, sync_data* sync_data_start, sync_data* sync_data_end);
     static error_code _import_sync_data(game* self, void* data_start, void* data_end);
     static error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move);
     static error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
@@ -85,11 +85,13 @@ namespace surena {
     {
         self->options = malloc(sizeof(opts_repr));
         _get_opts(self) = *(opts_repr*)options_struct;
+        //TODO set sizer.options_str
         return ERR_OK;
     }
 
     static error_code _import_options_str(game* self, const char* str)
     {
+        //TODO set sizer.options_str
         self->options = malloc(sizeof(opts_repr));
         if (self->options == NULL) {
             return ERR_OUT_OF_MEMORY;
@@ -125,6 +127,7 @@ namespace surena {
         if (self->data == NULL) {
             return ERR_OUT_OF_MEMORY;
         }
+        //TODO set sizer, keep options_str
         return ERR_OK;
     }
 
@@ -209,12 +212,6 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _get_player_count(game* self, uint8_t* ret_count)
-    {
-        *ret_count = 2;
-        return ERR_OK;
-    }
-
     static error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players)
     {
         //TODO
@@ -288,6 +285,12 @@ namespace surena {
     }
 
     static error_code _export_sync_data(game* self, sync_data** sync_data_start, sync_data** sync_data_end)
+    {
+        //TODO
+        return ERR_STATE_UNINITIALIZED;
+    }
+
+    static error_code _release_sync_data(game* self, sync_data* sync_data_start, sync_data* sync_data_end)
     {
         //TODO
         return ERR_STATE_UNINITIALIZED;

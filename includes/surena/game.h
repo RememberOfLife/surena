@@ -10,7 +10,7 @@ extern "C" {
 
 #include "surena/util/semver.h"
 
-#define SURENA_GAME_API_VERSION ((uint64_t)5)
+static const uint64_t SURENA_GAME_API_VERSION = 6;
 
 typedef uint32_t error_code;
 // general purpose error codes
@@ -32,7 +32,7 @@ enum ERR {
 const char* get_general_error_string(error_code err);
 
 // anywhere a rng seed is use, SEED_NONE represents not using the rng
-#define SEED_NONE ((uint64_t)0)
+static const uint64_t SEED_NONE = 0;
 
 // moves represent state transitions on the game board (and its internal state)
 // actions represent sets of moves, i.e. sets of concrete moves (action instances / informed moves)
@@ -42,11 +42,11 @@ const char* get_general_error_string(error_code err);
 // every concrete move can be reduced to an action, i.e. a move
 //TODO better name for "concrete_move"? maybe action instance / informed move
 typedef uint64_t move_code;
-#define MOVE_NONE ((move_code)UINT64_MAX)
+static const move_code MOVE_NONE = UINT64_MAX;
 
 typedef uint8_t player_id;
-#define PLAYER_NONE ((player_id)0x00)
-#define PLAYER_RAND ((player_id)0xFF)
+static const player_id PLAYER_NONE = 0x00;
+static const player_id PLAYER_RAND = 0xFF;
 
 typedef struct game_feature_flags_s {
 
@@ -71,6 +71,20 @@ typedef struct game_feature_flags_s {
 
 } game_feature_flags;
 
+typedef struct buf_sizer_s {
+    // options_str is valid after any options have been imported
+    size_t options_str; // byte size
+    // all below are valid after create
+    size_t state_str; // byte size
+    uint8_t player_count; // count, for n players, the player_ids are [1,n]
+    uint8_t max_players_to_move; // player count
+    uint32_t max_moves; // move count
+    uint32_t max_actions; // move count
+    uint8_t max_results; // player count
+    size_t move_str; // byte size
+    size_t print_str; // byte size
+} buf_sizer;
+
 typedef struct sync_data_s {
     void* data_start;
     void* data_end;
@@ -81,7 +95,8 @@ typedef struct sync_data_s {
 typedef struct game_s game; // forward declare the game for the game methods
 
 typedef struct game_methods_s {
-    //TODO do str buf functions return the byte size, or character size excluding the null terminator
+    // str buf functions return the character size excluding the null terminator
+    // the sizer member of the game struct defines all the required sizes and counts for buffer using functions
 
     // the game methods functions work ONLY on the data supplied to it in the game
     // i.e. they are threadsafe across multiple games, but not within one game instance
@@ -106,7 +121,6 @@ typedef struct game_methods_s {
     const char* impl_name;
     const semver version;
     const game_feature_flags features; // these will never change depending on options
-    //TODO put a struct of lengths here for functions that take buffers?
 
     // the game method specific internal method struct, NULL if not available
     // use the {base,variant,impl} name to make sure you know what this will be
@@ -133,7 +147,6 @@ typedef struct game_methods_s {
     // OPTIONAL SUPPORT
     // write this games options to a universal options string
     // returns the length of the options string written, 0 if failure, excluding null character
-    // if str is NULL, returns the minimum required byte size of the string buffer
     error_code (*export_options_str)(game* self, size_t* ret_size, char* str);
 
     // construct and initialize a new game specific data object into self
@@ -172,45 +185,35 @@ typedef struct game_methods_s {
 
     // writes the game state to a universal state string
     // returns the length of the state string written, 0 if failure, excluding null character
-    // if str is NULL, returns the minimum required byte size of the string buffer
     error_code (*export_state)(game* self, size_t* ret_size, char* str);
-
-    // return number of players playing this game
-    // for n players, the player_ids are [1,n] 
-    error_code (*get_player_count)(game* self, uint8_t* ret_count);
 
     // writes the player ids to move from this state
     // writes PLAYER_RAND if the current move branch is decided by randomness
     // writes no ids if the game is over
     // returns the number of ids written
-    // if players is NULL, returns the max count this will require
     // written player ids are not explicitly ordered
     error_code (*players_to_move)(game* self, uint8_t* ret_count, player_id* players);
 
     // writes the available moves for the player from this position
     // writes no moves if the game is over or the player is not to move
-    // if moves is NULL, returns the max count this will require
     error_code (*get_concrete_moves)(game* self, player_id player, uint32_t* ret_count, move_code* moves);
 
     // FEATURE: random_moves
     // writes the probabilities [0,1] of each avilable move in get_concrete_moves
     // order is the same as get_concrete_moves
     // writes no moves if the available moves are not random moves
-    // if move_probabilities is NULL, returns the max count this will require
     error_code (*get_concrete_move_probabilities)(game* self, player_id player, uint32_t* ret_count, float* move_probabilities);
 
     // OPTIONAL SUPPORT
     // writes the available moves for the player from this position
     // writes no moves if the game is over
     // moves must be at least of count get_moves(NULL)
-    // if moves is NULL, returns the max count this will require
     // moves written are ordered according to the game method, from perceived strongest to weakest
     error_code (*get_concrete_moves_ordered)(game* self, player_id player, uint32_t* ret_count, move_code* moves);
 
     // FEATURE: random_moves || hidden_information || simultaneous_moves
     // writes the available action moves for the player from this position
     // writes no action moves if there are no action moves available
-    // if moves is NULL, returns the max count this will require
     error_code (*get_actions)(game* self, player_id player, uint32_t* ret_count, move_code* moves);
 
     // returns whether or not this move would be legal to make on the current state
@@ -238,7 +241,6 @@ typedef struct game_methods_s {
     // writes the result (winning) players
     // writes no ids if the game is not over yet or there are no result players
     // returns the number of ids written
-    // if players is NULL, returns the max count this will require
     error_code (*get_results)(game* self, uint8_t* ret_count, player_id* players);
 
     // OPTIONAL SUPPORT
@@ -272,7 +274,13 @@ typedef struct game_methods_s {
     // OPTIONAL SUPPORT
     // one sync data always describes the data to be sent to the given player array to sync up their state
     // multiple sync data struct incur multiple events, i.e. multiple import_sync_data calls
-    error_code (*export_sync_data)(game* self, sync_data** sync_data_start, sync_data** sync_data_end);
+    // the returned sync data is valid until release_sync_data is called
+    // undefined behaviour if release_sync_data was not called before the next export_sync_data usage
+    error_code (*export_sync_data)(game* self, sync_data** sync_data_start, sync_data** sync_data_end); // everything owned by the game
+
+    // OPTIONAL SUPPORT
+    // release the sync data, should match every export_sync_data
+    error_code (*release_sync_data)(game* self, sync_data* sync_data_start, sync_data* sync_data_end);
 
     // OPTIONAL SUPPORT
     // import a sync data block received from another (more knowing) instance of this game (e.g. across the network)
@@ -284,14 +292,12 @@ typedef struct game_methods_s {
     error_code (*get_move_code)(game* self, player_id player, const char* str, move_code* ret_move);
 
     // writes the state specific move string representing the game specific move code for this player
-    // if str_buf is NULL, returns the size required
     // if player is PLAYER_NONE then a universal move string is given, a game is allowed to only support this mode of operation
     // returns number of characters written to string buffer on success, excluding null character
     error_code (*get_move_str)(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
 
     // OPTIONAL SUPPORT
     // debug print the game state into the str_buf
-    // if str_buf is NULL, returns the size required
     // returns the number of characters written to string buffer on success, excluding null character
     error_code (*debug_print)(game* self, size_t* ret_size, char* str_buf);
 
@@ -300,8 +306,9 @@ typedef struct game_methods_s {
 struct game_s {
     uint32_t sync_ctr; // inc by one everytime a move is made, the game method does this itself
     uint32_t padding; //TODO use this properly for something
-    void* data; // owned by the game method
     void* options; // owned by the game method
+    void* data; // owned by the game method
+    buf_sizer sizer;
     const game_methods* methods;
 };
 

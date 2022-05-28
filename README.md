@@ -43,9 +43,6 @@ General purpose board game backend and some AI to go with it.
 * state import/export
   * import state should also take an argument what length of bytes to import (i.e. for binary exports that don't have a string zero terminator)
   * export state should probably take a format specifier, same for import, so different formats can be used
-* game should expose:
-  * maximum amount of moves generated from any random position
-  * maximum amount of players that can play this game
 * clone method for the game:
   * option to choose if to discretize if available or not
   * only to copy for a certain privacy view (i.e. which player perspectives actual data to include)

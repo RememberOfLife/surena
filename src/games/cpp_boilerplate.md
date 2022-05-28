@@ -77,7 +77,6 @@ namespace surena {
     static error_code _compare(game* self, game* other, bool* ret_equal);
     static error_code _import_state(game* self, const char* str);
     static error_code _export_state(game* self, size_t* ret_size, char* str);
-    static error_code _get_player_count(game* self, uint8_t* ret_count);
     static error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players);
     static error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves);
     static error_code _get_concrete_move_probabilities(game* self, player_id player, uint32_t* ret_count, float* move_probabilities);
@@ -94,6 +93,7 @@ namespace surena {
     static error_code _playout(game* self, uint64_t seed);
     static error_code _redact_keep_state(game* self, uint8_t count, player_id* players);
     static error_code _export_sync_data_gf_t(game* self, sync_data** sync_data_start, sync_data** sync_data_end);
+    static error_code _release_sync_data_gf_t(game* self, sync_data* sync_data_start, sync_data* sync_data_end);
     static error_code _import_sync_data_gf_t(game* self, void* data_start, void* data_end);
     static error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move);
     static error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
@@ -154,11 +154,6 @@ namespace surena {
     }
 
     static error_code _export_state(game* self, size_t* ret_size, char* str)
-    {
-        //TODO
-    }
-
-    static error_code _get_player_count(game* self, uint8_t* ret_count)
     {
         //TODO
     }
@@ -238,12 +233,17 @@ namespace surena {
         //TODO
     }
 
-    static error_code _export_sync_data_gf_t(game* self, sync_data** sync_data_start, sync_data** sync_data_end)
+    static error_code _export_sync_data(game* self, sync_data** sync_data_start, sync_data** sync_data_end)
     {
         //TODO
     }
 
-    static error_code _import_sync_data_gf_t(game* self, void* data_start, void* data_end)
+    static error_code _release_sync_data(game* self, sync_data* sync_data_start, sync_data* sync_data_end)
+    {
+        //TODO
+    }
+
+    static error_code _import_sync_data(game* self, void* data_start, void* data_end)
     {
         //TODO
     }
