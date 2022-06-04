@@ -1,5 +1,6 @@
 #include <array>
 #include <bitset>
+#include <cstdarg>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -16,15 +17,25 @@
 
 namespace surena {
     
-    // game data state representation and general getter
+    // general purpose helpers for opts, data, errors
+
+    static error_code _return_errorf(game* self, error_code ec, const char* fmt, ...)
+    {
+        if (self->data2 == NULL) {
+            self->data2 = malloc(1024); //TODO correct size from where?
+        }
+        va_list args;
+        va_start(args, fmt);
+        vsprintf((char*)self->data2, fmt, args);
+        va_end(args);
+        return ec;
+    }
     
     typedef havannah_options opts_repr;
-    static opts_repr& _get_opts(game* self)
-    {
-        return *((opts_repr*)(self->options));
-    }
 
     typedef struct data_repr {
+        opts_repr opts;
+
         int remaining_tiles;
         HAVANNAH_PLAYER current_player;
         HAVANNAH_PLAYER winning_player;
@@ -37,11 +48,17 @@ namespace surena {
         std::vector<std::vector<havannah_tile>> gameboard;
     } data_repr;
 
-    static data_repr& _get_repr(game* self)
+    static opts_repr& _get_opts(game* self)
     {
-        return *((data_repr*)(self->data));
+        return ((data_repr*)(self->data1))->opts;
     }
 
+    static data_repr& _get_repr(game* self)
+    {
+        return *((data_repr*)(self->data1));
+    }
+
+    // forward declare everything to allow for inlining at least in this unit
     static const char* _get_error_string(error_code err);
     static error_code _import_options_bin(game* self, void* options_struct);
     static error_code _import_options_str(game* self, const char* str);
@@ -63,7 +80,7 @@ namespace surena {
     GF_UNUSED(is_action);
     static error_code _make_move(game* self, player_id player, move_code move);
     static error_code _get_results(game* self, uint8_t* ret_count, player_id* players);
-    static error_code _id(game* self, uint64_t* ret_id);
+    GF_UNUSED(id);
     GF_UNUSED(eval);
     GF_UNUSED(discretize);
     static error_code _playout(game* self, uint64_t seed);
@@ -80,82 +97,109 @@ namespace surena {
 
     // implementation
 
-    static const char* _get_error_string(error_code err)
+    static const char* _get_last_error(game* self)
     {
-        const char* gen_err_str = get_general_error_string(err);
-        if (gen_err_str != NULL) {
-            return gen_err_str;
-        }
-        return "unknown error";
+        return (char*)self->data2; // in this scheme opts are saved together with the state in data1, and data2 is the last error string
     }
 
-    static error_code _import_options_bin(game* self, void* options_struct)
+    static error_code _create_with_opts_str(game* self, const char* str)
     {
-        self->options = malloc(sizeof(opts_repr));
+        self->data1 = new(malloc(sizeof(data_repr))) data_repr();
+        if (self->data1 == NULL) {
+            return ERR_OUT_OF_MEMORY;
+        }
+        
         opts_repr& opts = _get_opts(self);
-        opts = *(opts_repr*)options_struct;
-        opts.board_sizer = 2*opts.size-1;
+        opts.size = 8;
+        if (str != NULL) {
+            int ec = sscanf(str, "%u", &opts.size);
+            if (ec != 1) {
+                free(self->data1);
+                self->data1 = NULL;
+                return ERR_INVALID_INPUT;
+            }
+        }
+        opts.board_sizer = 2 * opts.size - 1;
+
+        self->sizer = (buf_sizer){
+            .options_str = 16,
+            .state_str = (size_t)(3 * opts.size * opts.size - ( 3 * opts.size - 1 ) + opts.board_sizer + 5),
+            .player_count = 2,
+            .max_players_to_move = 1,
+            .max_moves = (uint32_t)(3 * opts.size * opts.size - ( 3 * opts.size - 1 )),
+            .max_results = 1,
+            .move_str = 4,
+            .print_str = 1000,
+        };
         return ERR_OK;
     }
 
-    static error_code _import_options_str(game* self, const char* str)
+    static error_code _create_with_opts_bin(game* self, void* options_struct)
     {
-        self->options = malloc(sizeof(opts_repr));
-        if (self->options == NULL) {
+        self->data1 = new(malloc(sizeof(data_repr))) data_repr();
+        if (self->data1 == NULL) {
             return ERR_OUT_OF_MEMORY;
         }
+        
         opts_repr& opts = _get_opts(self);
-        if (str == NULL) {
-            opts.size = 8;
-            opts.board_sizer = 2*opts.size-1;
-            return ERR_OK;
+        opts.size = 8;
+        if (options_struct != NULL) {
+            opts = *(opts_repr*)options_struct;
         }
-        int ec = sscanf(str, "%u", &opts.size);
-        if (ec != 1) {
-            free(self->options);
-            return ERR_INVALID_INPUT;
+        opts.board_sizer = 2 * opts.size - 1;
+
+        self->sizer = (buf_sizer){
+            .options_str = 16,
+            .state_str = (size_t)(3 * opts.size * opts.size - ( 3 * opts.size - 1 ) + opts.board_sizer + 5),
+            .player_count = 2,
+            .max_players_to_move = 1,
+            .max_moves = (uint32_t)(3 * opts.size * opts.size - ( 3 * opts.size - 1 )),
+            .max_results = 1,
+            .move_str = 4,
+            .print_str = 1000,
+        };
+        return ERR_OK;
+    }
+
+    static error_code _create_default(game* self)
+    {
+        self->data1 = new(malloc(sizeof(data_repr))) data_repr();
+        if (self->data1 == NULL) {
+            return ERR_OUT_OF_MEMORY;
         }
-        opts.board_sizer = 2*opts.size-1;
+
+        opts_repr& opts = _get_opts(self);
+        opts.size = 8;
+        opts.board_sizer = 2 * opts.size - 1;
+
+        self->sizer = (buf_sizer){
+            .options_str = 16,
+            .state_str = (size_t)(3 * opts.size * opts.size - ( 3 * opts.size - 1 ) + opts.board_sizer + 5),
+            .player_count = 2,
+            .max_players_to_move = 1,
+            .max_moves = (uint32_t)(3 * opts.size * opts.size - ( 3 * opts.size - 1 )),
+            .max_results = 1,
+            .move_str = 4,
+            .print_str = 1000,
+        };
         return ERR_OK;
     }
     
     static error_code _export_options_str(game* self, size_t* ret_size, char* str)
     {
         if (str == NULL) {
-            *ret_size = 16; //TODO calc correct size
-            return ERR_OK;
+            return ERR_INVALID_INPUT;
         }
         opts_repr& opts = _get_opts(self);
         *ret_size = sprintf(str, "%u", opts.size);
         return ERR_OK;
     }
-    
-    static error_code _create(game* self)
-    {
-        self->data = new(malloc(sizeof(data_repr))) data_repr();
-        if (self->data == NULL) {
-            return ERR_OUT_OF_MEMORY;
-        }
-        opts_repr& opts = _get_opts(self);
-        self->sizer = (buf_sizer){
-            .state_str = (size_t)(3 * opts.size * opts.size - ( 3 * opts.size - 1 ) + opts.board_sizer + 5),
-            .player_count = 2,
-            .max_players_to_move = 1,
-            .max_moves = (uint32_t)(3 * opts.size * opts.size - ( 3 * opts.size - 1 )),
-            .max_results = 1,
-            .move_str = 3,
-            .print_str = 1000,
-        };
-        return ERR_OK;
-    }
 
     static error_code _destroy(game* self)
     {
-        free(self->options);
-        self->options = NULL;
-        delete (data_repr*)self->data;
+        delete (data_repr*)self->data1;
         // free(self->data); // not required in the vector+map version
-        self->data = NULL;
+        self->data1 = NULL;
         return ERR_OK;
     }
 
@@ -166,28 +210,26 @@ namespace surena {
         }
         clone_target->sync_ctr = self->sync_ctr;
         clone_target->methods = self->methods;
-        _import_options_bin(clone_target, self->options);
-        error_code ec = clone_target->methods->create(clone_target);
+        opts_repr& opts = _get_opts(self);
+        error_code ec = clone_target->methods->create_with_opts_bin(clone_target, &opts);
         if (ec != ERR_OK) {
             return ec;
         }
-        *(data_repr*)clone_target->data = *(data_repr*)self->data;
+        *(data_repr*)clone_target->data1 = *(data_repr*)self->data1;
         return ERR_OK;
     }
     
     static error_code _copy_from(game* self, game* other)
     {
         self->sync_ctr = other->sync_ctr;
-        *(data_repr*)self->data = *(data_repr*)other->data;
+        *(data_repr*)self->data1 = *(data_repr*)other->data1;
         return ERR_OK;
     }
 
     static error_code _compare(game* self, game* other, bool* ret_equal)
     {
         //BUG this doesnt actually work with the vector and map
-        *ret_equal = (self->sync_ctr == other->sync_ctr)
-            && (memcmp(self->options, other->options, sizeof(opts_repr)) == 0)
-            && (memcmp(self->data, other->data, sizeof(data_repr)) == 0);
+        *ret_equal = (self->sync_ctr == other->sync_ctr) && (memcmp(self->data1, other->data1, sizeof(data_repr)) == 0);
         return ERR_OK;
     }
 
@@ -507,13 +549,6 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _id(game* self, uint64_t* ret_id)
-    {
-        //TODO
-        *ret_id = 0;
-        return ERR_OK;
-    }
-
     static error_code _playout(game* self, uint64_t seed)
     {
         uint32_t ctr = 0;
@@ -652,10 +687,9 @@ namespace surena {
 
     static error_code _get_cell(game* self, int x, int y, HAVANNAH_PLAYER* p)
     {
-        //TODO fix out of bounds check for size8 g15
         opts_repr& opts = _get_opts(self);
         data_repr& data = _get_repr(self);
-        if (x < 0 || y < 0 || x > opts.board_sizer || y > opts.board_sizer) {
+        if (x < 0 || y < 0 || x >= opts.board_sizer || y >= opts.board_sizer) {
             *p = HAVANNAH_PLAYER_INVALID;
         } else {
             *p = data.gameboard[y][x].color;
@@ -890,9 +924,16 @@ const game_methods havannah_gbe{
     .impl_name = "surena_default",
     .version = semver{0, 1, 0},
     .features = game_feature_flags{
+        .options = true,
+        .options_bin = true,
         .random_moves = false,
         .hidden_information = false,
         .simultaneous_moves = false,
+        .move_ordering = false,
+        .id = false,
+        .eval = false,
+        .playout = true,
+        .print = true,
     },
     .internal_methods = (void*)&havannah_gbe_internal_methods,
     

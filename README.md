@@ -35,7 +35,6 @@ General purpose board game backend and some AI to go with it.
 ## todos
 * base64 util func
 * separate out squirrelnoise5 into a dep?
-* decide if cpp api is kept or thrown out
 * engine search timeout should be uint32_t
 * engine needs compat. check for games
 

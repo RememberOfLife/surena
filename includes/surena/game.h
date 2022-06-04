@@ -10,12 +10,11 @@ extern "C" {
 
 #include "surena/util/semver.h"
 
-static const uint64_t SURENA_GAME_API_VERSION = 6;
+static const uint64_t SURENA_GAME_API_VERSION = 7;
 
 typedef uint32_t error_code;
 // general purpose error codes
 enum ERR {
-    //TODO not_implemented
     ERR_OK = 0,
     ERR_STATE_UNRECOVERABLE,
     ERR_STATE_CORRUPTED,
@@ -26,6 +25,7 @@ enum ERR {
     ERR_INVALID_OPTIONS,
     ERR_UNSTABLE_POSITION,
     ERR_SYNC_CTR_MISMATCH,
+    ERR_RETRY, // retrying the same call again may yet still work
     ERR_ENUM_DEFAULT_OFFSET, // not an error, start game method specific error enums at this offset
 };
 // returns NULL if the err is not a general error
@@ -50,6 +50,11 @@ static const player_id PLAYER_RAND = 0xFF;
 
 typedef struct game_feature_flags_s {
 
+    // options are passed together with the creation of the game data
+    bool options : 1;
+    // supports creation with binary options input
+    bool options_bin : 1;
+
     // bool perfect_information : 1; // needed?
 
     // if a board has a seed then if any random moves happen there will only ever be one move available (the rigged one)
@@ -58,6 +63,7 @@ typedef struct game_feature_flags_s {
     // same result moves are treated as the same, i.e. 2 dice rolled at once will only offer 12 moves for their sum
     // probability distribution of the random moves is offered in get_concrete_move_probabilities
     bool random_moves : 1;
+    //TODO do random moves incur sync data events as well?
 
     //TODO document hidden info workflow with moves,concrete_moves,action_moves
     bool hidden_information : 1;
@@ -69,20 +75,32 @@ typedef struct game_feature_flags_s {
 
     // bool supports_binary_state_export : 1; // here or as one of general purpose import/export format?
 
+    bool move_ordering : 1;
+
+    bool id : 1;
+
+    bool eval : 1;
+
+    bool playout : 1;
+
+    bool print : 1;
+
 } game_feature_flags;
 
 typedef struct buf_sizer_s {
-    // options_str is valid after any options have been imported
+    // options_str is valid after the game has been created, feature
     size_t options_str; // byte size
     // all below are valid after create
+    // byte sizes for string can be directly allocated (they include their zero-terminator)
+    // counts have to be multiplied by their specific data size
     size_t state_str; // byte size
     uint8_t player_count; // count, for n players, the player_ids are [1,n]
     uint8_t max_players_to_move; // player count
     uint32_t max_moves; // move count
-    uint32_t max_actions; // move count
+    uint32_t max_actions; // move count, feature
     uint8_t max_results; // player count
     size_t move_str; // byte size
-    size_t print_str; // byte size
+    size_t print_str; // byte size, feature
 } buf_sizer;
 
 typedef struct sync_data_s {
@@ -95,8 +113,7 @@ typedef struct sync_data_s {
 typedef struct game_s game; // forward declare the game for the game methods
 
 typedef struct game_methods_s {
-    // str buf functions return the character size excluding the null terminator
-    // the sizer member of the game struct defines all the required sizes and counts for buffer using functions
+    // after any function was called on a game object, it must be destroyed before it can be safely release
 
     // the game methods functions work ONLY on the data supplied to it in the game
     // i.e. they are threadsafe across multiple games, but not within one game instance
@@ -106,12 +123,9 @@ typedef struct game_methods_s {
     // when in doubt return an error code representing an unusable state and force deconstruction
     // should report fails from malloc and similar calls
 
-    // functions pointers for functions marked with "FEATURE: ..." are only valid if the feature flag is set for the game method
-    // function pointers for functions marked with "OPTIONAL SUPPORT" may be NULL if the function is not supported
+    // functions pointers for functions marked with "FEATURE: ..." are valid if and only if the feature flag is set for the game method
     // functions with "NOTE: avoid crashes" should place extra care on proper input parsing
     // where applicable: size refers to bytes, count refers to a number of elements of a particular type
-
-    // where not otherwise noted: interfaces that return their required size/count are stable for the games specific options
 
     // the concatenation of game_name+variant_name+impl_name+version uniquely identifies this game method
     // minimum length of 1 character each, with allowed character set:
@@ -127,33 +141,33 @@ typedef struct game_methods_s {
     // e.g. these would expose get_cell and set_cell on a tictactoe board to enable rw-access to the state 
     const void* internal_methods;
 
-    // returns the error string representing the error code
-    // returns NULL if the error code is not a valid error on this game method
+    // returns the error string complementing the most recent occured error
+    // returns NULL if there is error string available for this error
     // the string is still owned by the game method backend, do not free it
-    const char* (*get_error_string)(error_code err);
+    const char* (*get_last_error)(game* self);
 
-    // OPTIONAL SUPPORT
-    // import the internal options struct into the self
-    // the game mallocs the internally kept options itself
-    // if options_struct is NULL then the default options are loaded
-    // importing any options while there are already options loaded is undefined behaviour
-    error_code (*import_options_bin)(game* self, void* options_struct);
-
-    // OPTIONAL SUPPORT
-    // same as import_options_bin but imports the options from a supplied string
+    // FEATURE: options
+    // use the given options to create the game data
     // if str is NULL then the default options are loaded
-    error_code (*import_options_str)(game* self, const char* str);
+    // see create_default for more
+    error_code (*create_with_opts_str)(game* self, const char* str);
 
-    // OPTIONAL SUPPORT
+    // FEATURE: options_bin
+    // use the given options to create the game data
+    // if str is NULL then the default options are loaded
+    // see create_default for more
+    error_code (*create_with_opts_bin)(game* self, void* options_struct);
+
+    // construct and initialize a new game specific data object into self
+    // if any options exist, the defaults are used
+    // a game can only be created once, must be matched with a call to destroy
+    // !! even if create fails, the game has to be destroyed before releasing or creating again
+    error_code (*create_default)(game* self);
+
+    // FEATURE: options
     // write this games options to a universal options string
     // returns the length of the options string written, 0 if failure, excluding null character
     error_code (*export_options_str)(game* self, size_t* ret_size, char* str);
-
-    // construct and initialize a new game specific data object into self
-    // options, if any, have to already be set on the supplied game
-    // returns non ok if initialization failed because of invalid options
-    // if this fails then no game data should be allocated
-    error_code (*create)(game* self);
 
     // deconstruct and release any (complex) game specific data, if it has been created already
     // same for options specific data, if it exists
@@ -204,7 +218,7 @@ typedef struct game_methods_s {
     // writes no moves if the available moves are not random moves
     error_code (*get_concrete_move_probabilities)(game* self, player_id player, uint32_t* ret_count, float* move_probabilities);
 
-    // OPTIONAL SUPPORT
+    // FEATURE: move_ordering
     // writes the available moves for the player from this position
     // writes no moves if the game is over
     // moves must be at least of count get_moves(NULL)
@@ -243,46 +257,46 @@ typedef struct game_methods_s {
     // returns the number of ids written
     error_code (*get_results)(game* self, uint8_t* ret_count, player_id* players);
 
-    // OPTIONAL SUPPORT
+    // FEATURE: id
     // state id, should be as conflict free as possible
     // commutatively the same for equal board states
     // optimally, any n bits of this should be functionally equivalent to a dedicated n-bit id 
     error_code (*id)(game* self, uint64_t* ret_id);
 
-    // OPTIONAL SUPPORT
+    // FEATURE: eval
     // evaluates the state comparatively against others
     // higher evaluations correspond to a (game method) perceived better position for the player
     // states with multiple players to move are inherently unstable, their evaluations are worthless
     error_code (*eval)(game* self, player_id player, float* ret_eval);
 
-    // FEATURE: hidden_information
+    // FEATURE: random_moves || hidden_information || simultaneous_moves
     // seed the game and collapse the hidden information and all that was inferred via play
     // the resulting game state assigns possible values to all previously unknown information
     // all random moves from here on will be pre-rolled from this seed
     error_code (*discretize)(game* self, uint64_t seed);
 
-    // OPTIONAL SUPPORT
+    // FEATURE: playout
     // playout the game by performing random moves for all players until it is over
     // the random moves selected are determined by the seed
     error_code (*playout)(game* self, uint64_t seed);
 
-    // FEATURE: hidden_information || simultaneous_moves
+    // FEATURE: random_moves || hidden_information || simultaneous_moves
     // removes all but certain players hidden information from the internal state
     // if PLAYER_RAND is not in players, then the seed (and all internal hidden information) is redacted as well
     error_code (*redact_keep_state)(game* self, uint8_t count, player_id* players);
 
-    // OPTIONAL SUPPORT
+    // FEATURE: hidden_information || simultaneous_moves
     // one sync data always describes the data to be sent to the given player array to sync up their state
     // multiple sync data struct incur multiple events, i.e. multiple import_sync_data calls
     // the returned sync data is valid until release_sync_data is called
     // undefined behaviour if release_sync_data was not called before the next export_sync_data usage
     error_code (*export_sync_data)(game* self, sync_data** sync_data_start, sync_data** sync_data_end); // everything owned by the game
 
-    // OPTIONAL SUPPORT
+    // FEATURE: hidden_information || simultaneous_moves
     // release the sync data, should match every export_sync_data
     error_code (*release_sync_data)(game* self, sync_data* sync_data_start, sync_data* sync_data_end);
 
-    // OPTIONAL SUPPORT
+    // FEATURE: hidden_information || simultaneous_moves
     // import a sync data block received from another (more knowing) instance of this game (e.g. across the network)
     error_code (*import_sync_data)(game* self, void* data_start, void* data_end);
 
@@ -296,7 +310,7 @@ typedef struct game_methods_s {
     // returns number of characters written to string buffer on success, excluding null character
     error_code (*get_move_str)(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
 
-    // OPTIONAL SUPPORT
+    // FEATURE: print
     // debug print the game state into the str_buf
     // returns the number of characters written to string buffer on success, excluding null character
     error_code (*debug_print)(game* self, size_t* ret_size, char* str_buf);
@@ -304,12 +318,12 @@ typedef struct game_methods_s {
 } game_methods;
 
 struct game_s {
-    uint32_t sync_ctr; // inc by one everytime a move is made, the game method does this itself
-    uint32_t padding; //TODO use this properly for something
-    void* options; // owned by the game method
-    void* data; // owned by the game method
-    buf_sizer sizer;
     const game_methods* methods;
+    buf_sizer sizer;
+    uint32_t sync_ctr; // inc by one everytime a move is made, the game method does this itself
+    uint32_t _reserved; //TODO use this properly for something
+    void* data1; // owned by the game method
+    void* data2; // owned by the game method
 };
 
 #ifdef __cplusplus

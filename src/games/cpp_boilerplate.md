@@ -41,6 +41,12 @@ extern const game_methods thegame_gbe;
 use `GF_UNUSED(game_function_name);` to mark a feature function as not supported, for both true features and feature flags
 thegame.cpp
 ```cpp
+#include <cstdarg>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
 #include "surena/util/semver.h"
 #include "surena/game_gftypes.h"
 #include "surena/game.h"
@@ -49,28 +55,43 @@ thegame.cpp
 
 namespace surena {
     
-    // game data state representation and general getter
+    // general purpose helpers for opts, data, errors
+
+    static error_code _return_errorf(game* self, error_code ec, const char* fmt, ...)
+    {
+        if (self->data2 == NULL) {
+            self->data2 = malloc(1024); //TODO correct size from where?
+        }
+        va_list args;
+        va_start(args, fmt);
+        vsprintf((char*)self->data2, fmt, args);
+        va_end(args);
+        return ec;
+    }
     
     typedef thegame_options opts_repr;
-    static opts_repr& _get_opts(game* self)
-    {
-        return *((opts_repr*)(self->options));
-    }
 
     typedef struct data_repr {
+        opts_repr opts;
+
         uint32_t state;
     } data_repr;
 
-    static data_repr& _get_repr(game* self)
+    static opts_repr& _get_opts(game* self)
     {
-        return *((data_repr*)(self->data));
+        return ((data_repr*)(self->data1))->opts;
     }
 
-    static const char* _get_error_string(error_code err);
-    static error_code _import_options_bin(game* self, void* options_struct);
-    static error_code _import_options_str(game* self, const char* str);
+    static data_repr& _get_repr(game* self)
+    {
+        return *((data_repr*)(self->data1));
+    }
+
+    static const char* _get_last_error(game* self);
+    static error_code _create_with_opts_str(game* self, const char* str);
+    static error_code _create_with_opts_bin(game* self, void* options_struct);
+    static error_code _create_default(game* self);
     static error_code _export_options_str(game* self, size_t* ret_size, char* str);
-    static error_code _create(game* self);
     static error_code _destroy(game* self);
     static error_code _clone(game* self, game* clone_target);
     static error_code _copy_from(game* self, game* other);
@@ -92,9 +113,9 @@ namespace surena {
     static error_code _discretize(game* self, uint64_t seed);
     static error_code _playout(game* self, uint64_t seed);
     static error_code _redact_keep_state(game* self, uint8_t count, player_id* players);
-    static error_code _export_sync_data_gf_t(game* self, sync_data** sync_data_start, sync_data** sync_data_end);
-    static error_code _release_sync_data_gf_t(game* self, sync_data* sync_data_start, sync_data* sync_data_end);
-    static error_code _import_sync_data_gf_t(game* self, void* data_start, void* data_end);
+    static error_code _export_sync_data(game* self, sync_data** sync_data_start, sync_data** sync_data_end);
+    static error_code _release_sync_data(game* self, sync_data* sync_data_start, sync_data* sync_data_end);
+    static error_code _import_sync_data(game* self, void* data_start, void* data_end);
     static error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move);
     static error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
     static error_code _debug_print(game* self, size_t* ret_size, char* str_buf);
@@ -103,27 +124,27 @@ namespace surena {
 
     // implementation
 
-    static const char* _get_error_string(error_code err)
+    static const char* _get_last_error(game* self)
+    {
+        return (char*)self->data2; // in this scheme opts are saved together with the state in data1, and data2 is the last error string
+    }
+
+    static error_code _create_with_opts_str(game* self, const char* str)
     {
         //TODO
     }
 
-    static error_code _import_options_bin(game* self, void* options_struct)
+    static error_code _create_with_opts_bin(game* self, void* options_struct)
     {
         //TODO
     }
 
-    static error_code _import_options_str(game* self, const char* str)
+    static error_code _create_default(game* self)
     {
         //TODO
     }
-    
+
     static error_code _export_options_str(game* self, size_t* ret_size, char* str)
-    {
-        //TODO
-    }
-    
-    static error_code _create(game* self)
     {
         //TODO
     }
@@ -284,41 +305,20 @@ const game_methods tictactoe_gbe{
     .impl_name = "This",
     .version = semver{1, 0, 0},
     .features = game_feature_flags{
-        .random_moves = true,
+        .options = true,
+        .options_bin = true,
+        .random_moves = false,
         .hidden_information = false,
         .simultaneous_moves = false,
+        .move_ordering = false,
+        .id = true,
+        .eval = true,
+        .playout = true,
+        .print = true,
     },
     .internal_methods = NULL, // (void*)&thegame_gbe_internal_methods,
     
     #include "surena/game_impl.h"
     
 };
-```
-
-#### currently not in use
-
-```cpp
-class TheGame : public Game {
-        
-    public:
-
-        TheGame();
-
-        //#####
-        // internal methods
-        
-        error_code internal_call(int x);
-
-};
-```
-
-**G**ame wrapper internal functions
-```cpp
-error_code TheGame::internal_call(int x)
-{
-    return ((thegame_internal_methods*)gbe.methods->internal_methods)->get_cell(&gbe, x)
-    {
-        //TODO
-    }
-}
 ```

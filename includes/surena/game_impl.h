@@ -1,9 +1,9 @@
 // set all the game methods to their implementation, or NULL if they were marked unused my GF_UNUSED
-.get_error_string = (get_error_string_gf_t)surena::_get_error_string,
-.import_options_bin = (import_options_bin_gf_t)surena::_import_options_bin,
-.import_options_str = (import_options_str_gf_t)surena::_import_options_str,
+.get_last_error = (get_last_error_gf_t)surena::_get_last_error,
+.create_with_opts_str = (create_with_opts_str_gf_t)surena::_create_with_opts_str,
+.create_with_opts_bin = (create_with_opts_bin_gf_t)surena::_create_with_opts_bin,
+.create_default = (create_default_gf_t)surena::_create_default,
 .export_options_str = (export_options_str_gf_t)surena::_export_options_str,
-.create = (create_gf_t)surena::_create,
 .destroy = (destroy_gf_t)surena::_destroy,
 .clone = (clone_gf_t)surena::_clone,
 .copy_from = (copy_from_gf_t)surena::_copy_from,

@@ -1,3 +1,4 @@
+#include <cstdarg>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -11,31 +12,47 @@
 
 namespace surena {
     
-    // game data state representation and general getter
+    // general purpose helpers for opts, data, errors
+
+    static error_code _return_errorf(game* self, error_code ec, const char* fmt, ...)
+    {
+        if (self->data2 == NULL) {
+            self->data2 = malloc(1024); //TODO correct size from where?
+        }
+        va_list args;
+        va_start(args, fmt);
+        vsprintf((char*)self->data2, fmt, args);
+        va_end(args);
+        return ec;
+    }
     
     typedef oshisumo_options opts_repr;
-    static opts_repr& _get_opts(game* self)
-    {
-        return *((opts_repr*)(self->options));
-    }
 
     typedef struct data_repr {
+        opts_repr opts;
+
         player_id result_player;
         int8_t push_cell;
         uint8_t player_tokens[2];
         uint8_t sm_acc_buf[2];
     } data_repr;
 
-    static data_repr& _get_repr(game* self)
+    static opts_repr& _get_opts(game* self)
     {
-        return *((data_repr*)(self->data));
+        return ((data_repr*)(self->data1))->opts;
     }
 
-    static const char* _get_error_string(error_code err);
-    static error_code _import_options_bin(game* self, void* options_struct);
-    static error_code _import_options_str(game* self, const char* str);
+    static data_repr& _get_repr(game* self)
+    {
+        return *((data_repr*)(self->data1));
+    }
+
+    // forward declare everything to allow for inlining at least in this unit
+    static const char* _get_last_error(game* self);
+    static error_code _create_with_opts_str(game* self, const char* str);
+    static error_code _create_with_opts_bin(game* self, void* options_struct);
+    static error_code _create_default(game* self);
     static error_code _export_options_str(game* self, size_t* ret_size, char* str);
-    static error_code _create(game* self);
     static error_code _destroy(game* self);
     static error_code _clone(game* self, game* clone_target);
     static error_code _copy_from(game* self, game* other);
@@ -72,71 +89,105 @@ namespace surena {
 
     // implementation
 
-    static const char* _get_error_string(error_code err)
+    //TODO //BUG use new buffer sizer api
+
+    static const char* _get_last_error(game* self)
     {
-        const char* gen_err_str = get_general_error_string(err);
-        if (gen_err_str != NULL) {
-            return gen_err_str;
-        }
-        return "unknown error";
+        return (char*)self->data2; // in this scheme opts are saved together with the state in data1, and data2 is the last error string
     }
 
-    static error_code _import_options_bin(game* self, void* options_struct)
+    static error_code _create_with_opts_str(game* self, const char* str)
     {
-        self->options = malloc(sizeof(opts_repr));
-        _get_opts(self) = *(opts_repr*)options_struct;
-        //TODO set sizer.options_str
-        return ERR_OK;
-    }
-
-    static error_code _import_options_str(game* self, const char* str)
-    {
-        //TODO set sizer.options_str
-        self->options = malloc(sizeof(opts_repr));
-        if (self->options == NULL) {
+        self->data1 = malloc(sizeof(data_repr));
+        if (self->data1 == NULL) {
             return ERR_OUT_OF_MEMORY;
         }
+
         opts_repr& opts = _get_opts(self);
-        if (str == NULL) {
-            opts.size = 5;
-            opts.tokens = 50;
-            return ERR_OK;
+        opts.size = 5;
+        opts.tokens = 50;
+        if (str != NULL) {
+            int ec = sscanf(str, "%hhu-%hhu", &opts.size, &opts.tokens);
+            if (ec != 2) {
+                free(self->data1);
+                return ERR_INVALID_INPUT;
+            }
         }
-        int ec = sscanf(str, "%hhu-%hhu", &opts.size, &opts.tokens);
-        if (ec != 2) {
-            free(self->options);
-            return ERR_INVALID_INPUT;
-        }
+
+        self->sizer = (buf_sizer){
+            .options_str = 8,
+            .state_str = 14,
+            .player_count = 2,
+            .max_players_to_move = 2,
+            .max_moves = (uint32_t)(opts.tokens + 1),
+            .max_results = 1,
+            .move_str = 10, //TODO size correctly
+            .print_str = 100, //TODO size correctly
+        };
         return ERR_OK;
     }
-    
+
+    static error_code _create_with_opts_bin(game* self, void* options_struct)
+    {
+        self->data1 = malloc(sizeof(data_repr));
+        if (self->data1 == NULL) {
+            return ERR_OUT_OF_MEMORY;
+        }
+
+        opts_repr& opts = _get_opts(self);
+        opts = *(opts_repr*)options_struct;
+
+        self->sizer = (buf_sizer){
+            .options_str = 8,
+            .state_str = 14,
+            .player_count = 2,
+            .max_players_to_move = 2,
+            .max_moves = (uint32_t)(opts.tokens + 1),
+            .max_results = 1,
+            .move_str = 10, //TODO size correctly
+            .print_str = 100, //TODO size correctly
+        };
+        return ERR_OK;
+    }
+
+    static error_code _create_default(game* self)
+    {
+        self->data1 = malloc(sizeof(data_repr));
+        if (self->data1 == NULL) {
+            return ERR_OUT_OF_MEMORY;
+        }
+
+        opts_repr& opts = _get_opts(self);
+        opts.size = 5;
+        opts.tokens = 50;
+
+        self->sizer = (buf_sizer){
+            .options_str = 8,
+            .state_str = 14,
+            .player_count = 2,
+            .max_players_to_move = 2,
+            .max_moves = (uint32_t)(opts.tokens + 1),
+            .max_results = 1,
+            .move_str = 10, //TODO size correctly
+            .print_str = 100, //TODO size correctly
+        };
+        return ERR_OK;
+    }
+
     static error_code _export_options_str(game* self, size_t* ret_size, char* str)
     {
         if (str == NULL) {
-            *ret_size = 8;
-            return ERR_OK;
+            return ERR_INVALID_INPUT;
         }
         opts_repr& opts = _get_opts(self);
         *ret_size = sprintf(str, "%hhu-%hhu", opts.size, opts.tokens);
         return ERR_OK;
     }
 
-    static error_code _create(game* self)
-    {
-        self->data = malloc(sizeof(data_repr));
-        if (self->data == NULL) {
-            return ERR_OUT_OF_MEMORY;
-        }
-        //TODO set sizer, keep options_str
-        return ERR_OK;
-    }
-
     static error_code _destroy(game* self)
     {
-        free(self->options);
-        self->options = NULL;
-        free(self->data);
-        self->data = NULL;
+        free(self->data1);
+        self->data1 = NULL;
         return ERR_OK;
     }
 
@@ -147,27 +198,25 @@ namespace surena {
         }
         clone_target->sync_ctr = self->sync_ctr;
         clone_target->methods = self->methods;
-        _import_options_bin(clone_target, self->options);
-        error_code ec = clone_target->methods->create(clone_target);
+        opts_repr& opts = _get_opts(self);
+        error_code ec = clone_target->methods->create_with_opts_bin(clone_target, &opts);
         if (ec != ERR_OK) {
             return ec;
         }
-        memcpy(clone_target->data, self->data, sizeof(data_repr));
+        memcpy(clone_target->data1, self->data1, sizeof(data_repr));
         return ERR_OK;
     }
     
     static error_code _copy_from(game* self, game* other)
     {
         self->sync_ctr = other->sync_ctr;
-        memcpy(self->data, other->data, sizeof(data_repr));
+        memcpy(self->data1, other->data1, sizeof(data_repr));
         return ERR_OK;
     }
 
     static error_code _compare(game* self, game* other, bool* ret_equal)
     {
-        *ret_equal = (self->sync_ctr == other->sync_ctr)
-            && (memcmp(self->options, other->options, sizeof(opts_repr)) == 0)
-            && (memcmp(self->data, other->data, sizeof(data_repr)) == 0);
+        *ret_equal = (self->sync_ctr == other->sync_ctr) && (memcmp(self->data1, other->data1, sizeof(data_repr)) == 0);
         return ERR_OK;
     }
 
@@ -197,8 +246,7 @@ namespace surena {
     static error_code _export_state(game* self, size_t* ret_size, char* str)
     {
         if (str == NULL) {
-            *ret_size = 14;
-            return ERR_OK;
+            return ERR_INVALID_INPUT;
         }
         data_repr& data = _get_repr(self);
         char* ostr = str;
@@ -323,11 +371,10 @@ namespace surena {
         -| | |X| | |-
         45    ^    33
         */
-        opts_repr& opts = _get_opts(self);
         if (str_buf == NULL) {
-            *ret_size = 100; //FIXME to correct size by opts.size
-            return ERR_OK;
+            return ERR_INVALID_INPUT;
         }
+        opts_repr& opts = _get_opts(self);
         data_repr& data = _get_repr(self);
         char* ostr = str_buf;
         char acc_str_buf[6][2];
@@ -445,9 +492,16 @@ const game_methods oshisumo_gbe{
     .impl_name = "surena_default",
     .version = semver{0, 1, 0},
     .features = game_feature_flags{
+        .options = true,
+        .options_bin = true,
         .random_moves = false,
         .hidden_information = false,
         .simultaneous_moves = true,
+        .move_ordering = false,
+        .id = true,
+        .eval = true,
+        .playout = true,
+        .print = true,
     },
     .internal_methods = (void*)&oshisumo_gbe_internal_methods,
     

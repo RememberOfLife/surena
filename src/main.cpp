@@ -51,6 +51,8 @@ int main(int argc, char** argv)
     const char* game_options = NULL;
     const char* initial_position = NULL;
 
+    //TODO important, support options as both "--opt=VAL" and "--opt VAL", i.e. if current arg contains '=' then split into next arg
+    //TODO use proper command enum style options parsing
     int w_argc = argc - 1; // remaining arg cnt
     while (w_argc > 0) {
         char* w_arg = argv[argc - (w_argc--)]; // working arg
@@ -106,43 +108,43 @@ int main(int argc, char** argv)
 
     error_code ec;
     game thegame{
-        .sync_ctr = 0,
-        .options = NULL,
-        .data = NULL,
         .methods = game_method,
+        .sync_ctr = 0,
+        .data1 = NULL,
+        .data2 = NULL,
     };
     printf("game method: %s.%s.%s %d.%d.%d\n",
         thegame.methods->game_name, thegame.methods->variant_name, thegame.methods->impl_name,
         thegame.methods->version.major, thegame.methods->version.minor, thegame.methods->version.patch);
-    if (thegame.methods->import_options_str) {
-        ec = thegame.methods->import_options_str(&thegame, game_options); 
+    if (thegame.methods->features.options) {
+        ec = thegame.methods->create_with_opts_str(&thegame, game_options); 
         if (ec != ERR_OK) {
-            printf("failed to import options \"%s\": #%d %s\n", game_options, ec, thegame.methods->get_error_string(ec));
+            printf("failed to create with options \"%s\": #%d %s\n", game_options, ec, thegame.methods->get_last_error(&thegame));
             exit(1);
         }
-    } else if (game_options != NULL) {
-        printf("game does not support string options import, ignoring\n");
-    }
-    if (thegame.methods->export_options_str) {
         size_t options_str_size = thegame.sizer.options_str;
         char* options_str = (char*)malloc(options_str_size);
         thegame.methods->export_options_str(&thegame, &options_str_size, options_str);
         printf("options: \"%s\"\n", options_str);
+    } else if (game_options != NULL) {
+        printf("game does not support options, ignoring\n");
+        ec = thegame.methods->create_default(&thegame);
+    } else {
+        ec = thegame.methods->create_default(&thegame);
     }
-    ec = thegame.methods->create(&thegame);
     if (ec != ERR_OK) {
-        printf("failed to create: #%d %s\n", ec, thegame.methods->get_error_string(ec));
+        printf("failed to create: #%d %s\n", ec, thegame.methods->get_last_error(&thegame));
         exit(1);
     }
     ec = thegame.methods->import_state(&thegame, initial_position);
     if (ec != ERR_OK) {
-        printf("failed to import state \"%s\": #%d %s\n", initial_position, ec, thegame.methods->get_error_string(ec));
+        printf("failed to import state \"%s\": #%d %s\n", initial_position, ec, thegame.methods->get_last_error(&thegame));
         exit(1);
     }
     size_t state_str_size = thegame.sizer.state_str;
     char* state_str = (char*)malloc(state_str_size);
     size_t print_buf_size = thegame.sizer.print_str;
-    char* print_buf = (char*)malloc(print_buf_size);
+    char* print_buf = thegame.methods->features.print ? (char*)malloc(print_buf_size) : NULL;
     size_t move_str_size = thegame.sizer.move_str;
     move_str_size++; // account for reading '\n' later on
     char* move_str = (char*)malloc(move_str_size);
@@ -150,18 +152,19 @@ int main(int argc, char** argv)
     uint8_t ptm_count;
     thegame.methods->players_to_move(&thegame, &ptm_count, &ptm);
     //TODO adapt loop for simul player games, and what way to print the whole knowing board AND a privacy view hidden board?
+    //TODO also print sync data when it becomes available
     while (true) {
         printf("================================\n");
         thegame.methods->export_state(&thegame, &state_str_size, state_str);
         printf("state: \"%s\"\n", state_str);
         bool extra_state = false;
-        if (thegame.methods->id) {
+        if (thegame.methods->features.id) {
             extra_state = true;
             uint64_t theid;
             thegame.methods->id(&thegame, &theid);
             printf("ID#%016lx", theid);
         }
-        if (thegame.methods->eval) {
+        if (thegame.methods->features.eval) {
             if (extra_state) {
                 printf(" ");
             }
@@ -173,8 +176,10 @@ int main(int argc, char** argv)
         if (extra_state) {
             printf("\n");
         }
-        thegame.methods->debug_print(&thegame, &print_buf_size, print_buf);
-        printf("%s", print_buf);
+        if (thegame.methods->features.print) {
+            thegame.methods->debug_print(&thegame, &print_buf_size, print_buf);
+            printf("%s", print_buf);
+        }
         if (ptm_count == 0) {
             break;
         }
@@ -184,7 +189,6 @@ int main(int argc, char** argv)
             exit(1);
         }
         move_str[strcspn(move_str, "\n")] = '\0';
-        printf("the str: %s\n", move_str);
         move_code themove;
         ec = thegame.methods->get_move_code(&thegame, PLAYER_NONE, move_str, &themove);
         if (ec == ERR_OK) {
@@ -193,7 +197,7 @@ int main(int argc, char** argv)
         if (ec == ERR_OK) {
             thegame.methods->make_move(&thegame, ptm, themove);
         } else {
-            printf("invalid move\n");
+            printf("invalid move: %s\n", thegame.methods->get_last_error(&thegame));
         }
         thegame.methods->players_to_move(&thegame, &ptm_count, &ptm);
     }

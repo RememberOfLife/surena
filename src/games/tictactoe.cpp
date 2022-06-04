@@ -1,3 +1,4 @@
+#include <cstdarg>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -12,8 +13,20 @@
 #include "surena/games/tictactoe.h"
 
 namespace surena {
-    
-    // game data state representation and general getter
+
+    // general purpose helpers for opts, data, errors
+
+    static error_code _return_errorf(game* self, error_code ec, const char* fmt, ...)
+    {
+        if (self->data2 == NULL) {
+            self->data2 = malloc(1024); //TODO correct size from where?
+        }
+        va_list args;
+        va_start(args, fmt);
+        vsprintf((char*)self->data2, fmt, args);
+        va_end(args);
+        return ec;
+    }
 
     typedef struct data_repr {
         /*
@@ -29,15 +42,15 @@ namespace surena {
 
     static data_repr& _get_repr(game* self)
     {
-        return *((data_repr*)(self->data));
+        return *((data_repr*)(self->data1));
     }
-
+    
     // forward declare everything to allow for inlining at least in this unit
-    static const char* _get_error_string(error_code err);
-    GF_UNUSED(import_options_bin);
-    GF_UNUSED(import_options_str);
+    static const char* _get_last_error(game* self);
+    GF_UNUSED(create_with_opts_str);
+    GF_UNUSED(create_with_opts_bin);
+    static error_code _create_default(game* self);
     GF_UNUSED(export_options_str);
-    static error_code _create(game* self);
     static error_code _destroy(game* self);
     static error_code _clone(game* self, game* clone_target);
     static error_code _copy_from(game* self, game* other);
@@ -73,19 +86,15 @@ namespace surena {
 
     // implementation
 
-    static const char* _get_error_string(error_code err)
+    static const char* _get_last_error(game* self)
     {
-        const char* gen_err_str = get_general_error_string(err);
-        if (gen_err_str != NULL) {
-            return gen_err_str;
-        }
-        return "unknown error";
+        return (char*)self->data2;
     }
 
-    static error_code _create(game* self)
+    static error_code _create_default(game* self)
     {
-        self->data = malloc(sizeof(data_repr));
-        if (self->data == NULL) {
+        self->data1 = malloc(sizeof(data_repr));
+        if (self->data1 == NULL) {
             return ERR_OUT_OF_MEMORY;
         }
         self->sizer = (buf_sizer){
@@ -102,8 +111,8 @@ namespace surena {
 
     static error_code _destroy(game* self)
     {
-        free(self->data);
-        self->data = NULL;
+        free(self->data1);
+        self->data1 = NULL;
         return ERR_OK;
     }
 
@@ -113,24 +122,24 @@ namespace surena {
             return ERR_INVALID_INPUT;
         }
         *clone_target = *self;
-        error_code ec = clone_target->methods->create(clone_target);
+        error_code ec = clone_target->methods->create_default(clone_target);
         if (ec != ERR_OK) {
             return ec;
         }
-        memcpy(clone_target->data, self->data, sizeof(data_repr));
+        memcpy(clone_target->data1, self->data1, sizeof(data_repr));
         return ERR_OK;
     }
     
     static error_code _copy_from(game* self, game* other)
     {
         self->sync_ctr = other->sync_ctr;
-        memcpy(self->data, other->data, sizeof(data_repr));
+        memcpy(self->data1, other->data1, sizeof(data_repr));
         return ERR_OK;
     }
 
     static error_code _compare(game* self, game* other, bool* ret_equal)
     {
-        *ret_equal = (self->sync_ctr == other->sync_ctr) && (memcmp(self->data, other->data, sizeof(data_repr)) == 0);
+        *ret_equal = (self->sync_ctr == other->sync_ctr) && (memcmp(self->data1, other->data1, sizeof(data_repr)) == 0);
         return ERR_OK;
     }
 
@@ -595,9 +604,16 @@ const game_methods tictactoe_gbe{
     .impl_name = "surena_default",
     .version = semver{0, 1, 0},
     .features = game_feature_flags{
+        .options = false,
+        .options_bin = false,
         .random_moves = false,
         .hidden_information = false,
         .simultaneous_moves = false,
+        .move_ordering = false,
+        .id = true,
+        .eval = false,
+        .playout = true,
+        .print = true,
     },
     .internal_methods = (void*)&tictactoe_gbe_internal_methods,
     
