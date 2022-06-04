@@ -52,6 +52,8 @@ typedef struct havannah_internal_methods_s {
     error_code (*get_cell)(game* self, int x, int y, HAVANNAH_PLAYER* p);
     error_code (*set_cell)(game* self, int x, int y, HAVANNAH_PLAYER p, bool* wins);
 
+    error_code (*get_size)(game* self, int* size);
+
 } havannah_internal_methods;
 
 extern const game_methods havannah_gbe;

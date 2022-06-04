@@ -94,6 +94,7 @@ namespace surena {
 
     static error_code _get_cell(game* self, int x, int y, HAVANNAH_PLAYER* p);
     static error_code _set_cell(game* self, int x, int y, HAVANNAH_PLAYER p, bool* wins);
+    static error_code _get_size(game* self, int* size);
 
     // implementation
 
@@ -908,6 +909,13 @@ namespace surena {
         return ERR_OK;
     }
 
+    static error_code _get_size(game* self, int* size)
+    {
+        opts_repr& opts = _get_opts(self);
+        *size = opts.size;
+        return ERR_OK;
+    }
+
 }
 
 const char HAVANNAH_PLAYER_CHARS[4] = {'.', 'O', 'X', '-'}; // none, white, black, invalid
@@ -915,6 +923,7 @@ const char HAVANNAH_PLAYER_CHARS[4] = {'.', 'O', 'X', '-'}; // none, white, blac
 static const havannah_internal_methods havannah_gbe_internal_methods{
     .get_cell = surena::_get_cell,
     .set_cell = surena::_set_cell,
+    .get_size = surena::_get_size,
 };
 
 const game_methods havannah_gbe{
