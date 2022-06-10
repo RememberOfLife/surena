@@ -15,15 +15,15 @@ General purpose board game backend and some AI to go with it.
 |game|flags|relative prio|
 |---|---|---|
 |6 Nimmt!|HI, SM, RM|+|
-|Alhambra|RM|++|
+|Alhambra|RM||
 |Azul|RM||
 |Caesar|HI, RM|++|
 |Connect4|PI||
 |Go|PI|-|
-|Oshi Sumo|SM|+|
+|Oshi Sumo|SM|+++|
 |Quoridor|PI||
 |Settlers of Catan|HI, RM||
-|Skat|HI, RM|+|
+|Skat|HI, RM|++|
 |Tak|PI|++|
 |TwixT PP|PI||
 |Wizards|HI, RM||
@@ -33,9 +33,9 @@ General purpose board game backend and some AI to go with it.
 
 
 ## todos
+* document workflow for non perfect information games
 * base64 util func
 * separate out squirrelnoise5 into a dep?
-* engine search timeout should be uint32_t
 * engine needs compat. check for games
 
 ## ideas

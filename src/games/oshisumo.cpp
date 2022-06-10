@@ -135,7 +135,11 @@ namespace surena {
         }
 
         opts_repr& opts = _get_opts(self);
-        opts = *(opts_repr*)options_struct;
+        opts.size = 5;
+        opts.tokens = 50;
+        if (options_struct != NULL) {
+            opts = *(opts_repr*)options_struct;
+        }
 
         self->sizer = (buf_sizer){
             .options_str = 8,
@@ -262,14 +266,28 @@ namespace surena {
 
     static error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players)
     {
-        //TODO
-        return ERR_STATE_UNINITIALIZED;
+        if (players == NULL) {
+            return ERR_INVALID_INPUT;
+        }
+        data_repr& data = _get_repr(self);
+        uint8_t pc = 0;
+        while (pc < 2) {
+            if (data.sm_acc_buf[pc++] == OSHISUMO_NONE) {
+                continue;
+            }
+            players[pc - 1] = pc;
+        }
+        return ERR_OK;
     }
 
     static error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves)
     {
-        //TODO
-        return ERR_STATE_UNINITIALIZED;
+        data_repr& data = _get_repr(self);
+        for (int i = 0; i <= data.player_tokens[player - 1]; i++) {
+            moves[i] = i;
+        }
+        *ret_count = data.player_tokens[player - 1] + 1;
+        return ERR_OK;
     }
 
     static error_code _get_actions(game* self, player_id player, uint32_t* ret_count, move_code* moves)
