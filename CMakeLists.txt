@@ -41,7 +41,7 @@ set(SOURCES
     src/util/noise.cpp
     src/util/semver.c
 
-    # src/engine.cpp
+    src/engine.cpp
     src/game.c
 
     src/main.cpp

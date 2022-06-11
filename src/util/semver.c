@@ -1,11 +1,11 @@
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdbool.h>
 #include <stdint.h>
 
 #include "surena/util/semver.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 bool SEMVER_equal(semver l, semver r)
 {

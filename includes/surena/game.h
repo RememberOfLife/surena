@@ -1,14 +1,14 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #include "surena/util/semver.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 static const uint64_t SURENA_GAME_API_VERSION = 7;
 
@@ -43,6 +43,8 @@ static const uint64_t SEED_NONE = 0;
 //TODO better name for "concrete_move"? maybe action instance / informed move
 typedef uint64_t move_code;
 static const move_code MOVE_NONE = UINT64_MAX;
+
+//TODO !maybe! force every move to also include a player + move_to_player in the game_methods
 
 typedef uint8_t player_id;
 static const player_id PLAYER_NONE = 0x00;
@@ -303,12 +305,14 @@ typedef struct game_methods_s {
     // returns the game method and state specific move code representing the move string at this position for this player
     // if the move string does not represent a valid move this returns MOVE_NONE (NOTE: avoid crashes)
     // if player is PLAYER_NONE the supplied move string has to be a universal move
+    //TODO univsersal moves are broken for SM both here and in get_move_str
     error_code (*get_move_code)(game* self, player_id player, const char* str, move_code* ret_move);
 
     // writes the state specific move string representing the game specific move code for this player
     // if player is PLAYER_NONE then a universal move string is given, a game is allowed to only support this mode of operation
     // returns number of characters written to string buffer on success, excluding null character
     error_code (*get_move_str)(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
+    //TODO get_move_str_compact
 
     // FEATURE: print
     // debug print the game state into the str_buf

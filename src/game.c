@@ -1,10 +1,10 @@
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdint.h>
 
 #include "surena/game.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 const char* general_error_strings[] = {
     [ERR_OK] = "OK",
