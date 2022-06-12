@@ -25,7 +25,7 @@ enum EE_TYPE {
     EE_TYPE_HEARTBEAT, // in/out keepalive check, can ALWAYS be issued and should be answered asap (isready/readyok)
     // game: just using these the engine should be able to wrap the supported games
     EE_TYPE_GAME_LOAD,
-    EE_TYPE_GAME_UNLOAD,
+    EE_TYPE_GAME_UNLOAD, //TODO maybe remove this in favor of load with a null game
     EE_TYPE_GAME_STATE,
     EE_TYPE_GAME_MOVE,
     EE_TYPE_GAME_SYNC,
@@ -169,6 +169,10 @@ typedef struct engine_event_s {
 
 // eevent_create_* and eevent_set_* methods COPY/CLONE strings/binary/games into the event
 
+//TODO should create call destroy if we're creating on top of an existing event? would need eevent_init then to set to NULL
+
+void eevent_create(engine_event* e, uint32_t engine_id, eevent_type type);
+
 void eevent_create_log(engine_event* e, uint32_t engine_id, error_code ec, const char* text);
 
 void eevent_create_load(engine_event* e, uint32_t engine_id, game* the_game);
@@ -219,7 +223,9 @@ void eevent_destroy(engine_event* e);
 
 
 
-typedef struct eevent_queue_s eevent_queue;
+typedef struct eevent_queue_s {
+    char _padding[168];
+} eevent_queue;
 
 // the queue takes ownership of everything in the event and resets it to type NULL
 

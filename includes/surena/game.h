@@ -16,6 +16,7 @@ typedef uint32_t error_code;
 // general purpose error codes
 enum ERR {
     ERR_OK = 0,
+    // ERR_NOK //TODO might want this to show that input was in fact valid, but the result ist just false, i.e. legal move and engine game support
     ERR_STATE_UNRECOVERABLE,
     ERR_STATE_CORRUPTED,
     ERR_OUT_OF_MEMORY,

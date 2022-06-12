@@ -33,10 +33,10 @@ General purpose board game backend and some AI to go with it.
 
 
 ## todos
+* add uci wrapper engine for general purpose chess engines
 * document workflow for non perfect information games
 * base64 util func
 * separate out squirrelnoise5 into a dep?
-* engine needs compat. check for games
 
 ## ideas
 * state import/export

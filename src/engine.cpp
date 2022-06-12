@@ -1,3 +1,4 @@
+#include <cassert>
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
@@ -11,6 +12,14 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+void eevent_create(engine_event* e, uint32_t engine_id, eevent_type type)
+{
+    *e = (engine_event){
+        .type = type,
+        .engine_id = engine_id,
+    };
+}
 
 void eevent_create_log(engine_event* e, uint32_t engine_id, error_code ec, const char* text)
 {
@@ -315,46 +324,53 @@ void eevent_destroy(engine_event* e)
     e->type = EE_TYPE_NULL;
 }
 
-struct eevent_queue_s {
+struct eevent_queue_impl {
     std::mutex m;
     std::deque<engine_event> q;
     std::condition_variable cv;
 };
 
+static_assert(sizeof(eevent_queue) == sizeof(eevent_queue_impl), "eevent_queue impl size missmatch");
+
 void eevent_queue_create(eevent_queue* eq)
 {
-    new(eq) eevent_queue();
+    eevent_queue_impl* eqi = (eevent_queue_impl*)eq;
+    new(eqi) eevent_queue();
 }
 
 void eevent_queue_destroy(eevent_queue* eq)
 {
-    delete eq;
+    eevent_queue_impl* eqi = (eevent_queue_impl*)eq;
+    delete eqi;
 }
 
 void eevent_queue_push(eevent_queue* eq, engine_event* e)
 {
-    eq->m.lock();
-    eq->q.push_back(*e);
-    eq->cv.notify_all();
-    eq->m.unlock();
+    eevent_queue_impl* eqi = (eevent_queue_impl*)eq;
+    eqi->m.lock();
+    eqi->q.push_back(*e);
+    eqi->cv.notify_all();
+    eqi->m.unlock();
+    e->type = EE_TYPE_NULL;
 }
 
 void eevent_queue_pop(eevent_queue* eq, engine_event* e, uint32_t t)
 {
-    std::unique_lock<std::mutex> lock(eq->m);
-    if (eq->q.size() == 0) {
+    eevent_queue_impl* eqi = (eevent_queue_impl*)eq;
+    std::unique_lock<std::mutex> lock(eqi->m);
+    if (eqi->q.size() == 0) {
         if (t > 0) {
-            eq->cv.wait_for(lock, std::chrono::milliseconds(t));
+            eqi->cv.wait_for(lock, std::chrono::milliseconds(t));
         }
-        if (eq->q.size() == 0) {
+        if (eqi->q.size() == 0) {
             // queue has no available events after timeout, return null event
             e->type = EE_TYPE_NULL;
             return;
         }
         // go on to output an available event if one has become available
     }
-    *e = eq->q.front();
-    eq->q.pop_front();
+    *e = eqi->q.front();
+    eqi->q.pop_front();
 }
 
 #ifdef __cplusplus

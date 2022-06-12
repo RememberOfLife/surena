@@ -26,7 +26,7 @@ set(INCLUDES
 )
 
 set(SOURCES
-    # src/engines/randomengine.cpp
+    src/engines/randomengine.cpp
     # src/engines/singlethreadedmcts.cpp
 
     # src/games/alhambra.cpp
