@@ -313,7 +313,8 @@ typedef struct game_methods_s {
     // if player is PLAYER_NONE then a universal move string is given, a game is allowed to only support this mode of operation
     // returns number of characters written to string buffer on success, excluding null character
     error_code (*get_move_str)(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
-    //TODO get_move_str_compact
+
+    //TODO get_move_str_compact + flag
 
     // FEATURE: print
     // debug print the game state into the str_buf

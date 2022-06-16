@@ -29,7 +29,7 @@ namespace surena {
     typedef struct data_repr {
         eevent_queue* outbox;
         eevent_queue inbox;
-        std::thread runner;
+        std::thread* runner; //TODO why doesnt this work with a non pointer?
         game the_game;
         uint32_t rng_seed;
         uint32_t rng_counter;
@@ -69,7 +69,7 @@ namespace surena {
         data.outbox = outbox;
         eevent_queue_create(&data.inbox);
         *inbox = &data.inbox;
-        data.runner = std::thread(_engine_loop, self);
+        data.runner = new std::thread(_engine_loop, self);
         data.the_game.methods = NULL;
         data.rng_seed = 42;
         data.rng_counter = 0;
@@ -84,7 +84,9 @@ namespace surena {
             .type = EE_TYPE_EXIT
         };
         eevent_queue_push(&data.inbox, &e_quit);
-        data.runner.join();
+        data.runner->join();
+        eevent_queue_destroy(&data.inbox);
+        delete data.runner;
         free(self->data1);
         free(self->data2);
         return ERR_OK;
@@ -116,7 +118,7 @@ namespace surena {
         bool quit = false;
         while (!quit) {
             eevent_queue_pop(&data.inbox, &e, 1000);
-            e.engine_id = self->engine_id; //TODO probably shouldnt do this on every event
+            // e.engine_id = self->engine_id; //TODO probably shouldnt do this on every event
             switch (e.type) {
                 case EE_TYPE_NULL: {
                     if (data.searching) {
@@ -133,7 +135,8 @@ namespace surena {
                     assert(0);
                 } break;
                 case EE_TYPE_HEARTBEAT: {
-                    eevent_create(&e, self->engine_id, EE_TYPE_HEARTBEAT);
+                    //TODO
+                    eevent_create_heartbeat(&e, self->engine_id, e.heartbeat.id);
                     eevent_queue_push(data.outbox, &e);
                 } break;
                 case EE_TYPE_GAME_LOAD: {
@@ -152,7 +155,7 @@ namespace surena {
                     data.searching = false;
                 } break;
                 case EE_TYPE_GAME_MOVE: {
-                    data.the_game.methods->make_move(&data.the_game, e.move.player, e.move.code);
+                    data.the_game.methods->make_move(&data.the_game, e.move.player, e.move.move);
                     data.rng_counter++;
                 } break;
                 case EE_TYPE_GAME_SYNC: {
@@ -168,13 +171,23 @@ namespace surena {
                 } break;
                 case EE_TYPE_ENGINE_START: {
                     data.searching = true;
-                    eevent_create_searchinfo(&e, self->engine_id);
-                    eevent_set_searchinfo_string(&e, "search started");
+                    eevent_create_log(&e, self->engine_id, ERR_OK, "search started");
                     eevent_queue_push(data.outbox, &e);
+                } break;
+                case EE_TYPE_ENGINE_SEARCHINFO: {
+                    assert(0);
+                } break;
+                case EE_TYPE_ENGINE_SCOREINFO: {
+                    assert(0);
+                } break;
+                case EE_TYPE_ENGINE_LINEINFO: {
+                    assert(0);
                 } break;
                 case EE_TYPE_ENGINE_STOP: {
                     data.searching = false;
-                    // issue final searchinfo and bestmove
+                } /* fallthrough */;
+                case EE_TYPE_ENGINE_BESTMOVE: {
+                    // issue final information
                     uint8_t ptm_c;
                     player_id* ptm = (player_id*)malloc(sizeof(player_id) * data.the_game.sizer.max_players_to_move);
                     data.the_game.methods->players_to_move(&data.the_game, &ptm_c, ptm);
@@ -192,16 +205,23 @@ namespace surena {
                     eevent_set_searchinfo_depth(&e, ptm_c);
                     eevent_set_searchinfo_nodes(&e, moves_c);
                     eevent_queue_push(data.outbox, &e);
+
+                    eevent_create_scoreinfo(&e, self->engine_id, 1);
+                    e.scoreinfo.score_player[0] = ptm[0];
+                    e.scoreinfo.score_eval[0] = 0.5;
+                    e.scoreinfo.forced_end[0] = EE_SCOREINFO_FORCED_UNKNOWN;
+                    eevent_queue_push(data.outbox, &e);
+                    eevent_destroy(&e);
                     
-                    eevent_create_bestmove(&e, self->engine_id, ptm[0], moves[squirrelnoise5(data.rng_counter, data.rng_seed) % moves_c]);
+                    eevent_create_bestmove(&e, self->engine_id, 1);
+                    e.bestmove.player[0] = ptm[0];
+                    e.bestmove.move[0] = moves[squirrelnoise5(data.rng_counter, data.rng_seed) % moves_c];
+                    e.bestmove.confidence[0] = 0.95;
                     eevent_queue_push(data.outbox, &e);
                     free(ptm);
                     free(moves);
                 } break;
-                case EE_TYPE_ENGINE_SEARCHINFO: {
-                    assert(0);
-                } break;
-                case EE_TYPE_ENGINE_BESTMOVE: {
+                case EE_TYPE_ENGINE_MOVESCORE: {
                     assert(0);
                 } break;
                 default: {

@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_ENGINE_API_VERSION = 2;
+static const uint64_t SURENA_ENGINE_API_VERSION = 3;
 
 
 
@@ -20,10 +20,11 @@ typedef uint32_t eevent_type;
 enum EE_TYPE {
     // special
     EE_TYPE_NULL = 0,
+
     EE_TYPE_EXIT,
     EE_TYPE_LOG, // engine outbound, also serves errors
-    EE_TYPE_HEARTBEAT, // in/out keepalive check, can ALWAYS be issued and should be answered asap (isready/readyok)
-    // game: just using these the engine should be able to wrap the supported games
+    EE_TYPE_HEARTBEAT, // ==SYNC in/out keepalive check, can ALWAYS be issued and should be answered asap (isready/readyok)
+    // game: wrap the supported games
     EE_TYPE_GAME_LOAD,
     EE_TYPE_GAME_UNLOAD, //TODO maybe remove this in favor of load with a null game
     EE_TYPE_GAME_STATE,
@@ -33,9 +34,12 @@ enum EE_TYPE {
     EE_TYPE_ENGINE_ID,
     EE_TYPE_ENGINE_OPTION,
     EE_TYPE_ENGINE_START,
-    EE_TYPE_ENGINE_STOP,
     EE_TYPE_ENGINE_SEARCHINFO,
-    EE_TYPE_ENGINE_BESTMOVE,
+    EE_TYPE_ENGINE_SCOREINFO,
+    EE_TYPE_ENGINE_LINEINFO,
+    EE_TYPE_ENGINE_STOP, // engine answers [searchinfo] + <scoreinfo> + [lineinfo] + <bestmove> + [movescore]
+    EE_TYPE_ENGINE_BESTMOVE, // gui->engine: engine sends info like it would on stop, but keeps on searching
+    EE_TYPE_ENGINE_MOVESCORE,
 
     // EE_TYPE_INTERNAL,
 
@@ -47,6 +51,10 @@ typedef struct ee_log_s {
     char* text;
 } ee_log;
 
+typedef struct ee_heartbeat_s {
+    uint32_t id; // use this to sync, e.g. after loading a different board
+} ee_heartbeat;
+
 typedef struct ee_game_load_s {
     game* the_game;
 } ee_game_load;
@@ -57,7 +65,7 @@ typedef struct ee_game_state_s {
 
 typedef struct ee_game_move_s {
     player_id player;
-    move_code code;
+    move_code move;
 } ee_game_move;
 
 typedef struct ee_game_sync_s {
@@ -73,7 +81,7 @@ typedef struct ee_engine_id_s {
 typedef uint8_t eevent_option_type;
 
 enum EE_OPTION_TYPE {
-    EE_OPTION_TYPE_NONE = 0,
+    EE_OPTION_TYPE_NONE = 0, // sending an existing name with NONE, removes that option from the interface
 
     EE_OPTION_TYPE_CHECK,
     EE_OPTION_TYPE_SPIN,
@@ -81,6 +89,8 @@ enum EE_OPTION_TYPE {
     EE_OPTION_TYPE_BUTTON,
     EE_OPTION_TYPE_STRING,
     EE_OPTION_TYPE_SPIND, // float64 spinner
+
+    //TODO add tree group meta options
 
     EE_OPTION_TYPE_COUNT,
 };
@@ -105,14 +115,46 @@ typedef struct ee_engine_option_s {
             double max;
         } mmd;
         struct {
-            char* var; // separated by newlines
+            char* var; // separated by '\0', normal terminator at the end still applies, i.e. ends on \0\0
         } v;
     }; // min,max / var, only engine outbound
 } ee_engine_option;
 
+typedef uint8_t time_control_type;
+
+enum TIME_CONTROL_TYPE {
+    TIME_CONTROL_TYPE_NONE = 0,
+
+    TIME_CONTROL_TYPE_TIME,
+    TIME_CONTROL_TYPE_BONUS, // add a persistent bonus AFTER every move
+    TIME_CONTROL_TYPE_DELAY, // transient delay at the start of a move BEFORE the clock starts counting down, unused delay time is lost
+    TIME_CONTROL_TYPE_BYO, // available time resets every move, timing out does transfers to the next time control
+    TIME_CONTROL_TYPE_UPCOUNT, // time counts upwards
+
+    // modifies the previous time control(s)
+    // for TIME, adds more raw time
+    // for BONUS, MODIFIES the bonus amount (up/down)
+    // for DELAY, MODIFIES the delay amount (up/down)
+    // for BYO, this and the previous time controls CHAIN up until a BYO will share a move counter for advancing to the end of the BYO chain
+    // for UPCOUNT, ???
+    TIME_CONTROL_TYPE_CHAIN,
+
+    TIME_CONTROL_TYPE_COUNT,
+};
+
+typedef struct time_control_s {
+    time_control_type type;
+    uint32_t time; // ms
+    uint32_t mod; // bonus/delay
+    uint32_t moves; // if > 0: moves to next time control
+} time_control;
+
 typedef struct ee_engine_start_s {
+    player_id player;
     uint32_t timeout; // in ms
-    //TODO more constraints (e.g. moves), timectl, force win etc
+    bool ponder;
+    uint32_t time_ctl_count;
+    time_control* time_ctl;
 } ee_engine_start;
 
 typedef uint8_t ee_searchinfo_flags;
@@ -120,39 +162,66 @@ typedef uint8_t ee_searchinfo_flags;
 enum EE_SEARCHINFO_FLAG_TYPE {
     EE_SEARCHINFO_FLAG_TYPE_TIME = 1<<0,
     EE_SEARCHINFO_FLAG_TYPE_DEPTH = 1<<1,
-    EE_SEARCHINFO_FLAG_TYPE_SCORE = 1<<2, // uses float as described by the game api instead of uci centipawns
+    EE_SEARCHINFO_FLAG_TYPE_SELDEPTH = 1<<2,
     EE_SEARCHINFO_FLAG_TYPE_NODES = 1<<3,
     EE_SEARCHINFO_FLAG_TYPE_NPS = 1<<4,
     EE_SEARCHINFO_FLAG_TYPE_HASHFULL = 1<<5, // uses just a float [0,1] instead of uci permill
-    EE_SEARCHINFO_FLAG_TYPE_PV = 1<<6,
-    EE_SEARCHINFO_FLAG_TYPE_STRING = 1<<7,
 };
 
 typedef struct ee_engine_searchinfo_s {
     ee_searchinfo_flags flags;
     uint32_t time;
     uint32_t depth;
-    player_id score_player;
-    float score_eval;
-    float hashfull;
+    uint32_t seldepth;
     uint64_t nodes;
     uint64_t nps;
-    uint32_t pc_c; // count of pv nodes
-    player_id* pv_p;
-    move_code* pv_m;
-    char* str;
+    float hashfull;
 } ee_engine_searchinfo;
 
+static const uint32_t EE_SCOREINFO_FORCED_UNKNOWN = UINT32_MAX;
+
+// on search stop / scoreinfo, this must contain one score for every player_to_move (if triggered by bestmove, may only be for one player)
+typedef struct ee_engine_scoreinfo_s {
+    uint32_t count;
+    player_id* score_player;
+    float* score_eval;
+    uint32_t* forced_end; // EE_SCOREINFO_FORCED_UNKNOWN for unknown, if score_eval is (+/-)INFINITE this means an unknown number of moves instead
+} ee_engine_scoreinfo;
+
+typedef struct ee_engine_lineinfo_s {
+    // principal variation
+    uint32_t idx;
+    uint32_t count;
+    player_id* player;
+    move_code* move;
+} ee_engine_lineinfo;
+
+typedef struct ee_engine_stop_s {
+    bool all_move_infos; // send moveinfos for ALL players
+    bool score_all_moves;
+} ee_engine_stop;
+
+// engine sends count >= 1 if it was instructed to search for multiple players
+// must send one for every player_to_move
 typedef struct ee_engine_bestmove_s {
-    player_id player;
-    move_code code;
+    uint32_t count;
+    player_id* player;
+    move_code* move;
+    float* confidence;
 } ee_engine_bestmove;
+
+typedef struct ee_engine_movescore_s {
+    uint32_t count;
+    move_code* move;
+    float* eval;
+} ee_engine_movescore;
 
 typedef struct engine_event_s {
     eevent_type type;
     uint32_t engine_id;
     union {
         ee_log log;
+        ee_heartbeat heartbeat;
         ee_game_load load;
         ee_game_state state;
         ee_game_move move;
@@ -161,7 +230,11 @@ typedef struct engine_event_s {
         ee_engine_option option;
         ee_engine_start start;
         ee_engine_searchinfo searchinfo;
+        ee_engine_scoreinfo scoreinfo;
+        ee_engine_lineinfo lineinfo;
+        ee_engine_stop stop;
         ee_engine_bestmove bestmove;
+        ee_engine_movescore movescore;
     };
 } engine_event;
 
@@ -169,17 +242,19 @@ typedef struct engine_event_s {
 
 // eevent_create_* and eevent_set_* methods COPY/CLONE strings/binary/games into the event
 
-//TODO should create call destroy if we're creating on top of an existing event? would need eevent_init then to set to NULL
+//TODO creation bool for if we want bestmove confidence and scoreinfo forced_end or not
 
 void eevent_create(engine_event* e, uint32_t engine_id, eevent_type type);
 
 void eevent_create_log(engine_event* e, uint32_t engine_id, error_code ec, const char* text);
 
+void eevent_create_heartbeat(engine_event* e, uint32_t engine_id, uint32_t heartbeat_id);
+
 void eevent_create_load(engine_event* e, uint32_t engine_id, game* the_game);
 
 void eevent_create_state(engine_event* e, uint32_t engine_id, const char* state);
 
-void eevent_create_move(engine_event* e, uint32_t engine_id, player_id player, move_code code);
+void eevent_create_move(engine_event* e, uint32_t engine_id, player_id player, move_code move);
 
 void eevent_create_sync(engine_event* e, uint32_t engine_id, void* data_start, void* data_end);
 
@@ -197,7 +272,7 @@ void eevent_create_option_string(engine_event* e, uint32_t engine_id, const char
 
 void eevent_create_option_spind(engine_event* e, uint32_t engine_id, const char* name, double spin, double min, double max);
 
-void eevent_create_start(engine_event* e, uint32_t engine_id, uint32_t timeout);
+void eevent_create_start(engine_event* e, uint32_t engine_id, player_id player, uint32_t timeout, bool ponder);
 
 void eevent_create_searchinfo(engine_event* e, uint32_t engine_id);
 
@@ -205,7 +280,7 @@ void eevent_set_searchinfo_time(engine_event* e, uint32_t time);
 
 void eevent_set_searchinfo_depth(engine_event* e, uint32_t depth);
 
-void eevent_set_searchinfo_score(engine_event* e, player_id player, float eval);
+void eevent_set_searchinfo_seldepth(engine_event* e, uint32_t seldepth);
 
 void eevent_set_searchinfo_nodes(engine_event* e, uint64_t nodes);
 
@@ -213,11 +288,15 @@ void eevent_set_searchinfo_nps(engine_event* e, uint64_t nps);
 
 void eevent_set_searchinfo_hashfull(engine_event* e, float hashfull);
 
-void eevent_set_searchinfo_pv(engine_event* e, player_id* pv_p, move_code* pv_m);
+void eevent_create_scoreinfo(engine_event* e, uint32_t engine_id, uint32_t count);//TODO
 
-void eevent_set_searchinfo_string(engine_event* e, const char* str);
+void eevent_create_lineinfo(engine_event* e, uint32_t engine_id, uint32_t pv_idx, uint32_t count);//TODO
 
-void eevent_create_bestmove(engine_event* e, uint32_t engine_id, player_id player, move_code code);
+void eevent_create_stop(engine_event* e, uint32_t engine_id, bool all_move_infos, bool score_all_moves);//TODO
+
+void eevent_create_bestmove(engine_event* e, uint32_t engine_id, uint32_t count);//TODO
+
+void eevent_create_movescore(engine_event* e, uint32_t engine_id, uint32_t count);//TODO
 
 void eevent_destroy(engine_event* e);
 
@@ -242,6 +321,8 @@ void eevent_queue_pop(eevent_queue* eq, engine_event* e, uint32_t t);
 typedef struct engine_feature_flags_s {
     bool options : 1;
     bool options_bin : 1;
+    bool score_all_moves : 1;
+    // bool running_bestmove : 1; //TODO need this?
 } engine_feature_flags;
 
 typedef struct engine_s engine;

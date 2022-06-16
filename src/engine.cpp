@@ -33,6 +33,17 @@ void eevent_create_log(engine_event* e, uint32_t engine_id, error_code ec, const
     };
 }
 
+void eevent_create_heartbeat(engine_event* e, uint32_t engine_id, uint32_t heartbeat_id)
+{
+    *e = (engine_event){
+        .type = EE_TYPE_HEARTBEAT,
+        .engine_id = engine_id,
+        .heartbeat = (ee_heartbeat){
+            .id = heartbeat_id,
+        },
+    };
+}
+
 void eevent_create_load(engine_event* e, uint32_t engine_id, game* the_game)
 {
     *e = (engine_event){
@@ -56,14 +67,14 @@ void eevent_create_state(engine_event* e, uint32_t engine_id, const char* state)
     };
 }
 
-void eevent_create_move(engine_event* e, uint32_t engine_id, player_id player, move_code code)
+void eevent_create_move(engine_event* e, uint32_t engine_id, player_id player, move_code move)
 {
     *e = (engine_event){
         .type = EE_TYPE_GAME_MOVE,
         .engine_id = engine_id,
         .move = (ee_game_move){
             .player = player,
-            .code = code,
+            .move = move,
         },
     };
 }
@@ -128,6 +139,15 @@ void eevent_create_option_spin(engine_event* e, uint32_t engine_id, const char* 
 
 void eevent_create_option_combo(engine_event* e, uint32_t engine_id, const char* name, const char* combo, const char* var)
 {
+    size_t varsize = 1;
+    const char* varp = var;
+    while (*varp != '\0') {
+        size_t svs = strlen(varp) + 1;
+        varsize += svs;
+        varp += svs;
+    }
+    char* varcpy = (char*)malloc(varsize);
+    memcpy(varcpy, var, varsize);
     *e = (engine_event){
         .type = EE_TYPE_ENGINE_OPTION,
         .engine_id = engine_id,
@@ -138,7 +158,7 @@ void eevent_create_option_combo(engine_event* e, uint32_t engine_id, const char*
                 .combo = combo ? strdup(combo) : NULL,
             },
             .v = {
-                .var = var ? strdup(var) : NULL,
+                .var = varcpy,
             },
         },
     };
@@ -190,13 +210,17 @@ void eevent_create_option_spind(engine_event* e, uint32_t engine_id, const char*
     };
 }
 
-void eevent_create_start(engine_event* e, uint32_t engine_id, uint32_t timeout)
+void eevent_create_start(engine_event* e, uint32_t engine_id, player_id player, uint32_t timeout, bool ponder)
 {
     *e = (engine_event){
         .type = EE_TYPE_ENGINE_START,
         .engine_id = engine_id,
         .start = (ee_engine_start){
+            .player = player,
             .timeout = timeout,
+            .ponder = ponder,
+            .time_ctl_count = 0,
+            .time_ctl = NULL,
         },
     };
 }
@@ -224,11 +248,10 @@ void eevent_set_searchinfo_depth(engine_event* e, uint32_t depth)
     e->searchinfo.depth = depth;
 }
 
-void eevent_set_searchinfo_score(engine_event* e, player_id player, float eval)
+void eevent_set_searchinfo_seldepth(engine_event* e, uint32_t seldepth)
 {
-    e->searchinfo.flags |= EE_SEARCHINFO_FLAG_TYPE_SCORE;
-    e->searchinfo.score_player = player;
-    e->searchinfo.score_eval = eval;
+    e->searchinfo.flags |= EE_SEARCHINFO_FLAG_TYPE_SELDEPTH;
+    e->searchinfo.seldepth = seldepth;
 }
 
 void eevent_set_searchinfo_nodes(engine_event* e, uint64_t nodes)
@@ -249,34 +272,69 @@ void eevent_set_searchinfo_hashfull(engine_event* e, float hashfull)
     e->searchinfo.hashfull = hashfull;
 }
 
-void eevent_set_searchinfo_pv(engine_event* e, player_id* pv_p, move_code* pv_m)
+void eevent_create_scoreinfo(engine_event* e, uint32_t engine_id, uint32_t count)
 {
-    e->searchinfo.flags |= EE_SEARCHINFO_FLAG_TYPE_PV;
-    uint32_t cnt = 0;
-    for (player_id* pv_p_cnt = pv_p; *pv_p_cnt != PLAYER_NONE; pv_p_cnt++) {
-        cnt++;
-    }
-    e->searchinfo.pc_c = cnt;
-    e->searchinfo.pv_p = (player_id*)malloc(sizeof(player_id) * cnt);
-    e->searchinfo.pv_m = (move_code*)malloc(sizeof(move_code) * cnt);
-    memcpy(e->searchinfo.pv_p, pv_p, sizeof(player_id) * cnt);
-    memcpy(e->searchinfo.pv_m, pv_m, sizeof(move_code) * cnt);
+    *e = (engine_event){
+        .type = EE_TYPE_ENGINE_SCOREINFO,
+        .engine_id = engine_id,
+        .scoreinfo = (ee_engine_scoreinfo){
+            .count = count,
+            .score_player = (player_id*)malloc(sizeof(player_id) * count),
+            .score_eval = (float*)malloc(sizeof(float) * count),
+            .forced_end = (uint32_t*)malloc(sizeof(uint32_t) * count)
+        },
+    };
 }
 
-void eevent_set_searchinfo_string(engine_event* e, const char* str)
+void eevent_create_lineinfo(engine_event* e, uint32_t engine_id, uint32_t pv_idx, uint32_t count)
 {
-    e->searchinfo.flags |= EE_SEARCHINFO_FLAG_TYPE_STRING;
-    e->searchinfo.str = str ? strdup(str) : NULL;
+    *e = (engine_event){
+        .type = EE_TYPE_ENGINE_LINEINFO,
+        .engine_id = engine_id,
+        .lineinfo = (ee_engine_lineinfo){
+            .idx = pv_idx, 
+            .count = count,
+            .player = (player_id*)malloc(sizeof(player_id) * count),
+            .move = (move_code*)malloc(sizeof(move_code) * count),
+        },
+    };
 }
 
-void eevent_create_bestmove(engine_event* e, uint32_t engine_id, player_id player, move_code code)
+void eevent_create_stop(engine_event* e, uint32_t engine_id, bool all_move_infos, bool score_all_moves)
+{
+    *e = (engine_event){
+        .type = EE_TYPE_ENGINE_STOP,
+        .engine_id = engine_id,
+        .stop = (ee_engine_stop){
+            .all_move_infos = all_move_infos,
+            .score_all_moves = score_all_moves,
+        },
+    };
+}
+
+void eevent_create_bestmove(engine_event* e, uint32_t engine_id, uint32_t count)
 {
     *e = (engine_event){
         .type = EE_TYPE_ENGINE_BESTMOVE,
         .engine_id = engine_id,
         .bestmove = (ee_engine_bestmove){
-            .player = player,
-            .code = code,
+            .count = count,
+            .player = (player_id*)malloc(sizeof(player_id) * count),
+            .move = (move_code*)malloc(sizeof(move_code) * count),
+            .confidence = (float*)malloc(sizeof(float) * count),
+        },
+    };
+}
+
+void eevent_create_movescore(engine_event* e, uint32_t engine_id, uint32_t count)
+{
+    *e = (engine_event){
+        .type = EE_TYPE_ENGINE_MOVESCORE,
+        .engine_id = engine_id,
+        .movescore = (ee_engine_movescore){
+            .count = count,
+            .move = (move_code*)malloc(sizeof(move_code) * count),
+            .eval = (float*)malloc(sizeof(float) * count),
         },
     };
 }
@@ -311,14 +369,26 @@ void eevent_destroy(engine_event* e)
                 free(e->option.value.str);
             }
         } break;
-        case EE_TYPE_ENGINE_SEARCHINFO: {
-            if (e->searchinfo.flags & EE_SEARCHINFO_FLAG_TYPE_PV) {
-                free(e->searchinfo.pv_p);
-                free(e->searchinfo.pv_m);
-            }
-            if (e->searchinfo.flags & EE_SEARCHINFO_FLAG_TYPE_STRING) {
-                free(e->searchinfo.str);
-            }
+        case EE_TYPE_ENGINE_START: {
+            free(e->start.time_ctl);
+        } break;
+        case EE_TYPE_ENGINE_SCOREINFO: {
+            free(e->scoreinfo.score_player);
+            free(e->scoreinfo.score_eval);
+            free(e->scoreinfo.forced_end);
+        } break;
+        case EE_TYPE_ENGINE_LINEINFO: {
+            free(e->lineinfo.player);
+            free(e->lineinfo.move);
+        } break;
+        case EE_TYPE_ENGINE_BESTMOVE: {
+            free(e->bestmove.player);
+            free(e->bestmove.move);
+            free(e->bestmove.confidence);
+        } break;
+        case EE_TYPE_ENGINE_MOVESCORE: {
+            free(e->movescore.move);
+            free(e->movescore.eval);
         } break;
     }
     e->type = EE_TYPE_NULL;
@@ -335,20 +405,20 @@ static_assert(sizeof(eevent_queue) == sizeof(eevent_queue_impl), "eevent_queue i
 void eevent_queue_create(eevent_queue* eq)
 {
     eevent_queue_impl* eqi = (eevent_queue_impl*)eq;
-    new(eqi) eevent_queue();
+    new(eqi) eevent_queue_impl();
 }
 
 void eevent_queue_destroy(eevent_queue* eq)
 {
     eevent_queue_impl* eqi = (eevent_queue_impl*)eq;
-    delete eqi;
+    eqi->~eevent_queue_impl();
 }
 
 void eevent_queue_push(eevent_queue* eq, engine_event* e)
 {
     eevent_queue_impl* eqi = (eevent_queue_impl*)eq;
     eqi->m.lock();
-    eqi->q.push_back(*e);
+    eqi->q.emplace_back(*e);
     eqi->cv.notify_all();
     eqi->m.unlock();
     e->type = EE_TYPE_NULL;
