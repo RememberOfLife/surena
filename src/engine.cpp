@@ -198,11 +198,30 @@ void eevent_create_option_spind(engine_event* e, uint32_t engine_id, const char*
         .engine_id = engine_id,
         .option = (ee_engine_option){
             .name = name ? strdup(name) : NULL,
-            .type = EE_OPTION_TYPE_SPIN,
+            .type = EE_OPTION_TYPE_SPIND,
             .value = {
                 .spind = spin,
             },
             .mmd = {
+                .min = min,
+                .max = max,
+            },
+        },
+    };
+}
+
+void eevent_create_option_u64(engine_event* e, uint32_t engine_id, const char* name, uint64_t u64, uint64_t min, uint64_t max)
+{
+    *e = (engine_event){
+        .type = EE_TYPE_ENGINE_OPTION,
+        .engine_id = engine_id,
+        .option = (ee_engine_option){
+            .name = name ? strdup(name) : NULL,
+            .type = EE_OPTION_TYPE_U64,
+            .value = {
+                .u64 = u64,
+            },
+            .mm = {
                 .min = min,
                 .max = max,
             },

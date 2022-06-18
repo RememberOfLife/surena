@@ -89,7 +89,7 @@ enum EE_OPTION_TYPE {
     EE_OPTION_TYPE_BUTTON,
     EE_OPTION_TYPE_STRING,
     EE_OPTION_TYPE_SPIND, // float64 spinner
-    //TODO EE_OPTION_TYPE_U64,
+    EE_OPTION_TYPE_U64,
 
     //TODO add tree group meta options
 
@@ -105,6 +105,7 @@ typedef struct ee_engine_option_s {
         char* combo;
         char* str;
         double spind;
+        uint64_t u64;
     } value; // this is the default value when sent by the engine, and the new value to use when sent by the gui
     union {
         struct {
@@ -113,7 +114,7 @@ typedef struct ee_engine_option_s {
         } mm;
         struct {
             double min;
-            double max; // must fullfill assert(max <= UINT64_MAX / 2)
+            double max; // iff SPIN, must fullfill assert(max <= UINT64_MAX / 2), U64 does NOT have this restriction
         } mmd;
         struct {
             char* var; // separated by '\0', normal terminator at the end still applies, i.e. ends on \0\0
@@ -272,6 +273,8 @@ void eevent_create_option_button(engine_event* e, uint32_t engine_id, const char
 void eevent_create_option_string(engine_event* e, uint32_t engine_id, const char* name, const char* str);
 
 void eevent_create_option_spind(engine_event* e, uint32_t engine_id, const char* name, double spin, double min, double max);
+
+void eevent_create_option_u64(engine_event* e, uint32_t engine_id, const char* name, uint64_t u64, uint64_t min, uint64_t max);
 
 void eevent_create_start(engine_event* e, uint32_t engine_id, player_id player, uint32_t timeout, bool ponder);
 

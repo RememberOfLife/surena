@@ -111,7 +111,7 @@ namespace surena {
         eevent_create_id(&e, self->engine_id, "Random", "surena_default");
         eevent_queue_push(data.outbox, &e);
         eevent_destroy(&e);
-        eevent_create_option_spin(&e, self->engine_id, "rng seed", 42, 0, UINT64_MAX / 2);
+        eevent_create_option_u64(&e, self->engine_id, "rng seed", 42, 0, UINT64_MAX);
         eevent_queue_push(data.outbox, &e);
         eevent_destroy(&e);
 
