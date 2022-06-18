@@ -147,6 +147,11 @@ int main(int argc, char** argv)
     char* print_buf = thegame.methods->features.print ? (char*)malloc(print_buf_size) : NULL;
     size_t move_str_size = thegame.sizer.move_str;
     move_str_size++; // account for reading '\n' later on
+    if (move_str_size < 1024) {
+        // increase input buffer to prevent typical input overflows
+        // this does not serve security purposes but rather usability, overflow security is handled later on
+        move_str_size = 1024; 
+    }
     char* move_str = (char*)malloc(move_str_size);
     player_id ptm;
     uint8_t ptm_count;
@@ -184,11 +189,33 @@ int main(int argc, char** argv)
             break;
         }
         printf("player to move %d: ", ptm);
-        if (fgets(move_str, move_str_size, stdin) == NULL) {
-            printf("\nerror/aborted\n");
-            exit(1);
+
+        size_t read_pos = 0;
+        bool read_stop = false;
+        bool read_clear = false;
+        while (read_stop == false) {
+            int tc = getc(stdin);
+            if (tc == EOF) {
+                printf("\nerror/aborted\n");
+                exit(1);
+            }
+            if (tc == '\n' || read_pos >= move_str_size - 1) {
+                tc = '\0';
+                read_stop = true;
+                if (read_pos >= move_str_size - 1) {
+                    read_clear = true;
+                }
+            }
+            move_str[read_pos++] = tc;
         }
-        move_str[strcspn(move_str, "\n")] = '\0';
+        if (read_clear) {
+            // got move str up to buffer length, now clear read buffer until newline char, only really works for stdin on cli but fine for now
+            int tc;
+            do {
+                tc = getc(stdin);
+            } while (tc != '\n' && tc != EOF);
+        }
+
         move_code themove;
         ec = thegame.methods->get_move_code(&thegame, PLAYER_NONE, move_str, &themove);
         if (ec == ERR_OK) {

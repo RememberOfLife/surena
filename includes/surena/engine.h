@@ -89,6 +89,7 @@ enum EE_OPTION_TYPE {
     EE_OPTION_TYPE_BUTTON,
     EE_OPTION_TYPE_STRING,
     EE_OPTION_TYPE_SPIND, // float64 spinner
+    //TODO EE_OPTION_TYPE_U64,
 
     //TODO add tree group meta options
 
@@ -112,7 +113,7 @@ typedef struct ee_engine_option_s {
         } mm;
         struct {
             double min;
-            double max;
+            double max; // must fullfill assert(max <= UINT64_MAX / 2)
         } mmd;
         struct {
             char* var; // separated by '\0', normal terminator at the end still applies, i.e. ends on \0\0
@@ -197,8 +198,8 @@ typedef struct ee_engine_lineinfo_s {
 } ee_engine_lineinfo;
 
 typedef struct ee_engine_stop_s {
-    bool all_move_infos; // send moveinfos for ALL players
-    bool score_all_moves;
+    bool all_score_infos; // send scoreinfos for ALL players
+    bool all_move_scores;
 } ee_engine_stop;
 
 // engine sends count >= 1 if it was instructed to search for multiple players
@@ -288,15 +289,15 @@ void eevent_set_searchinfo_nps(engine_event* e, uint64_t nps);
 
 void eevent_set_searchinfo_hashfull(engine_event* e, float hashfull);
 
-void eevent_create_scoreinfo(engine_event* e, uint32_t engine_id, uint32_t count);//TODO
+void eevent_create_scoreinfo(engine_event* e, uint32_t engine_id, uint32_t count);
 
-void eevent_create_lineinfo(engine_event* e, uint32_t engine_id, uint32_t pv_idx, uint32_t count);//TODO
+void eevent_create_lineinfo(engine_event* e, uint32_t engine_id, uint32_t pv_idx, uint32_t count);
 
-void eevent_create_stop(engine_event* e, uint32_t engine_id, bool all_move_infos, bool score_all_moves);//TODO
+void eevent_create_stop(engine_event* e, uint32_t engine_id, bool all_score_infos, bool all_move_scores);
 
-void eevent_create_bestmove(engine_event* e, uint32_t engine_id, uint32_t count);//TODO
+void eevent_create_bestmove(engine_event* e, uint32_t engine_id, uint32_t count);
 
-void eevent_create_movescore(engine_event* e, uint32_t engine_id, uint32_t count);//TODO
+void eevent_create_movescore(engine_event* e, uint32_t engine_id, uint32_t count);
 
 void eevent_destroy(engine_event* e);
 

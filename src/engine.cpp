@@ -300,14 +300,14 @@ void eevent_create_lineinfo(engine_event* e, uint32_t engine_id, uint32_t pv_idx
     };
 }
 
-void eevent_create_stop(engine_event* e, uint32_t engine_id, bool all_move_infos, bool score_all_moves)
+void eevent_create_stop(engine_event* e, uint32_t engine_id, bool all_score_infos, bool all_move_scores)
 {
     *e = (engine_event){
         .type = EE_TYPE_ENGINE_STOP,
         .engine_id = engine_id,
         .stop = (ee_engine_stop){
-            .all_move_infos = all_move_infos,
-            .score_all_moves = score_all_moves,
+            .all_score_infos = all_score_infos,
+            .all_move_scores = all_move_scores,
         },
     };
 }

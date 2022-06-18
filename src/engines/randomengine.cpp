@@ -111,7 +111,7 @@ namespace surena {
         eevent_create_id(&e, self->engine_id, "Random", "surena_default");
         eevent_queue_push(data.outbox, &e);
         eevent_destroy(&e);
-        eevent_create_option_spin(&e, self->engine_id, "rng seed", 42, 0, UINT64_MAX);
+        eevent_create_option_spin(&e, self->engine_id, "rng seed", 42, 0, UINT64_MAX / 2);
         eevent_queue_push(data.outbox, &e);
         eevent_destroy(&e);
 
@@ -230,6 +230,9 @@ namespace surena {
             }
             eevent_destroy(&e);
         }
+        eevent_create(&e, self->engine_id, EE_TYPE_EXIT);
+        eevent_queue_push(data.outbox, &e);
+        eevent_destroy(&e);
     }
 
 }
@@ -241,6 +244,7 @@ const engine_methods randomengine_ebe{
     .features = engine_feature_flags{
         .options = false,
         .options_bin = false,
+        .score_all_moves = false,
     },
     .internal_methods = NULL,
     

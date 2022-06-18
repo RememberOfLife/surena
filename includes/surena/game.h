@@ -308,12 +308,15 @@ typedef struct game_methods_s {
     // if player is PLAYER_NONE the supplied move string has to be a universal move
     //TODO univsersal moves are broken for SM both here and in get_move_str
     error_code (*get_move_code)(game* self, player_id player, const char* str, move_code* ret_move);
+    //TODO rework idea: accepts all move strings (long/short notation etc..), the move_code should be as universal as possible
 
     // writes the state specific move string representing the game specific move code for this player
     // if player is PLAYER_NONE then a universal move string is given, a game is allowed to only support this mode of operation
     // returns number of characters written to string buffer on success, excluding null character
     error_code (*get_move_str)(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
 
+    //TODO rework idea: get_move_str returns long notation and get_move_str_compact returns short notation
+    // problem though because long is also not necesarily always unambiguous, and does still need the game state
     //TODO get_move_str_compact + flag
 
     // FEATURE: print
@@ -326,7 +329,7 @@ typedef struct game_methods_s {
 struct game_s {
     const game_methods* methods;
     buf_sizer sizer;
-    uint32_t sync_ctr; // inc by one everytime a move is made, the game method does this itself
+    uint32_t sync_ctr; // inc by one everytime a move is made, the game method does this itself //TODO proper doc for who uses this when and how
     uint32_t _reserved; //TODO use this properly for something
     void* data1; // owned by the game method
     void* data2; // owned by the game method
