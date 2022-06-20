@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 8;
+static const uint64_t SURENA_GAME_API_VERSION = 9;
 
 typedef uint32_t error_code;
 // general purpose error codes
@@ -60,6 +60,8 @@ typedef struct game_feature_flags_s {
     bool options : 1;
     // supports creation with binary options input
     bool options_bin : 1;
+    // supports the ability to read the options bin of a created game
+    bool options_bin_ref : 1;
 
     // bool perfect_information : 1; // needed?
 
@@ -177,6 +179,11 @@ typedef struct game_methods_s {
     // write this games options to a universal options string
     // returns the length of the options string written, 0 if failure, excluding null character
     error_code (*export_options_str)(game* self, size_t* ret_size, char* str);
+
+    // FEATURE: options_bin_ref
+    // write a READ-ONLY pointer to the games internal options bin, it is valid until the game is destroyed
+    // modifying the underlying options is undefined behaviour (will crash)
+    error_code (*get_options_bin_ref)(game* self, void* ret_bin_ref);
 
     // deconstruct and release any (complex) game specific data, if it has been created already
     // same for options specific data, if it exists

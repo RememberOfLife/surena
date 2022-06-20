@@ -4,6 +4,7 @@
 .create_with_opts_bin = (create_with_opts_bin_gf_t)surena::_create_with_opts_bin,
 .create_default = (create_default_gf_t)surena::_create_default,
 .export_options_str = (export_options_str_gf_t)surena::_export_options_str,
+.get_options_bin_ref = (get_options_bin_ref_gf_t)surena::_get_options_bin_ref,
 .destroy = (destroy_gf_t)surena::_destroy,
 .clone = (clone_gf_t)surena::_clone,
 .copy_from = (copy_from_gf_t)surena::_copy_from,

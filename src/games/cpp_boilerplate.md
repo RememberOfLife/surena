@@ -92,6 +92,7 @@ namespace surena {
     static error_code _create_with_opts_bin(game* self, void* options_struct);
     static error_code _create_default(game* self);
     static error_code _export_options_str(game* self, size_t* ret_size, char* str);
+    static error_code _get_options_bin_ref(game* self, void* ret_bin_ref);
     static error_code _destroy(game* self);
     static error_code _clone(game* self, game* clone_target);
     static error_code _copy_from(game* self, game* other);
@@ -146,6 +147,11 @@ namespace surena {
     }
 
     static error_code _export_options_str(game* self, size_t* ret_size, char* str)
+    {
+        //TODO
+    }
+
+    static error_code _get_options_bin_ref(game* self, void* ret_bin_ref)
     {
         //TODO
     }
@@ -313,6 +319,7 @@ const game_methods tictactoe_gbe{
     .features = game_feature_flags{
         .options = true,
         .options_bin = true,
+        .options_bin_ref = true,
         .random_moves = true,
         .hidden_information = true,
         .simultaneous_moves = true,

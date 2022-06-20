@@ -59,11 +59,12 @@ namespace surena {
     }
 
     // forward declare everything to allow for inlining at least in this unit
-    static const char* _get_error_string(error_code err);
-    static error_code _import_options_bin(game* self, void* options_struct);
-    static error_code _import_options_str(game* self, const char* str);
+    static const char* _get_last_error(game* self);
+    static error_code _create_with_opts_str(game* self, const char* str);
+    static error_code _create_with_opts_bin(game* self, void* options_struct);
+    static error_code _create_default(game* self);
     static error_code _export_options_str(game* self, size_t* ret_size, char* str);
-    static error_code _create(game* self);
+    GF_UNUSED(get_options_bin_ref);
     static error_code _destroy(game* self);
     static error_code _clone(game* self, game* clone_target);
     static error_code _copy_from(game* self, game* other);
@@ -931,6 +932,7 @@ const game_methods havannah_gbe{
     .features = game_feature_flags{
         .options = true,
         .options_bin = true,
+        .options_bin_ref = false,
         .random_moves = false,
         .hidden_information = false,
         .simultaneous_moves = false,

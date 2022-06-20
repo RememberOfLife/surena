@@ -51,6 +51,7 @@ namespace surena {
     GF_UNUSED(create_with_opts_bin);
     static error_code _create_default(game* self);
     GF_UNUSED(export_options_str);
+    GF_UNUSED(get_options_bin_ref);
     static error_code _destroy(game* self);
     static error_code _clone(game* self, game* clone_target);
     static error_code _copy_from(game* self, game* other);
@@ -795,6 +796,7 @@ const game_methods tictactoe_ultimate_gbe{
     .features = game_feature_flags{
         .options = false,
         .options_bin = false,
+        .options_bin_ref = false,
         .random_moves = false,
         .hidden_information = false,
         .simultaneous_moves = false,
