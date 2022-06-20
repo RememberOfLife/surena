@@ -229,7 +229,7 @@ void eevent_create_option_u64(engine_event* e, uint32_t engine_id, const char* n
     };
 }
 
-void eevent_create_start(engine_event* e, uint32_t engine_id, player_id player, uint32_t timeout, bool ponder)
+void eevent_create_start(engine_event* e, uint32_t engine_id, player_id player, uint32_t timeout, bool ponder, uint32_t time_ctl_count, uint8_t time_ctl_player_count)
 {
     *e = (engine_event){
         .type = EE_TYPE_ENGINE_START,
@@ -239,7 +239,9 @@ void eevent_create_start(engine_event* e, uint32_t engine_id, player_id player, 
             .timeout = timeout,
             .ponder = ponder,
             .time_ctl_count = 0,
-            .time_ctl = NULL,
+            .time_ctl = time_ctl_count > 0 ? (time_control*)malloc(sizeof(time_control) * time_ctl_count) : NULL,
+            .time_ctl_player_count = 0,
+            .time_ctl_player = time_ctl_player_count > 0 ? (time_control_player*)malloc(sizeof(time_control_player) * time_ctl_player_count) : NULL,
         },
     };
 }

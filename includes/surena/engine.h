@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_ENGINE_API_VERSION = 3;
+static const uint64_t SURENA_ENGINE_API_VERSION = 4;
 
 
 
@@ -130,33 +130,37 @@ enum TIME_CONTROL_TYPE {
     TIME_CONTROL_TYPE_TIME,
     TIME_CONTROL_TYPE_BONUS, // add a persistent bonus AFTER every move
     TIME_CONTROL_TYPE_DELAY, // transient delay at the start of a move BEFORE the clock starts counting down, unused delay time is lost
-    TIME_CONTROL_TYPE_BYO, // available time resets every move, timing out does transfers to the next time control
+    TIME_CONTROL_TYPE_BYO, // available time resets every move, timing out transfers to the next time control
     TIME_CONTROL_TYPE_UPCOUNT, // time counts upwards
-
-    // modifies the previous time control(s)
-    // for TIME, adds more raw time
-    // for BONUS, MODIFIES the bonus amount (up/down)
-    // for DELAY, MODIFIES the delay amount (up/down)
-    // for BYO, this and the previous time controls CHAIN up until a BYO will share a move counter for advancing to the end of the BYO chain
-    // for UPCOUNT, ???
-    TIME_CONTROL_TYPE_CHAIN,
 
     TIME_CONTROL_TYPE_COUNT,
 };
 
 typedef struct time_control_s {
     time_control_type type;
+    bool discard_time; // if true: sets the remaining time to 0 before applying this time control
+    bool chain; // for byo, if true: this and the previous time controls CHAIN up until a BYO will share a move counter for advancing to the end of the BYO chain
     uint32_t time; // ms
     uint32_t mod; // bonus/delay
     uint32_t moves; // if > 0: moves to next time control
 } time_control;
 
+typedef struct time_control_player_s {
+    player_id player;
+    uint32_t time_ctl_idx;
+    uint32_t time; // ms
+    uint32_t moves; // already played moves with this time control
+} time_control_player;
+
 typedef struct ee_engine_start_s {
     player_id player;
     uint32_t timeout; // in ms
     bool ponder;
+    // if time control is used, all time control info has to be sent to the engine, for all players
     uint32_t time_ctl_count;
     time_control* time_ctl;
+    uint8_t time_ctl_player_count;
+    time_control_player* time_ctl_player;
 } ee_engine_start;
 
 typedef uint8_t ee_searchinfo_flags;
@@ -276,7 +280,7 @@ void eevent_create_option_spind(engine_event* e, uint32_t engine_id, const char*
 
 void eevent_create_option_u64(engine_event* e, uint32_t engine_id, const char* name, uint64_t u64, uint64_t min, uint64_t max);
 
-void eevent_create_start(engine_event* e, uint32_t engine_id, player_id player, uint32_t timeout, bool ponder);
+void eevent_create_start(engine_event* e, uint32_t engine_id, player_id player, uint32_t timeout, bool ponder, uint32_t time_ctl_count, uint8_t time_ctl_player_count);
 
 void eevent_create_searchinfo(engine_event* e, uint32_t engine_id);
 
