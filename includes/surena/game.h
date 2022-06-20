@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 7;
+static const uint64_t SURENA_GAME_API_VERSION = 8;
 
 typedef uint32_t error_code;
 // general purpose error codes
@@ -25,7 +25,7 @@ enum ERR {
     ERR_INVALID_INPUT,
     ERR_INVALID_OPTIONS,
     ERR_UNSTABLE_POSITION,
-    ERR_SYNC_CTR_MISMATCH,
+    ERR_SYNC_COUNTER_MISMATCH,
     ERR_RETRY, // retrying the same call again may yet still work
     ERR_ENUM_DEFAULT_OFFSET, // not an error, start game method specific error enums at this offset
 };
@@ -51,6 +51,9 @@ typedef uint8_t player_id;
 static const player_id PLAYER_NONE = 0x00;
 static const player_id PLAYER_RAND = 0xFF;
 
+typedef uint32_t sync_counter;
+static const sync_counter SYNC_COUNTER_DEFAULT = 0;
+
 typedef struct game_feature_flags_s {
 
     // options are passed together with the creation of the game data
@@ -73,6 +76,9 @@ typedef struct game_feature_flags_s {
 
     //TODO document simultaneous move workflow for different kinds (no)sync,unordered,ordered,want_discard,reissue,never_discard
     bool simultaneous_moves : 1;
+
+    // if the game does not support this feature, its owner must guarantee total move order
+    bool sync_counter : 1;
 
     // bool big_moves : 1; //TODO needs api support
 
@@ -238,7 +244,7 @@ typedef struct game_methods_s {
     // should be optimized by the game method if possible
     // REAL commutative moves in a situation for simultaneous moves can be performed on dissimilar sync ctrs, at the games discretion
     // moves do not have to be valid
-    error_code (*is_legal_move)(game* self, player_id player, move_code move, uint32_t sync_ctr);
+    error_code (*is_legal_move)(game* self, player_id player, move_code move, sync_counter sync);
 
     // FEATURE: random_moves || hidden_information || simultaneous_moves
     // returns the action representing the information set transformation of the (concrete) LEGAL move (action instance)
@@ -259,6 +265,11 @@ typedef struct game_methods_s {
     // writes no ids if the game is not over yet or there are no result players
     // returns the number of ids written
     error_code (*get_results)(game* self, uint8_t* ret_count, player_id* players);
+
+    // FEATURE: sync_counter
+    // writes the game internal sync counter
+    // if supported the game manages this by itself, taking control over when to increment or not
+    error_code (*get_sync_counter)(game* self, sync_counter* ret_sync);
 
     // FEATURE: id
     // state id, should be as conflict free as possible
@@ -329,8 +340,6 @@ typedef struct game_methods_s {
 struct game_s {
     const game_methods* methods;
     buf_sizer sizer;
-    uint32_t sync_ctr; // inc by one everytime a move is made, the game method does this itself //TODO proper doc for who uses this when and how
-    uint32_t _reserved; //TODO use this properly for something
     void* data1; // owned by the game method
     void* data2; // owned by the game method
 };

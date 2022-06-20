@@ -20,6 +20,7 @@
 .is_action = (is_action_gf_t)surena::_is_action,
 .make_move = (make_move_gf_t)surena::_make_move,
 .get_results = (get_results_gf_t)surena::_get_results,
+.get_sync_counter = (get_sync_counter_gf_t)surena::_get_sync_counter,
 .id = (id_gf_t)surena::_id,
 .eval = (eval_gf_t)surena::_eval,
 .discretize = (discretize_gf_t)surena::_discretize,

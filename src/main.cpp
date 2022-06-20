@@ -109,7 +109,6 @@ int main(int argc, char** argv)
     error_code ec;
     game thegame{
         .methods = game_method,
-        .sync_ctr = 0,
         .data1 = NULL,
         .data2 = NULL,
     };
@@ -219,7 +218,7 @@ int main(int argc, char** argv)
         move_code themove;
         ec = thegame.methods->get_move_code(&thegame, PLAYER_NONE, move_str, &themove);
         if (ec == ERR_OK) {
-            ec = thegame.methods->is_legal_move(&thegame, ptm, themove, thegame.sync_ctr);
+            ec = thegame.methods->is_legal_move(&thegame, ptm, themove, SYNC_COUNTER_DEFAULT);
         }
         if (ec == ERR_OK) {
             thegame.methods->make_move(&thegame, ptm, themove);

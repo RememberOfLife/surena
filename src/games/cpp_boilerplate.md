@@ -103,11 +103,12 @@ namespace surena {
     static error_code _get_concrete_move_probabilities(game* self, player_id player, uint32_t* ret_count, float* move_probabilities);
     static error_code _get_concrete_moves_ordered(game* self, player_id player, uint32_t* ret_count, move_code* moves);
     static error_code _get_actions(game* self, player_id player, uint32_t* ret_count, move_code* moves);
-    static error_code _is_legal_move(game* self, player_id player, move_code move, uint32_t sync_ctr);
+    static error_code _is_legal_move(game* self, player_id player, move_code move, sync_counter sync);
     static error_code _move_to_action(game* self, move_code move, move_code* ret_action);
     static error_code _is_action(game* self, move_code move, bool* ret_is_action);
     static error_code _make_move(game* self, player_id player, move_code move);
     static error_code _get_results(game* self, uint8_t* ret_count, player_id* players);
+    static error_code _get_sync_counter(game* self, sync_counter* ret_sync);
     static error_code _id(game* self, uint64_t* ret_id);
     static error_code _eval(game* self, player_id player, float* ret_eval);
     static error_code _discretize(game* self, uint64_t seed);
@@ -204,7 +205,7 @@ namespace surena {
         //TODO
     }
 
-    static error_code _is_legal_move(game* self, player_id player, move_code move, uint32_t sync_ctr)
+    static error_code _is_legal_move(game* self, player_id player, move_code move, sync_counter sync)
     {
         //TODO
     }
@@ -225,6 +226,11 @@ namespace surena {
     }
 
     static error_code _get_results(game* self, uint8_t* ret_count, player_id* players)
+    {
+        //TODO
+    }
+
+    static error_code get_sync_counter(game* self, sync_counter* ret_sync)
     {
         //TODO
     }
@@ -307,10 +313,11 @@ const game_methods tictactoe_gbe{
     .features = game_feature_flags{
         .options = true,
         .options_bin = true,
-        .random_moves = false,
-        .hidden_information = false,
-        .simultaneous_moves = false,
-        .move_ordering = false,
+        .random_moves = true,
+        .hidden_information = true,
+        .simultaneous_moves = true,
+        .sync_counter = true,
+        .move_ordering = true,
         .id = true,
         .eval = true,
         .playout = true,

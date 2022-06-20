@@ -19,11 +19,12 @@ typedef error_code (*get_concrete_moves_gf_t)(game* self, player_id player, uint
 typedef error_code (*get_concrete_move_probabilities_gf_t)(game* self, player_id player, uint32_t* ret_count, float* move_probabilities);
 typedef error_code (*get_concrete_moves_ordered_gf_t)(game* self, player_id player, uint32_t* ret_count, move_code* moves);
 typedef error_code (*get_actions_gf_t)(game* self, player_id player, uint32_t* ret_count, move_code* moves);
-typedef error_code (*is_legal_move_gf_t)(game* self, player_id player, move_code move, uint32_t sync_ctr);
+typedef error_code (*is_legal_move_gf_t)(game* self, player_id player, move_code move, sync_counter sync);
 typedef error_code (*move_to_action_gf_t)(game* self, move_code move, move_code* ret_action);
 typedef error_code (*is_action_gf_t)(game* self, move_code move, bool* ret_is_action);
 typedef error_code (*make_move_gf_t)(game* self, player_id player, move_code move);
 typedef error_code (*get_results_gf_t)(game* self, uint8_t* ret_count, player_id* players);
+typedef error_code (*get_sync_counter_gf_t)(game* self, sync_counter* ret_sync);
 typedef error_code (*id_gf_t)(game* self, uint64_t* ret_id);
 typedef error_code (*eval_gf_t)(game* self, player_id player, float* ret_eval);
 typedef error_code (*discretize_gf_t)(game* self, uint64_t seed);

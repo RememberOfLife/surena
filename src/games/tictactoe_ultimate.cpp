@@ -62,11 +62,12 @@ namespace surena {
     GF_UNUSED(get_concrete_move_probabilities);
     GF_UNUSED(get_concrete_moves_ordered);
     GF_UNUSED(get_actions);
-    static error_code _is_legal_move(game* self, player_id player, move_code move, uint32_t sync_ctr);
+    static error_code _is_legal_move(game* self, player_id player, move_code move, sync_counter sync);
     GF_UNUSED(move_to_action);
     GF_UNUSED(is_action);
     static error_code _make_move(game* self, player_id player, move_code move);
     static error_code _get_results(game* self, uint8_t* ret_count, player_id* players);
+    GF_UNUSED(get_sync_counter);
     static error_code _id(game* self, uint64_t* ret_id);
     GF_UNUSED(eval);
     GF_UNUSED(discretize);
@@ -139,14 +140,13 @@ namespace surena {
     
     static error_code _copy_from(game* self, game* other)
     {
-        self->sync_ctr = other->sync_ctr;
         memcpy(self->data1, other->data1, sizeof(data_repr));
         return ERR_OK;
     }
 
     static error_code _compare(game* self, game* other, bool* ret_equal)
     {
-        *ret_equal = (self->sync_ctr == other->sync_ctr) && (memcmp(self->data1, other->data1, sizeof(data_repr)) == 0);
+        *ret_equal = (memcmp(self->data1, other->data1, sizeof(data_repr)) == 0);
         return ERR_OK;
     }
 
@@ -422,11 +422,8 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _is_legal_move(game* self, player_id player, move_code move, uint32_t sync_ctr)
+    static error_code _is_legal_move(game* self, player_id player, move_code move, sync_counter sync)
     {
-        if (self->sync_ctr != sync_ctr) {
-            return ERR_SYNC_CTR_MISMATCH;
-        }
         if (move == MOVE_NONE) {
             return ERR_INVALID_INPUT;
         }
@@ -801,6 +798,7 @@ const game_methods tictactoe_ultimate_gbe{
         .random_moves = false,
         .hidden_information = false,
         .simultaneous_moves = false,
+        .sync_counter = false,
         .move_ordering = false,
         .id = true,
         .eval = false,

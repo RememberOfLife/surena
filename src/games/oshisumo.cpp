@@ -64,11 +64,12 @@ namespace surena {
     GF_UNUSED(get_concrete_move_probabilities);
     GF_UNUSED(get_concrete_moves_ordered);
     static error_code _get_actions(game* self, player_id player, uint32_t* ret_count, move_code* moves);
-    static error_code _is_legal_move(game* self, player_id player, move_code move, uint32_t sync_ctr);
+    static error_code _is_legal_move(game* self, player_id player, move_code move, sync_counter sync);
     static error_code _move_to_action(game* self, move_code move, move_code* ret_action);
     static error_code _is_action(game* self, move_code move, bool* ret_is_action);
     static error_code _make_move(game* self, player_id player, move_code move);
     static error_code _get_results(game* self, uint8_t* ret_count, player_id* players);
+    GF_UNUSED(get_sync_counter);
     static error_code _id(game* self, uint64_t* ret_id);
     static error_code _eval(game* self, player_id player, float* ret_eval);
     GF_UNUSED(discretize);
@@ -200,7 +201,6 @@ namespace surena {
         if (clone_target == NULL) {
             return ERR_INVALID_INPUT;
         }
-        clone_target->sync_ctr = self->sync_ctr;
         clone_target->methods = self->methods;
         opts_repr& opts = _get_opts(self);
         error_code ec = clone_target->methods->create_with_opts_bin(clone_target, &opts);
@@ -213,14 +213,13 @@ namespace surena {
     
     static error_code _copy_from(game* self, game* other)
     {
-        self->sync_ctr = other->sync_ctr;
         memcpy(self->data1, other->data1, sizeof(data_repr));
         return ERR_OK;
     }
 
     static error_code _compare(game* self, game* other, bool* ret_equal)
     {
-        *ret_equal = (self->sync_ctr == other->sync_ctr) && (memcmp(self->data1, other->data1, sizeof(data_repr)) == 0);
+        *ret_equal = (memcmp(self->data1, other->data1, sizeof(data_repr)) == 0);
         return ERR_OK;
     }
 
@@ -296,7 +295,7 @@ namespace surena {
         return ERR_STATE_UNINITIALIZED;
     }
 
-    static error_code _is_legal_move(game* self, player_id player, move_code move, uint32_t sync_ctr)
+    static error_code _is_legal_move(game* self, player_id player, move_code move, sync_counter sync)
     {
         //TODO
         return ERR_STATE_UNINITIALIZED;
@@ -515,6 +514,7 @@ const game_methods oshisumo_gbe{
         .random_moves = false,
         .hidden_information = false,
         .simultaneous_moves = true,
+        .sync_counter = false,
         .move_ordering = false,
         .id = true,
         .eval = true,
