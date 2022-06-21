@@ -6,6 +6,9 @@ extern "C" {
 
 #include "surena/engine.h"
 
+//TODO
+// void plugin_init_engine();
+
 // returns the capi version used to build the plugin
 typedef uint64_t (*plugin_get_engine_capi_version_t)();
 uint64_t plugin_get_engine_capi_version();
@@ -17,7 +20,8 @@ uint64_t plugin_get_engine_capi_version();
 typedef void (*plugin_get_engine_methods_t)(uint32_t* count, const engine_methods** methods);
 void plugin_get_engine_methods(uint32_t* count, const engine_methods** methods);
 
-//TODO plugin_cleanup
+//TODO
+// void plugin_cleanup_engine();
 
 #ifdef __cplusplus
 }

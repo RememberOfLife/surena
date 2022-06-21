@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_ENGINE_API_VERSION = 4;
+static const uint64_t SURENA_ENGINE_API_VERSION = 5;
 
 
 
@@ -25,7 +25,7 @@ enum EE_TYPE {
     EE_TYPE_LOG, // engine outbound, also serves errors
     EE_TYPE_HEARTBEAT, // ==SYNC in/out keepalive check, can ALWAYS be issued and should be answered asap (isready/readyok)
     // game: wrap the supported games
-    EE_TYPE_GAME_LOAD,
+    EE_TYPE_GAME_LOAD, //TODO does the game already have to be loaded into at least the default state?
     EE_TYPE_GAME_UNLOAD, //TODO maybe remove this in favor of load with a null game
     EE_TYPE_GAME_STATE,
     EE_TYPE_GAME_MOVE,
@@ -33,12 +33,12 @@ enum EE_TYPE {
     // engine:
     EE_TYPE_ENGINE_ID,
     EE_TYPE_ENGINE_OPTION,
-    EE_TYPE_ENGINE_START,
+    EE_TYPE_ENGINE_START, // mirrored by engine without any data
     EE_TYPE_ENGINE_SEARCHINFO,
     EE_TYPE_ENGINE_SCOREINFO,
     EE_TYPE_ENGINE_LINEINFO,
-    EE_TYPE_ENGINE_STOP, // engine answers [searchinfo] + <scoreinfo> + [lineinfo] + <bestmove> + [movescore]
-    EE_TYPE_ENGINE_BESTMOVE, // gui->engine: engine sends info like it would on stop, but keeps on searching
+    EE_TYPE_ENGINE_STOP, // engine answers [stop (without data), if stopped] + [searchinfo] + <scoreinfo> + [lineinfo] + <bestmove> + [movescore]
+    EE_TYPE_ENGINE_BESTMOVE, // gui->engine (without data): engine sends info like it would on stop, but keeps on searching
     EE_TYPE_ENGINE_MOVESCORE,
 
     // EE_TYPE_INTERNAL,
@@ -66,6 +66,7 @@ typedef struct ee_game_state_s {
 typedef struct ee_game_move_s {
     player_id player;
     move_code move;
+    sync_counter sync;
 } ee_game_move;
 
 typedef struct ee_game_sync_s {
@@ -260,25 +261,37 @@ void eevent_create_load(engine_event* e, uint32_t engine_id, game* the_game);
 
 void eevent_create_state(engine_event* e, uint32_t engine_id, const char* state);
 
-void eevent_create_move(engine_event* e, uint32_t engine_id, player_id player, move_code move);
+void eevent_create_move(engine_event* e, uint32_t engine_id, player_id player, move_code move, sync_counter sync);
 
 void eevent_create_sync(engine_event* e, uint32_t engine_id, void* data_start, void* data_end);
 
 void eevent_create_id(engine_event* e, uint32_t engine_id, const char* name, const char* author);
 
+void eevent_create_option_none(engine_event* e, uint32_t engine_id, const char* name);
+
 void eevent_create_option_check(engine_event* e, uint32_t engine_id, const char* name, bool check);
 
-void eevent_create_option_spin(engine_event* e, uint32_t engine_id, const char* name, uint64_t spin, uint64_t min, uint64_t max);
+void eevent_create_option_spin(engine_event* e, uint32_t engine_id, const char* name, uint64_t spin);
 
-void eevent_create_option_combo(engine_event* e, uint32_t engine_id, const char* name, const char* combo, const char* var);
+void eevent_create_option_spin_mm(engine_event* e, uint32_t engine_id, const char* name, uint64_t spin, uint64_t min, uint64_t max);
+
+void eevent_create_option_combo(engine_event* e, uint32_t engine_id, const char* name, const char* combo);
+
+void eevent_create_option_combo_var(engine_event* e, uint32_t engine_id, const char* name, const char* combo, const char* var);
 
 void eevent_create_option_button(engine_event* e, uint32_t engine_id, const char* name);
 
 void eevent_create_option_string(engine_event* e, uint32_t engine_id, const char* name, const char* str);
 
-void eevent_create_option_spind(engine_event* e, uint32_t engine_id, const char* name, double spin, double min, double max);
+void eevent_create_option_spind(engine_event* e, uint32_t engine_id, const char* name, double spin);
 
-void eevent_create_option_u64(engine_event* e, uint32_t engine_id, const char* name, uint64_t u64, uint64_t min, uint64_t max);
+void eevent_create_option_spind_mmd(engine_event* e, uint32_t engine_id, const char* name, double spin, double min, double max);
+
+void eevent_create_option_u64(engine_event* e, uint32_t engine_id, const char* name, uint64_t u64);
+
+void eevent_create_option_u64_mm(engine_event* e, uint32_t engine_id, const char* name, uint64_t u64, uint64_t min, uint64_t max);
+
+void eevent_create_start_empty(engine_event* e, uint32_t engine_id);
 
 void eevent_create_start(engine_event* e, uint32_t engine_id, player_id player, uint32_t timeout, bool ponder, uint32_t time_ctl_count, uint8_t time_ctl_player_count);
 
@@ -300,7 +313,11 @@ void eevent_create_scoreinfo(engine_event* e, uint32_t engine_id, uint32_t count
 
 void eevent_create_lineinfo(engine_event* e, uint32_t engine_id, uint32_t pv_idx, uint32_t count);
 
+void eevent_create_stop_empty(engine_event* e, uint32_t engine_id);
+
 void eevent_create_stop(engine_event* e, uint32_t engine_id, bool all_score_infos, bool all_move_scores);
+
+void eevent_create_bestmove_empty(engine_event* e, uint32_t engine_id);
 
 void eevent_create_bestmove(engine_event* e, uint32_t engine_id, uint32_t count);
 

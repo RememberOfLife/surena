@@ -28,21 +28,16 @@ General purpose board game backend and some AI to go with it.
 |TwixT PP|PI||
 |Wizards|HI, RM||
 
-
-## issues
-
-
 ## todos
+* plugin init / cleanup (game+engine)
 * use snprintf (https://stackoverflow.com/a/26910616) to get the correct size of the error string in the _return_errorf function
-* add uci wrapper engine for general purpose chess engines
+* add uci wrapper engine for general purpose chess engines (same for tak)
 * document workflow for non perfect information games
 * base64 util func
 * separate out squirrelnoise5 into a dep?
 
 ## ideas
-* state import/export
-  * import state should also take an argument what length of bytes to import (i.e. for binary exports that don't have a string zero terminator)
-  * export state should probably take a format specifier, same for import, so different formats can be used
+* some games may need to have access to some sort of time control for their functionality (munchkin and upcount time control games)
 * clone method for the game:
   * option to choose if to discretize if available or not
   * only to copy for a certain privacy view (i.e. which player perspectives actual data to include)
@@ -52,22 +47,5 @@ General purpose board game backend and some AI to go with it.
 
 ## problems
 * is the swap move for the pie rule a feature flag, or a dedicated move that is generated only on the first move for the second player (havannah needs it)
-* what other generalized constraints on search start are required?
-  * how can specialized constraints be offered? (e.g. depths or moves)
-* need some sort of event queue to recv/send events to and from the engine
-  * e.g. engine periodically pushes out info events with current bestmove and searchinfo
-
-### integration workflow
-* ==> games with simultaneous moves
-  * game unions all possible moves from all outstanding players to move simultaneously, returns that as the valid_moves_list
-  * when a player moves, their move is stored by the backend game into its accumulation buffer
-    * when the last remaining player, of all those who move simultaneously, makes their move, the game processes the accumulation buffer and proceeds
-  * move gen should be able to receive that it should only output moves for a certain players perspective, if simultaneous moves are about to happen
-    * otherwise the same simultaneous move can be made with multiple orderings of the specific players moves
-* ==> more feature flags?:
-  * simultaneous moves (e.g. 2 players move at once, the order in which they decide on their move does not matter)
-    * ordered simultaneous moves (e.g. 2 players move at once, but the moves available DO change if one player makes a move)
-    * SM may be repr. by all moves being SM-once and then offer an "is-commutative" flag from every SM move gamestate
-    * for normal, human vs human use case, just resend when denied for older from-state, no commutative moves
-  * big moves (i.e. game requests space for moves >64bit, will get handled via requested size byte buffers)
-  * binary state export (maybe make this a universal tagged thing and implementation specific, i.e. games can expose what format they support)
+  * probably part of the game (sometimes boards have to be mirrored), should be an option for most
+    * just swapping player ids would work too however

@@ -67,7 +67,7 @@ void eevent_create_state(engine_event* e, uint32_t engine_id, const char* state)
     };
 }
 
-void eevent_create_move(engine_event* e, uint32_t engine_id, player_id player, move_code move)
+void eevent_create_move(engine_event* e, uint32_t engine_id, player_id player, move_code move, sync_counter sync)
 {
     *e = (engine_event){
         .type = EE_TYPE_GAME_MOVE,
@@ -75,6 +75,7 @@ void eevent_create_move(engine_event* e, uint32_t engine_id, player_id player, m
         .move = (ee_game_move){
             .player = player,
             .move = move,
+            .sync = sync,
         },
     };
 }
@@ -105,6 +106,18 @@ void eevent_create_id(engine_event* e, uint32_t engine_id, const char* name, con
     };
 }
 
+void eevent_create_option_none(engine_event* e, uint32_t engine_id, const char* name)
+{
+    *e = (engine_event){
+        .type = EE_TYPE_ENGINE_OPTION,
+        .engine_id = engine_id,
+        .option = (ee_engine_option){
+            .name = name ? strdup(name) : NULL,
+            .type = EE_OPTION_TYPE_NONE,
+        },
+    };
+}
+
 void eevent_create_option_check(engine_event* e, uint32_t engine_id, const char* name, bool check)
 {
     *e = (engine_event){
@@ -118,7 +131,12 @@ void eevent_create_option_check(engine_event* e, uint32_t engine_id, const char*
     };
 }
 
-void eevent_create_option_spin(engine_event* e, uint32_t engine_id, const char* name, uint64_t spin, uint64_t min, uint64_t max)
+void eevent_create_option_spin(engine_event* e, uint32_t engine_id, const char* name, uint64_t spin)
+{
+    eevent_create_option_spin_mm(e, engine_id, name, spin, 0, 0);
+}
+
+void eevent_create_option_spin_mm(engine_event* e, uint32_t engine_id, const char* name, uint64_t spin, uint64_t min, uint64_t max)
 {
     *e = (engine_event){
         .type = EE_TYPE_ENGINE_OPTION,
@@ -137,7 +155,25 @@ void eevent_create_option_spin(engine_event* e, uint32_t engine_id, const char* 
     };
 }
 
-void eevent_create_option_combo(engine_event* e, uint32_t engine_id, const char* name, const char* combo, const char* var)
+void eevent_create_option_combo(engine_event* e, uint32_t engine_id, const char* name, const char* combo)
+{
+    *e = (engine_event){
+        .type = EE_TYPE_ENGINE_OPTION,
+        .engine_id = engine_id,
+        .option = (ee_engine_option){
+            .name = name ? strdup(name) : NULL,
+            .type = EE_OPTION_TYPE_COMBO,
+            .value = {
+                .combo = combo ? strdup(combo) : NULL,
+            },
+            .v = {
+                .var = NULL,
+            },
+        },
+    };
+}
+
+void eevent_create_option_combo_var(engine_event* e, uint32_t engine_id, const char* name, const char* combo, const char* var)
 {
     size_t varsize = 1;
     const char* varp = var;
@@ -191,7 +227,12 @@ void eevent_create_option_string(engine_event* e, uint32_t engine_id, const char
     };
 }
 
-void eevent_create_option_spind(engine_event* e, uint32_t engine_id, const char* name, double spin, double min, double max)
+void eevent_create_option_spind(engine_event* e, uint32_t engine_id, const char* name, double spin)
+{
+    eevent_create_option_spind_mmd(e, engine_id, name, spin, 0, 0);
+}
+
+void eevent_create_option_spind_mmd(engine_event* e, uint32_t engine_id, const char* name, double spin, double min, double max)
 {
     *e = (engine_event){
         .type = EE_TYPE_ENGINE_OPTION,
@@ -210,7 +251,12 @@ void eevent_create_option_spind(engine_event* e, uint32_t engine_id, const char*
     };
 }
 
-void eevent_create_option_u64(engine_event* e, uint32_t engine_id, const char* name, uint64_t u64, uint64_t min, uint64_t max)
+void eevent_create_option_u64(engine_event* e, uint32_t engine_id, const char* name, uint64_t u64)
+{
+    eevent_create_option_u64_mm(e, engine_id, name, u64, 0, 0);
+}
+
+void eevent_create_option_u64_mm(engine_event* e, uint32_t engine_id, const char* name, uint64_t u64, uint64_t min, uint64_t max)
 {
     *e = (engine_event){
         .type = EE_TYPE_ENGINE_OPTION,
@@ -227,6 +273,11 @@ void eevent_create_option_u64(engine_event* e, uint32_t engine_id, const char* n
             },
         },
     };
+}
+
+void eevent_create_start_empty(engine_event* e, uint32_t engine_id)
+{
+    eevent_create_start(e, engine_id, PLAYER_NONE, 0, false, 0, 0);
 }
 
 void eevent_create_start(engine_event* e, uint32_t engine_id, player_id player, uint32_t timeout, bool ponder, uint32_t time_ctl_count, uint8_t time_ctl_player_count)
@@ -321,6 +372,11 @@ void eevent_create_lineinfo(engine_event* e, uint32_t engine_id, uint32_t pv_idx
     };
 }
 
+void eevent_create_stop_empty(engine_event* e, uint32_t engine_id)
+{
+    eevent_create_stop(e, engine_id, false, false);
+}
+
 void eevent_create_stop(engine_event* e, uint32_t engine_id, bool all_score_infos, bool all_move_scores)
 {
     *e = (engine_event){
@@ -331,6 +387,11 @@ void eevent_create_stop(engine_event* e, uint32_t engine_id, bool all_score_info
             .all_move_scores = all_move_scores,
         },
     };
+}
+
+void eevent_create_bestmove_empty(engine_event* e, uint32_t engine_id)
+{
+    eevent_create_bestmove(e, engine_id, 0);
 }
 
 void eevent_create_bestmove(engine_event* e, uint32_t engine_id, uint32_t count)

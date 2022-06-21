@@ -80,11 +80,12 @@ typedef struct game_feature_flags_s {
     bool simultaneous_moves : 1;
 
     // if the game does not support this feature, its owner must guarantee total move order
+    // if a sync counter is provided by the game, it must be supplied together with the move and player in is_legal_move
     bool sync_counter : 1;
 
-    // bool big_moves : 1; //TODO needs api support
+    // bool big_moves : 1; //TODO want this?
 
-    // bool supports_binary_state_export : 1; // here or as one of general purpose import/export format?
+    // bool supports_binary_state_export : 1; //TODO want this? (also may include dynamic formats)
 
     bool move_ordering : 1;
 

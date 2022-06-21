@@ -29,7 +29,7 @@ namespace surena {
     typedef struct data_repr {
         eevent_queue* outbox;
         eevent_queue inbox;
-        std::thread* runner; //TODO why doesnt this work with a non pointer?
+        std::thread* runner; // somehow does not work with a non pointer?
         game the_game;
         uint32_t rng_seed;
         uint32_t rng_counter;
@@ -111,18 +111,24 @@ namespace surena {
         eevent_create_id(&e, self->engine_id, "Random", "surena_default");
         eevent_queue_push(data.outbox, &e);
         eevent_destroy(&e);
-        eevent_create_option_u64(&e, self->engine_id, "rng seed", 42, 0, UINT64_MAX);
+        eevent_create_option_u64_mm(&e, self->engine_id, "rng seed", 42, 0, UINT64_MAX);
         eevent_queue_push(data.outbox, &e);
         eevent_destroy(&e);
 
         bool quit = false;
         while (!quit) {
             eevent_queue_pop(&data.inbox, &e, 1000);
-            // e.engine_id = self->engine_id; //TODO probably shouldnt do this on every event
+            if (e.engine_id != self->engine_id) {
+                eevent_create_log(&e, self->engine_id, ERR_INVALID_INPUT, "engine id mismatch");
+                eevent_queue_push(data.outbox, &e);
+                eevent_destroy(&e);
+                continue;
+            }
             switch (e.type) {
                 case EE_TYPE_NULL: {
                     if (data.searching) {
-                        //TODO should send this periodically and not just if nothing happened for 1s
+                        //TODO properly send this periodically
+                        //TODO offer some get tick time in the engine api
                         eevent_create_searchinfo(&e, self->engine_id);
                         eevent_set_searchinfo_nps(&e, 1);
                         eevent_queue_push(data.outbox, &e);
@@ -135,28 +141,58 @@ namespace surena {
                     assert(0);
                 } break;
                 case EE_TYPE_HEARTBEAT: {
-                    //TODO
                     eevent_create_heartbeat(&e, self->engine_id, e.heartbeat.id);
                     eevent_queue_push(data.outbox, &e);
                 } break;
                 case EE_TYPE_GAME_LOAD: {
-                    e.load.the_game->methods->clone(e.load.the_game, &data.the_game);
                     data.rng_counter = 0;
                     data.searching = false;
+                    if (data.the_game.methods != NULL) {
+                        data.the_game.methods->destroy(&data.the_game);
+                    }
+                    e.load.the_game->methods->clone(e.load.the_game, &data.the_game);
                 } break;
                 case EE_TYPE_GAME_UNLOAD: {
+                    if (data.the_game.methods == NULL) {
+                        break;
+                    }
                     data.the_game.methods->destroy(&data.the_game);
                     data.the_game.methods = NULL;
                     data.searching = false;
                 } break;
                 case EE_TYPE_GAME_STATE: {
+                    if (data.the_game.methods == NULL) {
+                        eevent_create_log(&e, self->engine_id, ERR_INVALID_INPUT, "missing game");
+                        eevent_queue_push(data.outbox, &e);
+                        break;
+                    }
                     data.the_game.methods->import_state(&data.the_game, e.state.str);
                     data.rng_counter = 0;
                     data.searching = false;
                 } break;
                 case EE_TYPE_GAME_MOVE: {
+                    //TODO move and search on games that have not been set to at least a default board state should error, how to even test this?
+                    if (data.the_game.methods == NULL) {
+                        eevent_create_log(&e, self->engine_id, ERR_INVALID_INPUT, "missing game");
+                        eevent_queue_push(data.outbox, &e);
+                        break;
+                    }
+                    if (ERR_OK != data.the_game.methods->is_legal_move(&data.the_game, e.move.player, e.move.move, e.move.sync)) {
+                        eevent_create_log(&e, self->engine_id, ERR_INVALID_INPUT, "illegal move");
+                        eevent_queue_push(data.outbox, &e);
+                        break;
+                    }
                     data.the_game.methods->make_move(&data.the_game, e.move.player, e.move.move);
                     data.rng_counter++;
+                    uint8_t ptm_c;
+                    player_id* ptm = (player_id*)malloc(sizeof(player_id) * data.the_game.sizer.max_players_to_move);
+                    data.the_game.methods->players_to_move(&data.the_game, &ptm_c, ptm);
+                    if (ptm_c == 0) {
+                        //TODO send bestmove move_none immediately, what other search stop infos too?
+                        eevent_create_log(&e, self->engine_id, ERR_OK, "TODO. bestmove none");
+                        eevent_queue_push(data.outbox, &e);
+                        break;
+                    }
                 } break;
                 case EE_TYPE_GAME_SYNC: {
                     assert(0);
@@ -166,13 +202,28 @@ namespace surena {
                 } break;
                 case EE_TYPE_ENGINE_OPTION: {
                     if (strcmp(e.option.name, "rng seed") == 0) {
-                        data.rng_seed = e.option.value.spin;
+                        data.rng_seed = e.option.value.u64;
                     }
                 } break;
                 case EE_TYPE_ENGINE_START: {
+                    if (data.the_game.methods == NULL) {
+                        eevent_create_log(&e, self->engine_id, ERR_INVALID_INPUT, "missing game");
+                        eevent_queue_push(data.outbox, &e);
+                        break;
+                    }
+                    uint8_t ptm_c;
+                    player_id* ptm = (player_id*)malloc(sizeof(player_id) * data.the_game.sizer.max_players_to_move);
+                    data.the_game.methods->players_to_move(&data.the_game, &ptm_c, ptm);
+                    if (ptm_c == 0) {
+                        //TODO send bestmove move_none immediately, what other search stop infos too?
+                        eevent_create_log(&e, self->engine_id, ERR_OK, "TODO. bestmove none");
+                        eevent_queue_push(data.outbox, &e);
+                        break;
+                    }
                     data.searching = true;
-                    eevent_create_log(&e, self->engine_id, ERR_OK, "search started");
+                    eevent_create_start_empty(&e, self->engine_id);
                     eevent_queue_push(data.outbox, &e);
+                    //TODO respect timeout as set by the gui
                 } break;
                 case EE_TYPE_ENGINE_SEARCHINFO: {
                     assert(0);
@@ -184,9 +235,22 @@ namespace surena {
                     assert(0);
                 } break;
                 case EE_TYPE_ENGINE_STOP: {
-                    data.searching = false;
+                    if (data.searching == false) {
+                        eevent_create_log(&e, self->engine_id, ERR_INVALID_INPUT, "no search running");
+                        eevent_queue_push(data.outbox, &e);
+                        break;
+                    }
+                    eevent_create_stop_empty(&e, self->engine_id);
+                    eevent_queue_push(data.outbox, &e);
+                    eevent_destroy(&e);
                 } /* fallthrough */;
                 case EE_TYPE_ENGINE_BESTMOVE: {
+                    if (data.searching == false) {
+                        eevent_create_log(&e, self->engine_id, ERR_INVALID_INPUT, "no search running");
+                        eevent_queue_push(data.outbox, &e);
+                        break;
+                    }
+                    data.searching = false;
                     // issue final information
                     uint8_t ptm_c;
                     player_id* ptm = (player_id*)malloc(sizeof(player_id) * data.the_game.sizer.max_players_to_move);

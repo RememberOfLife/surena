@@ -155,6 +155,7 @@ int main(int argc, char** argv)
     player_id ptm;
     uint8_t ptm_count;
     thegame.methods->players_to_move(&thegame, &ptm_count, &ptm);
+    sync_counter sync = SYNC_COUNTER_DEFAULT;
     //TODO adapt loop for simul player games, and what way to print the whole knowing board AND a privacy view hidden board?
     //TODO also print sync data when it becomes available
     while (true) {
@@ -218,7 +219,12 @@ int main(int argc, char** argv)
         move_code themove;
         ec = thegame.methods->get_move_code(&thegame, PLAYER_NONE, move_str, &themove);
         if (ec == ERR_OK) {
-            ec = thegame.methods->is_legal_move(&thegame, ptm, themove, SYNC_COUNTER_DEFAULT);
+            if (thegame.methods->features.sync_counter) {
+                thegame.methods->get_sync_counter(&thegame, &sync);
+            } else {
+                sync++;
+            }
+            ec = thegame.methods->is_legal_move(&thegame, ptm, themove, sync);
         }
         if (ec == ERR_OK) {
             thegame.methods->make_move(&thegame, ptm, themove);

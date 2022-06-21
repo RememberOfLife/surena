@@ -6,6 +6,9 @@ extern "C" {
 
 #include "surena/game.h"
 
+//TODO
+// void plugin_init_game();
+
 // returns the capi version used to build the plugin
 typedef uint64_t (*plugin_get_game_capi_version_t)();
 uint64_t plugin_get_game_capi_version();
@@ -17,7 +20,8 @@ uint64_t plugin_get_game_capi_version();
 typedef void (*plugin_get_game_methods_t)(uint32_t* count, const game_methods** methods);
 void plugin_get_game_methods(uint32_t* count, const game_methods** methods);
 
-//TODO plugin_cleanup
+//TODO
+// void plugin_cleanup_game();
 
 #ifdef __cplusplus
 }

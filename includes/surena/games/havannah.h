@@ -44,7 +44,9 @@ typedef struct havannah_graph_s {
 
 typedef struct havannah_options_s {
     int size;
-    int board_sizer; // 2 * size - 1
+    int board_sizer; // 2 * size - 1 //TODO this shouldn't really be in the public options struct
+    //TODO option for pie rule
+    //TODO option for letting one player play n many stones on their first turn instead of just 1
 } havannah_options;
 
 typedef struct havannah_internal_methods_s {
