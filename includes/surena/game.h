@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 9;
+static const uint64_t SURENA_GAME_API_VERSION = 10;
 
 typedef uint32_t error_code;
 // general purpose error codes
@@ -184,7 +184,7 @@ typedef struct game_methods_s {
     // FEATURE: options_bin_ref
     // write a READ-ONLY pointer to the games internal options bin, it is valid until the game is destroyed
     // modifying the underlying options is undefined behaviour (will crash)
-    error_code (*get_options_bin_ref)(game* self, void* ret_bin_ref);
+    error_code (*get_options_bin_ref)(game* self, void** ret_bin_ref);
 
     // deconstruct and release any (complex) game specific data, if it has been created already
     // same for options specific data, if it exists

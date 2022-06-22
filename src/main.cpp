@@ -49,7 +49,7 @@ int main(int argc, char** argv)
 {
     const game_methods* game_method = NULL;
     const char* game_options = NULL;
-    const char* initial_position = NULL;
+    const char* initial_state = NULL;
 
     //TODO important, support options as both "--opt=VAL" and "--opt VAL", i.e. if current arg contains '=' then split into next arg
     //TODO use proper command enum style options parsing
@@ -62,8 +62,17 @@ int main(int argc, char** argv)
             exit(0);
         } else if (strcmp(w_arg, "--game") == 0) {
             w_argc--;
-            //TODO make game switchable
-            printf("selecting game by name is currently unsupported, ignoring arg\n");
+            if (strcmp(n_arg, "chess") == 0) {
+                game_method = &chess_gbe;
+            } else if (strcmp(n_arg, "havannah") == 0) {
+                game_method = &havannah_gbe;
+            } else if (strcmp(n_arg, "tictactoe") == 0) {
+                game_method = &tictactoe_gbe;
+            } else if (strcmp(n_arg, "tictactoe.ultimate") == 0) {
+                game_method = &tictactoe_ultimate_gbe;
+            } else {
+                printf("unknown game\n");
+            }
         } else if (strcmp(w_arg, "--game-plugin") == 0) {
             w_argc--;
             if (n_arg) {
@@ -82,12 +91,12 @@ int main(int argc, char** argv)
             } else {
                 printf("ignoring missing game options\n");
             }
-        } else if (strcmp(w_arg, "--initial-position") == 0) {
+        } else if (strcmp(w_arg, "--game-state") == 0) {
             w_argc--;
             if (n_arg) {
-                initial_position = n_arg;
+                initial_state = n_arg;
             } else {
-                printf("ignoring missing initial position\n");
+                printf("ignoring missing initial state\n");
             }
         } else {
             printf("ignoring unknown argument: \"%s\"\n", w_arg);
@@ -135,9 +144,9 @@ int main(int argc, char** argv)
         printf("failed to create: #%d %s\n", ec, thegame.methods->get_last_error(&thegame));
         exit(1);
     }
-    ec = thegame.methods->import_state(&thegame, initial_position);
+    ec = thegame.methods->import_state(&thegame, initial_state);
     if (ec != ERR_OK) {
-        printf("failed to import state \"%s\": #%d %s\n", initial_position, ec, thegame.methods->get_last_error(&thegame));
+        printf("failed to import state \"%s\": #%d %s\n", initial_state, ec, thegame.methods->get_last_error(&thegame));
         exit(1);
     }
     size_t state_str_size = thegame.sizer.state_str;
