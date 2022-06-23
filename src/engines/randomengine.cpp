@@ -124,6 +124,7 @@ namespace surena {
                 eevent_destroy(&e);
                 continue;
             }
+            bool fallthrough = false;
             switch (e.type) {
                 case EE_TYPE_NULL: {
                     if (data.searching) {
@@ -197,6 +198,12 @@ namespace surena {
                 case EE_TYPE_GAME_SYNC: {
                     assert(0);
                 } break;
+                case EE_TYPE_GAME_DRAW: {
+                    assert(0);
+                } break;
+                case EE_TYPE_GAME_RESIGN: {
+                    assert(0);
+                } break;
                 case EE_TYPE_ENGINE_ID: {
                     assert(0);
                 } break;
@@ -243,14 +250,15 @@ namespace surena {
                     eevent_create_stop_empty(&e, self->engine_id);
                     eevent_queue_push(data.outbox, &e);
                     eevent_destroy(&e);
+                    data.searching = false;
+                    fallthrough = true;
                 } /* fallthrough */;
                 case EE_TYPE_ENGINE_BESTMOVE: {
-                    if (data.searching == false) {
+                    if (fallthrough == false && data.searching == false) {
                         eevent_create_log(&e, self->engine_id, ERR_INVALID_INPUT, "no search running");
                         eevent_queue_push(data.outbox, &e);
                         break;
                     }
-                    data.searching = false;
                     // issue final information
                     uint8_t ptm_c;
                     player_id* ptm = (player_id*)malloc(sizeof(player_id) * data.the_game.sizer.max_players_to_move);
@@ -304,11 +312,13 @@ namespace surena {
 const engine_methods randomengine_ebe{
 
     .engine_name = "Random",
-    .version = semver{1, 0, 0},
+    .version = semver{1, 1, 0},
     .features = engine_feature_flags{
         .options = false,
         .options_bin = false,
         .score_all_moves = false,
+        .running_bestmove = true,
+        .draw_and_resign = false,
     },
     .internal_methods = NULL,
     

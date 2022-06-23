@@ -290,6 +290,7 @@ typedef struct game_methods_s {
     // higher evaluations correspond to a (game method) perceived better position for the player
     // states with multiple players to move are inherently unstable, their evaluations are worthless
     error_code (*eval)(game* self, player_id player, float* ret_eval);
+    //TODO return bool ret_is_stable, default true
 
     // FEATURE: random_moves || hidden_information || simultaneous_moves
     // seed the game and collapse the hidden information and all that was inferred via play

@@ -94,6 +94,16 @@ void eevent_create_sync(engine_event* e, uint32_t engine_id, void* data_start, v
     memcpy(e->sync.data_start, data_start, data_size);
 }
 
+void eevent_create_draw(engine_event* e, uint32_t engine_id, bool accept){
+    *e = (engine_event){
+        .type = EE_TYPE_GAME_DRAW,
+        .engine_id = engine_id,
+        .draw = (ee_game_draw){
+            .accept = accept,
+        },
+    };
+}
+
 void eevent_create_id(engine_event* e, uint32_t engine_id, const char* name, const char* author)
 {
     *e = (engine_event){

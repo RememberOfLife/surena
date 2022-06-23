@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_ENGINE_API_VERSION = 5;
+static const uint64_t SURENA_ENGINE_API_VERSION = 6;
 
 
 
@@ -30,6 +30,8 @@ enum EE_TYPE {
     EE_TYPE_GAME_STATE,
     EE_TYPE_GAME_MOVE,
     EE_TYPE_GAME_SYNC,
+    EE_TYPE_GAME_DRAW,
+    EE_TYPE_GAME_RESIGN, //TODO how often can the engine send draw/resign?
     // engine:
     EE_TYPE_ENGINE_ID,
     EE_TYPE_ENGINE_OPTION,
@@ -73,6 +75,10 @@ typedef struct ee_game_sync_s {
     void* data_start;
     void* data_end;
 } ee_game_sync;
+
+typedef struct ee_game_draw_s {
+    bool accept;
+} ee_game_draw;
 
 typedef struct ee_engine_id_s {
     char* name;
@@ -233,6 +239,7 @@ typedef struct engine_event_s {
         ee_game_state state;
         ee_game_move move;
         ee_game_sync sync;
+        ee_game_draw draw;
         ee_engine_id id;
         ee_engine_option option;
         ee_engine_start start;
@@ -264,6 +271,8 @@ void eevent_create_state(engine_event* e, uint32_t engine_id, const char* state)
 void eevent_create_move(engine_event* e, uint32_t engine_id, player_id player, move_code move, sync_counter sync);
 
 void eevent_create_sync(engine_event* e, uint32_t engine_id, void* data_start, void* data_end);
+
+void eevent_create_draw(engine_event* e, uint32_t engine_id, bool accept);
 
 void eevent_create_id(engine_event* e, uint32_t engine_id, const char* name, const char* author);
 
@@ -346,8 +355,9 @@ void eevent_queue_pop(eevent_queue* eq, engine_event* e, uint32_t t);
 typedef struct engine_feature_flags_s {
     bool options : 1;
     bool options_bin : 1;
-    bool score_all_moves : 1;
-    // bool running_bestmove : 1; //TODO need this?
+    bool score_all_moves : 1; // if not supported and requested in stop event, ignore
+    bool running_bestmove : 1; // if not supported, log error if engine receives bestmove
+    bool draw_and_resign : 1; // if not supported the handler must auto decline draw offers on behalf of the engine
 } engine_feature_flags;
 
 typedef struct engine_s engine;

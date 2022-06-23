@@ -29,6 +29,7 @@ General purpose board game backend and some AI to go with it.
 |Wizards|HI, RM||
 
 ## todos
+* use readline in main https://stackoverflow.com/questions/2600528/c-readline-function
 * plugin init / cleanup (game+engine)
 * use snprintf (https://stackoverflow.com/a/26910616) to get the correct size of the error string in the _return_errorf function
 * add uci wrapper engine for general purpose chess engines (same for tak)
@@ -44,8 +45,3 @@ General purpose board game backend and some AI to go with it.
 * for simultaneous moves the engine has to merge extra moves into the tree even if there are already moves on a node
   * possibly generate_all_moves_for_all_discretization method for the game class
   * order moves by uint64_t value and then splice possible moves into the actual children
-
-## problems
-* is the swap move for the pie rule a feature flag, or a dedicated move that is generated only on the first move for the second player (havannah needs it)
-  * probably part of the game (sometimes boards have to be mirrored), should be an option for most
-    * just swapping player ids would work too however
