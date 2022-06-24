@@ -12,9 +12,9 @@
 
 #include "surena/engines/randomengine.h"
 
-namespace surena {
+namespace {
 
-    static error_code _rerrorf(engine* self, error_code ec, const char* fmt, ...)
+    error_code _rerrorf(engine* self, error_code ec, const char* fmt, ...)
     {
         if (self->data2 == NULL) {
             self->data2 = malloc(1024); //TODO correct size from where?
@@ -26,7 +26,7 @@ namespace surena {
         return ec;
     }
 
-    typedef struct data_repr {
+    struct data_repr {
         eevent_queue* outbox;
         eevent_queue inbox;
         std::thread* runner; // somehow does not work with a non pointer?
@@ -34,9 +34,9 @@ namespace surena {
         uint32_t rng_seed;
         uint32_t rng_counter;
         bool searching;
-    } data_repr;
+    };
 
-    static data_repr& _get_repr(engine* self)
+    data_repr& _get_repr(engine* self)
     {
         return *((data_repr*)(self->data1));
     }
@@ -322,11 +322,11 @@ const engine_methods randomengine_ebe{
     },
     .internal_methods = NULL,
     
-    .get_last_error = surena::_get_last_error,
+    .get_last_error = _get_last_error,
     .create_with_opts_str = NULL,
     .create_with_opts_bin = NULL,
-    .create_default = surena::_create_default,
-    .destroy = surena::_destroy,
-    .is_game_compatible = surena::_is_game_compatible,
+    .create_default = _create_default,
+    .destroy = _destroy,
+    .is_game_compatible = _is_game_compatible,
     
 };

@@ -12,11 +12,11 @@
 
 #include "surena/games/tictactoe.h"
 
-namespace surena {
+namespace {
 
     // general purpose helpers for opts, data, errors
 
-    static error_code _rerrorf(game* self, error_code ec, const char* fmt, ...)
+    error_code _rerrorf(game* self, error_code ec, const char* fmt, ...)
     {
         if (self->data2 == NULL) {
             self->data2 = malloc(1024); //TODO correct size from where?
@@ -28,7 +28,7 @@ namespace surena {
         return ec;
     }
 
-    typedef struct data_repr {
+    struct data_repr {
         /*
         board as:
         789
@@ -38,62 +38,62 @@ namespace surena {
         where RR is results and CC is current player
         */
         uint32_t state;
-    } data_repr;
+    };
 
-    static data_repr& _get_repr(game* self)
+    data_repr& _get_repr(game* self)
     {
         return *((data_repr*)(self->data1));
     }
     
     // forward declare everything to allow for inlining at least in this unit
-    static const char* _get_last_error(game* self);
+    const char* _get_last_error(game* self);
     GF_UNUSED(create_with_opts_str);
     GF_UNUSED(create_with_opts_bin);
-    static error_code _create_default(game* self);
+    error_code _create_default(game* self);
     GF_UNUSED(export_options_str);
     GF_UNUSED(get_options_bin_ref);
-    static error_code _destroy(game* self);
-    static error_code _clone(game* self, game* clone_target);
-    static error_code _copy_from(game* self, game* other);
-    static error_code _compare(game* self, game* other, bool* ret_equal);
-    static error_code _import_state(game* self, const char* str);
-    static error_code _export_state(game* self, size_t* ret_size, char* str);
-    static error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players);
-    static error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves);
+    error_code _destroy(game* self);
+    error_code _clone(game* self, game* clone_target);
+    error_code _copy_from(game* self, game* other);
+    error_code _compare(game* self, game* other, bool* ret_equal);
+    error_code _import_state(game* self, const char* str);
+    error_code _export_state(game* self, size_t* ret_size, char* str);
+    error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players);
+    error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves);
     GF_UNUSED(get_concrete_move_probabilities);
     GF_UNUSED(get_concrete_moves_ordered);
     GF_UNUSED(get_actions);
-    static error_code _is_legal_move(game* self, player_id player, move_code move, sync_counter sync);
+    error_code _is_legal_move(game* self, player_id player, move_code move, sync_counter sync);
     GF_UNUSED(move_to_action);
     GF_UNUSED(is_action);
-    static error_code _make_move(game* self, player_id player, move_code move);
-    static error_code _get_results(game* self, uint8_t* ret_count, player_id* players);
+    error_code _make_move(game* self, player_id player, move_code move);
+    error_code _get_results(game* self, uint8_t* ret_count, player_id* players);
     GF_UNUSED(get_sync_counter);
-    static error_code _id(game* self, uint64_t* ret_id);
+    error_code _id(game* self, uint64_t* ret_id);
     GF_UNUSED(eval);
     GF_UNUSED(discretize);
-    static error_code _playout(game* self, uint64_t seed);
+    error_code _playout(game* self, uint64_t seed);
     GF_UNUSED(redact_keep_state);
     GF_UNUSED(export_sync_data);
     GF_UNUSED(release_sync_data);
     GF_UNUSED(import_sync_data);
-    static error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move);
-    static error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
-    static error_code _debug_print(game* self, size_t* ret_size, char* str_buf);
+    error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move);
+    error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
+    error_code _debug_print(game* self, size_t* ret_size, char* str_buf);
 
-    static error_code _get_cell(game* self, int x, int y, player_id* p);
-    static error_code _set_cell(game* self, int x, int y, player_id p);
-    static error_code _set_current_player(game* self, player_id p);
-    static error_code _set_result(game* self, player_id p);
+    error_code _get_cell(game* self, int x, int y, player_id* p);
+    error_code _set_cell(game* self, int x, int y, player_id p);
+    error_code _set_current_player(game* self, player_id p);
+    error_code _set_result(game* self, player_id p);
 
     // implementation
 
-    static const char* _get_last_error(game* self)
+    const char* _get_last_error(game* self)
     {
         return (char*)self->data2;
     }
 
-    static error_code _create_default(game* self)
+    error_code _create_default(game* self)
     {
         self->data1 = malloc(sizeof(data_repr));
         if (self->data1 == NULL) {
@@ -111,14 +111,14 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _destroy(game* self)
+    error_code _destroy(game* self)
     {
         free(self->data1);
         self->data1 = NULL;
         return ERR_OK;
     }
 
-    static error_code _clone(game* self, game* clone_target)
+    error_code _clone(game* self, game* clone_target)
     {
         if (clone_target == NULL) {
             return ERR_INVALID_INPUT;
@@ -132,19 +132,19 @@ namespace surena {
         return ERR_OK;
     }
     
-    static error_code _copy_from(game* self, game* other)
+    error_code _copy_from(game* self, game* other)
     {
         memcpy(self->data1, other->data1, sizeof(data_repr));
         return ERR_OK;
     }
 
-    static error_code _compare(game* self, game* other, bool* ret_equal)
+    error_code _compare(game* self, game* other, bool* ret_equal)
     {
         *ret_equal = (memcmp(self->data1, other->data1, sizeof(data_repr)) == 0);
         return ERR_OK;
     }
 
-    static error_code _import_state(game* self, const char* str)
+    error_code _import_state(game* self, const char* str)
     {
         data_repr& data = _get_repr(self);
         if (str == NULL) {
@@ -239,7 +239,7 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _export_state(game* self, size_t* ret_size, char* str)
+    error_code _export_state(game* self, size_t* ret_size, char* str)
     {
         // save to diy tictactoe format, somewhat like chess fen
         if (str == NULL) {
@@ -310,7 +310,7 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players)
+    error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players)
     {
         if (players == NULL) {
             return ERR_INVALID_INPUT;
@@ -326,7 +326,7 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves)
+    error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves)
     {
         if (moves == NULL) {
             return ERR_INVALID_INPUT;
@@ -352,7 +352,7 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _is_legal_move(game* self, player_id player, move_code move, sync_counter sync)
+    error_code _is_legal_move(game* self, player_id player, move_code move, sync_counter sync)
     {
         if (move == MOVE_NONE) {
             return ERR_INVALID_INPUT;
@@ -376,7 +376,7 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _make_move(game* self, player_id player, move_code move)
+    error_code _make_move(game* self, player_id player, move_code move)
     {
         data_repr& data = _get_repr(self);
         // set move as current player
@@ -443,7 +443,7 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _get_results(game* self, uint8_t* ret_count, player_id* players)
+    error_code _get_results(game* self, uint8_t* ret_count, player_id* players)
     {
         if (players == NULL) {
             return ERR_INVALID_INPUT;
@@ -459,7 +459,7 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _id(game* self, uint64_t* ret_id)
+    error_code _id(game* self, uint64_t* ret_id)
     {
         data_repr& data = _get_repr(self);
         uint32_t state_noise = squirrelnoise5(data.state, 0);
@@ -467,7 +467,7 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _playout(game* self, uint64_t seed)
+    error_code _playout(game* self, uint64_t seed)
     {
         fast_prng rng(seed);
         move_code moves[9];
@@ -483,7 +483,7 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move)
+    error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move)
     {
         if (strlen(str) >= 1 && str[0] == '-') {
             *ret_move = MOVE_NONE;
@@ -506,7 +506,7 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf)
+    error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf)
     {
         if (str_buf == NULL) {
             return ERR_INVALID_INPUT;
@@ -521,7 +521,7 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _debug_print(game* self, size_t* ret_size, char* str_buf)
+    error_code _debug_print(game* self, size_t* ret_size, char* str_buf)
     {
         if (str_buf == NULL) {
             return ERR_INVALID_INPUT;
@@ -550,7 +550,7 @@ namespace surena {
     //=====
     // game internal methods
     
-    static error_code _get_cell(game* self, int x, int y, player_id* p)
+    error_code _get_cell(game* self, int x, int y, player_id* p)
     {
         data_repr& data = _get_repr(self);
         // shift over the correct 2 bits representing the player at that position
@@ -558,7 +558,7 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _set_cell(game* self, int x, int y, player_id p)
+    error_code _set_cell(game* self, int x, int y, player_id p)
     {
         data_repr& data = _get_repr(self);   
         player_id pc;
@@ -569,7 +569,7 @@ namespace surena {
         return ERR_OK;
     }
     
-    static error_code _set_current_player(game* self, player_id p)
+    error_code _set_current_player(game* self, player_id p)
     {
         data_repr& data = _get_repr(self);   
         data.state &= ~(0b11<<18); // reset current player to 0
@@ -577,7 +577,7 @@ namespace surena {
         return ERR_OK;
     }
     
-    static error_code _set_result(game* self, player_id p)
+    error_code _set_result(game* self, player_id p)
     {
         data_repr& data = _get_repr(self);        
         data.state &= ~(0b11<<20); // reset result to 0
@@ -588,10 +588,10 @@ namespace surena {
 }
 
 static const tictactoe_internal_methods tictactoe_gbe_internal_methods{
-    .get_cell = surena::_get_cell,
-    .set_cell = surena::_set_cell,
-    .set_current_player = surena::_set_current_player,
-    .set_result = surena::_set_result,
+    .get_cell = _get_cell,
+    .set_cell = _set_cell,
+    .set_current_player = _set_current_player,
+    .set_result = _set_result,
 };
 
 const game_methods tictactoe_gbe{

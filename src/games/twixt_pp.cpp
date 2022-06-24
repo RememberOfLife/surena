@@ -13,11 +13,11 @@
 
 #include "surena/games/twixt_pp.h"
 
-namespace surena {
+namespace {
     
     // general purpose helpers for opts, data, errors
 
-    static error_code _rerrorf(game* self, error_code ec, const char* fmt, ...)
+    error_code _rerrorf(game* self, error_code ec, const char* fmt, ...)
     {
         if (self->data2 == NULL) {
             self->data2 = malloc(1024); //TODO correct size from where?
@@ -31,7 +31,7 @@ namespace surena {
     
     typedef twixt_pp_options opts_repr;
 
-    typedef struct data_repr {
+    struct data_repr {
         opts_repr opts;
 
         TWIXT_PP_PLAYER current_player;
@@ -41,67 +41,67 @@ namespace surena {
         uint16_t next_graph_id;
         std::vector<std::vector<twixt_pp_node>> gameboard; // white plays vertical and black horizontal per default, gameboard[iy][ix]
         bool pie_swap;
-    } data_repr;
+    };
 
-    static opts_repr& _get_opts(game* self)
+    opts_repr& _get_opts(game* self)
     {
         return ((data_repr*)(self->data1))->opts;
     }
 
-    static data_repr& _get_repr(game* self)
+    data_repr& _get_repr(game* self)
     {
         return *((data_repr*)(self->data1));
     }
 
     // forward declare everything to allow for inlining at least in this unit
-    static const char* _get_last_error(game* self);
-    static error_code _create_with_opts_str(game* self, const char* str);
-    static error_code _create_with_opts_bin(game* self, void* options_struct);
-    static error_code _create_default(game* self);
-    static error_code _export_options_str(game* self, size_t* ret_size, char* str);
-    static error_code _get_options_bin_ref(game* self, void** ret_bin_ref);
-    static error_code _destroy(game* self);
-    static error_code _clone(game* self, game* clone_target);
-    static error_code _copy_from(game* self, game* other);
-    static error_code _compare(game* self, game* other, bool* ret_equal);
-    static error_code _import_state(game* self, const char* str);
-    static error_code _export_state(game* self, size_t* ret_size, char* str);
-    static error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players);
-    static error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves);
+    const char* _get_last_error(game* self);
+    error_code _create_with_opts_str(game* self, const char* str);
+    error_code _create_with_opts_bin(game* self, void* options_struct);
+    error_code _create_default(game* self);
+    error_code _export_options_str(game* self, size_t* ret_size, char* str);
+    error_code _get_options_bin_ref(game* self, void** ret_bin_ref);
+    error_code _destroy(game* self);
+    error_code _clone(game* self, game* clone_target);
+    error_code _copy_from(game* self, game* other);
+    error_code _compare(game* self, game* other, bool* ret_equal);
+    error_code _import_state(game* self, const char* str);
+    error_code _export_state(game* self, size_t* ret_size, char* str);
+    error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players);
+    error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves);
     GF_UNUSED(get_concrete_move_probabilities);
     GF_UNUSED(get_concrete_moves_ordered); //TODO
     GF_UNUSED(get_actions);
-    static error_code _is_legal_move(game* self, player_id player, move_code move, sync_counter sync);
+    error_code _is_legal_move(game* self, player_id player, move_code move, sync_counter sync);
     GF_UNUSED(move_to_action);
     GF_UNUSED(is_action);
-    static error_code _make_move(game* self, player_id player, move_code move);
-    static error_code _get_results(game* self, uint8_t* ret_count, player_id* players);
+    error_code _make_move(game* self, player_id player, move_code move);
+    error_code _get_results(game* self, uint8_t* ret_count, player_id* players);
     GF_UNUSED(get_sync_counter);
     GF_UNUSED(id); //TODO
     GF_UNUSED(eval); //TODO
     GF_UNUSED(discretize);
-    static error_code _playout(game* self, uint64_t seed);
+    error_code _playout(game* self, uint64_t seed);
     GF_UNUSED(redact_keep_state);
     GF_UNUSED(export_sync_data);
     GF_UNUSED(release_sync_data);
     GF_UNUSED(import_sync_data);
-    static error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move);
-    static error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
-    static error_code _debug_print(game* self, size_t* ret_size, char* str_buf);
+    error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move);
+    error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
+    error_code _debug_print(game* self, size_t* ret_size, char* str_buf);
 
     /* same for internals */
-    static error_code _get_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER* p);
-    static error_code _set_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER p, bool* wins);
-    static error_code _get_node_connections(game* self, uint8_t x, uint8_t y, uint8_t* conn);
+    error_code _get_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER* p);
+    error_code _set_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER p, bool* wins);
+    error_code _get_node_connections(game* self, uint8_t x, uint8_t y, uint8_t* conn);
 
     // implementation
 
-    static const char* _get_last_error(game* self)
+    const char* _get_last_error(game* self)
     {
         return (char*)self->data2; // in this scheme opts are saved together with the state in data1, and data2 is the last error string
     }
 
-    static error_code _create_with_opts_str(game* self, const char* str)
+    error_code _create_with_opts_str(game* self, const char* str)
     {
         self->data1 = new(malloc(sizeof(data_repr))) data_repr();
         if (self->data1 == NULL) {
@@ -158,7 +158,7 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _create_with_opts_bin(game* self, void* options_struct)
+    error_code _create_with_opts_bin(game* self, void* options_struct)
     {
         self->data1 = new(malloc(sizeof(data_repr))) data_repr();
         if (self->data1 == NULL) {
@@ -186,7 +186,7 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _create_default(game* self)
+    error_code _create_default(game* self)
     {
         self->data1 = new(malloc(sizeof(data_repr))) data_repr();
         if (self->data1 == NULL) {
@@ -211,7 +211,7 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _export_options_str(game* self, size_t* ret_size, char* str)
+    error_code _export_options_str(game* self, size_t* ret_size, char* str)
     {
         if (str == NULL) {
             return ERR_INVALID_INPUT;
@@ -225,20 +225,20 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _get_options_bin_ref(game* self, void** ret_bin_ref)
+    error_code _get_options_bin_ref(game* self, void** ret_bin_ref)
     {
         *(opts_repr*)ret_bin_ref = _get_opts(self);
         return ERR_OK;
     }
 
-    static error_code _destroy(game* self)
+    error_code _destroy(game* self)
     {
         delete (data_repr*)self->data1;
         self->data1 = NULL;
         return ERR_OK;
     }
 
-    static error_code _clone(game* self, game* clone_target)
+    error_code _clone(game* self, game* clone_target)
     {
         if (clone_target == NULL) {
             return ERR_INVALID_INPUT;
@@ -253,19 +253,19 @@ namespace surena {
         return ERR_OK;
     }
     
-    static error_code _copy_from(game* self, game* other)
+    error_code _copy_from(game* self, game* other)
     {
         *(data_repr*)self->data1 = *(data_repr*)other->data1;
         return ERR_OK;
     }
 
-    static error_code _compare(game* self, game* other, bool* ret_equal)
+    error_code _compare(game* self, game* other, bool* ret_equal)
     {
         //TODO
         return ERR_STATE_CORRUPTED;
     }
 
-    static error_code _import_state(game* self, const char* str)
+    error_code _import_state(game* self, const char* str)
     {
         opts_repr& opts = _get_opts(self);
         data_repr& data = _get_repr(self);
@@ -293,13 +293,13 @@ namespace surena {
         return ERR_STATE_UNRECOVERABLE;
     }
 
-    static error_code _export_state(game* self, size_t* ret_size, char* str)
+    error_code _export_state(game* self, size_t* ret_size, char* str)
     {
         //TODO
         return ERR_STATE_UNRECOVERABLE;
     }
 
-    static error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players)
+    error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players)
     {
         if (players == NULL) {
             return ERR_INVALID_INPUT;
@@ -314,7 +314,7 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves)
+    error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves)
     {
         if (moves == NULL) {
             return ERR_INVALID_INPUT;
@@ -334,7 +334,7 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _is_legal_move(game* self, player_id player, move_code move, sync_counter sync)
+    error_code _is_legal_move(game* self, player_id player, move_code move, sync_counter sync)
     {
         if (move == MOVE_NONE) {
             return ERR_INVALID_INPUT;
@@ -354,7 +354,7 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _make_move(game* self, player_id player, move_code move)
+    error_code _make_move(game* self, player_id player, move_code move)
     {
         opts_repr& opts = _get_opts(self);
         data_repr& data = _get_repr(self);
@@ -384,7 +384,7 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _get_results(game* self, uint8_t* ret_count, player_id* players)
+    error_code _get_results(game* self, uint8_t* ret_count, player_id* players)
     {
         if (players == NULL) {
             return ERR_INVALID_INPUT;
@@ -399,7 +399,7 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _playout(game* self, uint64_t seed)
+    error_code _playout(game* self, uint64_t seed)
     {
         uint32_t ctr = 0;
         move_code* moves;
@@ -418,19 +418,19 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move)
+    error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move)
     {
         //TODO move as xyz123, xyz is a=0 A=26 and 123 %hhu
         return ERR_STATE_UNRECOVERABLE;
     }
 
-    static error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf)
+    error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf)
     {
         //TODO
         return ERR_STATE_UNRECOVERABLE;
     }
 
-    static error_code _debug_print(game* self, size_t* ret_size, char* str_buf)
+    error_code _debug_print(game* self, size_t* ret_size, char* str_buf)
     {
         if (str_buf == NULL) {
             return ERR_INVALID_INPUT;
@@ -466,7 +466,7 @@ namespace surena {
     //=====
     // game internal methods
 
-    static error_code _get_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER* p)
+    error_code _get_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER* p)
     {
         opts_repr& opts = _get_opts(self);
         data_repr& data = _get_repr(self);
@@ -478,13 +478,13 @@ namespace surena {
         return ERR_OK;
     }
 
-    static error_code _set_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER p, bool* wins)
+    error_code _set_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER p, bool* wins)
     {
         //TODO
         return ERR_STATE_UNRECOVERABLE;
     }
 
-    static error_code _get_node_connections(game* self, uint8_t x, uint8_t y, uint8_t* conn)
+    error_code _get_node_connections(game* self, uint8_t x, uint8_t y, uint8_t* conn)
     {
         data_repr& data = _get_repr(self);
         *conn = data.gameboard[y][x].connections;
@@ -494,9 +494,9 @@ namespace surena {
 }
 
 static const twixt_pp_internal_methods twixt_pp_gbe_internal_methods{
-    .get_node = surena::_get_node,
-    .set_node = surena::_set_node,
-    .get_node_connections = surena::_get_node_connections,
+    .get_node = _get_node,
+    .set_node = _set_node,
+    .get_node_connections = _get_node_connections,
 };
 
 const game_methods twixt_pp_gbe{
