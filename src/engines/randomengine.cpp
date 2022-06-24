@@ -14,7 +14,7 @@
 
 namespace surena {
 
-    static error_code _return_errorf(engine* self, error_code ec, const char* fmt, ...)
+    static error_code _rerrorf(engine* self, error_code ec, const char* fmt, ...)
     {
         if (self->data2 == NULL) {
             self->data2 = malloc(1024); //TODO correct size from where?
@@ -49,7 +49,7 @@ namespace surena {
     error_code _destroy(engine* self);
     error_code _is_game_compatible(engine* self, game* compat_game);
     // engine loop2222
-    void _engine_loop(engine* self);
+    void _engine_loop(data_repr* data_p, uint32_t engine_id);
 
     // implementation
 
@@ -69,7 +69,7 @@ namespace surena {
         data.outbox = outbox;
         eevent_queue_create(&data.inbox);
         *inbox = &data.inbox;
-        data.runner = new std::thread(_engine_loop, self);
+        data.runner = new std::thread(_engine_loop, (data_repr*)self->data1, engine_id);
         data.the_game.methods = NULL;
         data.rng_seed = 42;
         data.rng_counter = 0;
@@ -102,24 +102,24 @@ namespace surena {
     
     // engine loop
 
-    void _engine_loop(engine* self)
+    void _engine_loop(data_repr* data_p, uint32_t engine_id)
     {
-        data_repr& data = _get_repr(self);
+        data_repr& data = *data_p;
         engine_event e;
 
         // send id and options
-        eevent_create_id(&e, self->engine_id, "Random", "surena_default");
+        eevent_create_id(&e, engine_id, "Random", "surena_default");
         eevent_queue_push(data.outbox, &e);
         eevent_destroy(&e);
-        eevent_create_option_u64_mm(&e, self->engine_id, "rng seed", 42, 0, UINT64_MAX);
+        eevent_create_option_u64_mm(&e, engine_id, "rng seed", 42, 0, UINT64_MAX);
         eevent_queue_push(data.outbox, &e);
         eevent_destroy(&e);
 
         bool quit = false;
         while (!quit) {
             eevent_queue_pop(&data.inbox, &e, 1000);
-            if (e.engine_id != self->engine_id) {
-                eevent_create_log(&e, self->engine_id, ERR_INVALID_INPUT, "engine id mismatch");
+            if (e.engine_id != engine_id) {
+                eevent_create_log(&e, engine_id, ERR_INVALID_INPUT, "engine id mismatch");
                 eevent_queue_push(data.outbox, &e);
                 eevent_destroy(&e);
                 continue;
@@ -130,7 +130,7 @@ namespace surena {
                     if (data.searching) {
                         //TODO properly send this periodically
                         //TODO offer some get tick time in the engine api
-                        eevent_create_searchinfo(&e, self->engine_id);
+                        eevent_create_searchinfo(&e, engine_id);
                         eevent_set_searchinfo_nps(&e, 1);
                         eevent_queue_push(data.outbox, &e);
                     }
@@ -142,7 +142,7 @@ namespace surena {
                     assert(0);
                 } break;
                 case EE_TYPE_HEARTBEAT: {
-                    eevent_create_heartbeat(&e, self->engine_id, e.heartbeat.id);
+                    eevent_create_heartbeat(&e, engine_id, e.heartbeat.id);
                     eevent_queue_push(data.outbox, &e);
                 } break;
                 case EE_TYPE_GAME_LOAD: {
@@ -163,7 +163,7 @@ namespace surena {
                 } break;
                 case EE_TYPE_GAME_STATE: {
                     if (data.the_game.methods == NULL) {
-                        eevent_create_log(&e, self->engine_id, ERR_INVALID_INPUT, "missing game");
+                        eevent_create_log(&e, engine_id, ERR_INVALID_INPUT, "missing game");
                         eevent_queue_push(data.outbox, &e);
                         break;
                     }
@@ -174,12 +174,12 @@ namespace surena {
                 case EE_TYPE_GAME_MOVE: {
                     //TODO move and search on games that have not been set to at least a default board state should error, how to even test this?
                     if (data.the_game.methods == NULL) {
-                        eevent_create_log(&e, self->engine_id, ERR_INVALID_INPUT, "missing game");
+                        eevent_create_log(&e, engine_id, ERR_INVALID_INPUT, "missing game");
                         eevent_queue_push(data.outbox, &e);
                         break;
                     }
                     if (ERR_OK != data.the_game.methods->is_legal_move(&data.the_game, e.move.player, e.move.move, e.move.sync)) {
-                        eevent_create_log(&e, self->engine_id, ERR_INVALID_INPUT, "illegal move");
+                        eevent_create_log(&e, engine_id, ERR_INVALID_INPUT, "illegal move");
                         eevent_queue_push(data.outbox, &e);
                         break;
                     }
@@ -190,7 +190,7 @@ namespace surena {
                     data.the_game.methods->players_to_move(&data.the_game, &ptm_c, ptm);
                     if (ptm_c == 0) {
                         //TODO send bestmove move_none immediately, what other search stop infos too?
-                        eevent_create_log(&e, self->engine_id, ERR_OK, "TODO. bestmove none");
+                        eevent_create_log(&e, engine_id, ERR_OK, "TODO. bestmove none");
                         eevent_queue_push(data.outbox, &e);
                         break;
                     }
@@ -214,7 +214,7 @@ namespace surena {
                 } break;
                 case EE_TYPE_ENGINE_START: {
                     if (data.the_game.methods == NULL) {
-                        eevent_create_log(&e, self->engine_id, ERR_INVALID_INPUT, "missing game");
+                        eevent_create_log(&e, engine_id, ERR_INVALID_INPUT, "missing game");
                         eevent_queue_push(data.outbox, &e);
                         break;
                     }
@@ -223,12 +223,12 @@ namespace surena {
                     data.the_game.methods->players_to_move(&data.the_game, &ptm_c, ptm);
                     if (ptm_c == 0) {
                         //TODO send bestmove move_none immediately, what other search stop infos too?
-                        eevent_create_log(&e, self->engine_id, ERR_OK, "TODO. bestmove none");
+                        eevent_create_log(&e, engine_id, ERR_OK, "TODO. bestmove none");
                         eevent_queue_push(data.outbox, &e);
                         break;
                     }
                     data.searching = true;
-                    eevent_create_start_empty(&e, self->engine_id);
+                    eevent_create_start_empty(&e, engine_id);
                     eevent_queue_push(data.outbox, &e);
                     //TODO respect timeout as set by the gui
                 } break;
@@ -243,11 +243,11 @@ namespace surena {
                 } break;
                 case EE_TYPE_ENGINE_STOP: {
                     if (data.searching == false) {
-                        eevent_create_log(&e, self->engine_id, ERR_INVALID_INPUT, "no search running");
+                        eevent_create_log(&e, engine_id, ERR_INVALID_INPUT, "no search running");
                         eevent_queue_push(data.outbox, &e);
                         break;
                     }
-                    eevent_create_stop_empty(&e, self->engine_id);
+                    eevent_create_stop_empty(&e, engine_id);
                     eevent_queue_push(data.outbox, &e);
                     eevent_destroy(&e);
                     data.searching = false;
@@ -255,7 +255,7 @@ namespace surena {
                 } /* fallthrough */;
                 case EE_TYPE_ENGINE_BESTMOVE: {
                     if (fallthrough == false && data.searching == false) {
-                        eevent_create_log(&e, self->engine_id, ERR_INVALID_INPUT, "no search running");
+                        eevent_create_log(&e, engine_id, ERR_INVALID_INPUT, "no search running");
                         eevent_queue_push(data.outbox, &e);
                         break;
                     }
@@ -264,7 +264,7 @@ namespace surena {
                     player_id* ptm = (player_id*)malloc(sizeof(player_id) * data.the_game.sizer.max_players_to_move);
                     data.the_game.methods->players_to_move(&data.the_game, &ptm_c, ptm);
                     if (ptm_c == 0) {
-                        eevent_create_log(&e, self->engine_id, ERR_INVALID_INPUT, "no bestmove available on finished game");
+                        eevent_create_log(&e, engine_id, ERR_INVALID_INPUT, "no bestmove available on finished game");
                         eevent_queue_push(data.outbox, &e);
                         free(ptm);
                         break;
@@ -273,19 +273,19 @@ namespace surena {
                     move_code* moves = (move_code*)malloc(sizeof(move_code) * data.the_game.sizer.max_moves);
                     data.the_game.methods->get_concrete_moves(&data.the_game, ptm[0], &moves_c, moves);
 
-                    eevent_create_searchinfo(&e, self->engine_id);
+                    eevent_create_searchinfo(&e, engine_id);
                     eevent_set_searchinfo_depth(&e, ptm_c);
                     eevent_set_searchinfo_nodes(&e, moves_c);
                     eevent_queue_push(data.outbox, &e);
 
-                    eevent_create_scoreinfo(&e, self->engine_id, 1);
+                    eevent_create_scoreinfo(&e, engine_id, 1);
                     e.scoreinfo.score_player[0] = ptm[0];
                     e.scoreinfo.score_eval[0] = 0.5;
                     e.scoreinfo.forced_end[0] = EE_SCOREINFO_FORCED_UNKNOWN;
                     eevent_queue_push(data.outbox, &e);
                     eevent_destroy(&e);
                     
-                    eevent_create_bestmove(&e, self->engine_id, 1);
+                    eevent_create_bestmove(&e, engine_id, 1);
                     e.bestmove.player[0] = ptm[0];
                     e.bestmove.move[0] = moves[squirrelnoise5(data.rng_counter, data.rng_seed) % moves_c];
                     e.bestmove.confidence[0] = 0.95;
@@ -302,7 +302,7 @@ namespace surena {
             }
             eevent_destroy(&e);
         }
-        eevent_create(&e, self->engine_id, EE_TYPE_EXIT);
+        eevent_create(&e, engine_id, EE_TYPE_EXIT);
         eevent_queue_push(data.outbox, &e);
         eevent_destroy(&e);
     }

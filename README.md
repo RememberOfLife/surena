@@ -31,7 +31,7 @@ General purpose board game backend and some AI to go with it.
 ## todos
 * use readline in main https://stackoverflow.com/questions/2600528/c-readline-function
 * plugin init / cleanup (game+engine)
-* use snprintf (https://stackoverflow.com/a/26910616) to get the correct size of the error string in the _return_errorf function
+* use snprintf (https://stackoverflow.com/a/26910616) to get the correct size of the error string in the _rerrorf function
 * add uci wrapper engine for general purpose chess engines (same for tak)
 * document workflow for non perfect information games
 * base64 util func

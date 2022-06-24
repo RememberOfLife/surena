@@ -42,6 +42,7 @@ typedef struct havannah_graph_s {
     uint8_t connected_corners;
 } havannah_graph;
 
+//TODO cap size to min and max limits for this impl / error code?
 typedef struct havannah_options_s {
     int size;
     int board_sizer; // 2 * size - 1 //TODO this shouldn't really be in the public options struct

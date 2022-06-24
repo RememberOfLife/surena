@@ -16,7 +16,7 @@ namespace surena {
 
     // general purpose helpers for opts, data, errors
 
-    static error_code _return_errorf(game* self, error_code ec, const char* fmt, ...)
+    static error_code _rerrorf(game* self, error_code ec, const char* fmt, ...)
     {
         if (self->data2 == NULL) {
             self->data2 = malloc(1024); //TODO correct size from where?

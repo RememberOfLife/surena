@@ -19,7 +19,7 @@ namespace surena {
     
     // general purpose helpers for opts, data, errors
 
-    static error_code _return_errorf(game* self, error_code ec, const char* fmt, ...)
+    static error_code _rerrorf(game* self, error_code ec, const char* fmt, ...)
     {
         if (self->data2 == NULL) {
             self->data2 = malloc(1024); //TODO correct size from where?
@@ -230,8 +230,10 @@ namespace surena {
     static error_code _compare(game* self, game* other, bool* ret_equal)
     {
         //BUG this doesnt actually work with the vector and map
-        *ret_equal = (memcmp(self->data1, other->data1, sizeof(data_repr)) == 0);
-        return ERR_OK;
+        // *ret_equal = (memcmp(self->data1, other->data1, sizeof(data_repr)) == 0);
+        // return ERR_OK;
+        //TODO
+        return ERR_STATE_CORRUPTED;
     }
 
     static error_code _import_state(game* self, const char* str)
