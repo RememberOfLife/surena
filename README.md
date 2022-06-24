@@ -9,6 +9,7 @@ General purpose board game backend and some AI to go with it.
 |Havannah|DONE|
 |TicTacToe|DONE|
 |TicTacToe.Ultimate|DONE|
+|TwixT.PP|WIP|
 
 ### games todo
 
@@ -25,10 +26,10 @@ General purpose board game backend and some AI to go with it.
 |Settlers of Catan|HI, RM||
 |Skat|HI, RM|++|
 |Tak|PI|++|
-|TwixT PP|PI||
 |Wizards|HI, RM||
 
 ## todos
+* remove unnecessary typedefs from game data_repr structs
 * use readline in main https://stackoverflow.com/questions/2600528/c-readline-function
 * plugin init / cleanup (game+engine)
 * use snprintf (https://stackoverflow.com/a/26910616) to get the correct size of the error string in the _rerrorf function

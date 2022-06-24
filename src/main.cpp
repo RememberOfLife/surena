@@ -8,6 +8,7 @@
 #include "surena/games/oshisumo.h"
 #include "surena/games/tictactoe_ultimate.h"
 #include "surena/games/tictactoe.h"
+#include "surena/games/twixt_pp.h"
 #include "surena/util/semver.h"
 #include "surena/game_plugin.h"
 #include "surena/game.h"
@@ -70,6 +71,8 @@ int main(int argc, char** argv)
                 game_method = &tictactoe_gbe;
             } else if (strcmp(n_arg, "tictactoe.ultimate") == 0) {
                 game_method = &tictactoe_ultimate_gbe;
+            } else if (strcmp(n_arg, "twixt.pp") == 0) {
+                game_method = &twixt_pp_gbe;
             } else {
                 printf("unknown game\n");
             }

@@ -36,6 +36,7 @@ set(SOURCES
     src/games/oshisumo.cpp
     src/games/tictactoe_ultimate.cpp
     src/games/tictactoe.cpp
+    src/games/twixt_pp.cpp
 
     src/util/fast_prng.cpp
     src/util/noise.cpp
