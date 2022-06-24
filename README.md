@@ -29,6 +29,9 @@ General purpose board game backend and some AI to go with it.
 |Wizards|HI, RM||
 
 ## todos
+* rerrorf function fixes
+  * if no string given, auto fill with get general error string from game.h
+  * boilerplate: free data2 on destruction, make sure not to copy and clone
 * use readline in main https://stackoverflow.com/questions/2600528/c-readline-function
 * plugin init / cleanup (game+engine)
 * use snprintf (https://stackoverflow.com/a/26910616) to get the correct size of the error string in the _rerrorf function

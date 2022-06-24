@@ -121,7 +121,6 @@ namespace {
             int ec_square = sscanf(str, "%hhu%c", &square_size, &square_swap);
             char double_swap = '\0';
             int ec_double = sscanf(str, "%hhu/%hhu%c", &opts.wy, &opts.wx, &double_swap);
-            //TODO check both sizes for within min/max
             if (ec_double >= 2) {
                 opts.pie_swap = (double_swap == '+');
                 if (opts.pie_swap == false && double_swap != '\0') {
@@ -144,10 +143,15 @@ namespace {
                 return ERR_INVALID_INPUT;
             }
         }
+        if (opts.wx < 3 || opts.wx > 128 || opts.wy < 3 || opts.wy > 128) {
+            free(self->data1);
+            self->data1 = NULL;
+            return ERR_INVALID_INPUT;
+        }
 
         self->sizer = (buf_sizer){
             .options_str = 9,
-            .state_str = (size_t)(1024), //TODO
+            .state_str = (size_t)(opts.wy * (opts.wx > 3 ? opts.wx + 1 : 4) + 4),
             .player_count = 2,
             .max_players_to_move = 1,
             .max_moves = (uint32_t)(opts.wx * opts.wy + (opts.wx > opts.wy ? opts.wx : opts.wy) * 2 - 4),
@@ -172,10 +176,15 @@ namespace {
         if (options_struct != NULL) {
             opts = *(opts_repr*)options_struct;
         }
+        if (opts.wx < 3 || opts.wx > 128 || opts.wy < 3 || opts.wy > 128) {
+            free(self->data1);
+            self->data1 = NULL;
+            return ERR_INVALID_INPUT;
+        }
 
         self->sizer = (buf_sizer){
             .options_str = 9,
-            .state_str = (size_t)(1024), //TODO
+            .state_str = (size_t)(opts.wy * (opts.wx > 3 ? opts.wx + 1 : 4) + 4),
             .player_count = 2,
             .max_players_to_move = 1,
             .max_moves = (uint32_t)(opts.wx * opts.wy + (opts.wx > opts.wy ? opts.wx : opts.wy) * 2 - 4),
@@ -200,7 +209,7 @@ namespace {
 
         self->sizer = (buf_sizer){
             .options_str = 9,
-            .state_str = (size_t)(1024), //TODO
+            .state_str = (size_t)(opts.wy * (opts.wx > 3 ? opts.wx + 1 : 4) + 4),
             .player_count = 2,
             .max_players_to_move = 1,
             .max_moves = (uint32_t)(opts.wx * opts.wy + (opts.wx > opts.wy ? opts.wx : opts.wy) * 2 - 4),
@@ -289,14 +298,189 @@ namespace {
         if (str == NULL) {
             return ERR_OK;
         }
-        //TODO
-        return ERR_STATE_UNRECOVERABLE;
+        // load from diy twixt format, "board p_cur p_res"
+        // board horizontal lines, numbers to denote blank spaces, '/' for next line, top and bottom rows are 2 nodes short
+        int y = 0;
+        int x = 1;
+        // get cell fillings
+        bool advance_segment = false;
+        while (!advance_segment) {
+            switch (*str) {
+                case 'O': {
+                    if (x < 0 || x >= opts.wx || y < 0 || y > opts.wy || ((y == 0 || y == opts.wy - 1) && x == opts.wx - 1)) {
+                        // out of bounds board
+                        return ERR_INVALID_INPUT;
+                    }
+                    _set_node(self, x++, y, TWIXT_PP_PLAYER_WHITE, NULL);
+                } break;
+                case 'X': {
+                    if (x < 0 || x >= opts.wx || y < 0 || y > opts.wy || ((y == 0 || y == opts.wy - 1) && x == opts.wx - 1)) {
+                        // out of bounds board
+                        return ERR_INVALID_INPUT;
+                    }
+                    _set_node(self, x++, y, TWIXT_PP_PLAYER_BLACK, NULL);
+                } break;
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9': { // empty cells
+                    uint32_t dacc = 0;
+                    while (true) {
+                        if (*str == '\0') {
+                            return ERR_INVALID_INPUT;
+                        }
+                        if ((*str) < '0' || (*str) > '9') {
+                            str--; // loop increments itself later on, we only peek the value here
+                            break;
+                        }
+                        dacc *= 10;
+                        uint32_t ladd = (*str)-'0';
+                        if (ladd > opts.wx) {
+                            return ERR_INVALID_INPUT;
+                        }
+                        dacc += ladd;
+                        str++;
+                    }
+                    for (int place_empty = 0; place_empty < dacc; place_empty++) {
+                        if (x < 0 || x >= opts.wx || y < 0 || y > opts.wy || ((y == 0 || y == opts.wy - 1) && x == opts.wx - 1)) {
+                            // out of bounds board
+                            return ERR_INVALID_INPUT;
+                        }
+                        _set_node(self, x++, y, TWIXT_PP_PLAYER_NONE, NULL);
+                    }
+                } break;
+                case '/': { // advance to next
+                    y++;
+                    x = (y == opts.wy - 1 ? 1 : 0);
+                } break;
+                case ' ': { // advance to next segment
+                    advance_segment = true;
+                } break;
+                default: {
+                    // failure, ran out of str to use or got invalid character
+                    return ERR_INVALID_INPUT;
+                } break;
+            }
+            str++;
+        }
+        // current player
+        switch (*str) {
+            case '-': {
+                data.current_player = TWIXT_PP_PLAYER_NONE;
+            } break;
+            case 'O': {
+                data.current_player = TWIXT_PP_PLAYER_WHITE;
+            } break;
+            case 'X': {
+                data.current_player = TWIXT_PP_PLAYER_BLACK;
+            } break;
+            default: {
+                // failure, ran out of str to use or got invalid character
+                return ERR_INVALID_INPUT;
+            } break;
+        }
+        str++;
+        if (*str != ' ') {
+            // failure, ran out of str to use or got invalid character
+            return ERR_INVALID_INPUT;
+        }
+        str++;
+        // result player
+        switch (*str) {
+            case '-': {
+                data.winning_player = TWIXT_PP_PLAYER_NONE;
+            } break;
+            case 'O': {
+                data.winning_player = TWIXT_PP_PLAYER_WHITE;
+            } break;
+            case 'X': {
+                data.winning_player = TWIXT_PP_PLAYER_BLACK;
+            } break;
+            default: {
+                // failure, ran out of str to use or got invalid character
+                return ERR_INVALID_INPUT;
+            } break;
+        }
+        return ERR_OK;
     }
 
     error_code _export_state(game* self, size_t* ret_size, char* str)
     {
-        //TODO
-        return ERR_STATE_UNRECOVERABLE;
+        if (str == NULL) {
+            return ERR_INVALID_INPUT;
+        }
+        opts_repr& opts = _get_opts(self);
+        data_repr& data = _get_repr(self);
+        const char* ostr = str;
+        TWIXT_PP_PLAYER cell_player;
+        for (int y = 0; y < opts.wy; y++) {
+            int empty_cells = 0;
+            for (int x = 0; x < opts.wx; x++) {
+                _get_node(self, x, y, &cell_player);
+                if (cell_player == TWIXT_PP_PLAYER_INVALID) {
+                    continue;
+                }
+                if (cell_player == TWIXT_PP_PLAYER_NONE) {
+                    empty_cells++;
+                } else {
+                    // if the current cell isnt empty, print its representation, before that print empty cells, if any
+                    if (empty_cells > 0) {
+                        str += sprintf(str, "%d", empty_cells);
+                        empty_cells = 0;
+                    }
+                    str += sprintf(str, "%c", (cell_player == TWIXT_PP_PLAYER_WHITE ? 'O' : 'X'));
+                }
+            }
+            if (empty_cells > 0) {
+                str += sprintf(str, "%d", empty_cells);
+            }
+            if (y < opts.wy - 1) {
+                str += sprintf(str, "/");
+            }
+        }
+        // current player
+        player_id ptm;
+        uint8_t ptm_count;
+        _players_to_move(self, &ptm_count, &ptm);
+        if (ptm_count == 0) {
+            ptm = TWIXT_PP_PLAYER_NONE;
+        }
+        switch (ptm) {
+            case TWIXT_PP_PLAYER_NONE: {
+                str += sprintf(str, " -");
+            } break;
+            case TWIXT_PP_PLAYER_WHITE: {
+                str += sprintf(str, " O");
+            } break;
+            case TWIXT_PP_PLAYER_BLACK: {
+                str += sprintf(str, " X");
+            } break;
+        }
+        // result player
+        player_id res;
+        uint8_t res_count;
+        _get_results(self, &res_count, &res);
+        if (res_count == 0) {
+            res = TWIXT_PP_PLAYER_NONE;
+        }
+        switch (res) {
+            case TWIXT_PP_PLAYER_NONE: {
+                str += sprintf(str, " -");
+            } break;
+            case TWIXT_PP_PLAYER_WHITE: {
+                str += sprintf(str, " O");
+            } break;
+            case TWIXT_PP_PLAYER_BLACK: {
+                str += sprintf(str, " X");
+            } break;
+        }
+        *ret_size = str-ostr;
+        return ERR_OK;
     }
 
     error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players)
@@ -420,14 +604,63 @@ namespace {
 
     error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move)
     {
-        //TODO move as xyz123, xyz is a=0 A=26 and 123 %hhu
-        return ERR_STATE_UNRECOVERABLE;
+        if (strlen(str) >= 1 && str[0] == '-') {
+            *ret_move = MOVE_NONE;
+            return ERR_INVALID_INPUT;
+        }
+        if (strlen(str) < 2) {
+            *ret_move = MOVE_NONE;
+            return ERR_INVALID_INPUT;
+        }
+        opts_repr& opts = _get_opts(self);
+        char msc = '\0';
+        char lsc = '\0';
+        uint8_t y = 0;
+        int ec = sscanf(str, "%c%c%hhu", &msc, &lsc, &y);
+        if (ec != 3) {
+            msc = 'a' - 1;
+            ec = sscanf(str, "%c%hhu", &lsc, &y);
+            if (ec != 2) {
+                return ERR_INVALID_INPUT;
+            }
+        }
+        uint8_t x = ((msc - 'a' + 1) * 26) + (lsc - 'a');
+        y = opts.wy - y - 1; // swap out y coords so axes are bottom left
+        printf("\n=== %hhu %hhu ===\n", x, y);
+        TWIXT_PP_PLAYER cell_player;
+        _get_node(self, x, y, &cell_player);
+        if (cell_player == TWIXT_PP_PLAYER_INVALID) {
+            *ret_move = MOVE_NONE;
+            return ERR_INVALID_INPUT;
+        }
+        *ret_move = (x << 8) | y;
+        return ERR_OK;
     }
 
     error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf)
     {
-        //TODO
-        return ERR_STATE_UNRECOVERABLE;
+        if (str_buf == NULL) {
+            return ERR_INVALID_INPUT;
+        }
+        if (move == MOVE_NONE) {
+            *ret_size = sprintf(str_buf, "-");
+            return ERR_OK;
+        }
+        opts_repr& opts = _get_opts(self);
+        uint8_t x = (move >> 8) & 0xFF;
+        uint8_t y = move & 0xFF;
+        y = opts.wy - y - 1; // swap out y coords so axes are bottom left
+        char msc = '\0';
+        if (x > 25) {
+            msc = 'a' + (x / 26) - 1;
+            x = x - (26 * (x / 26));
+        }
+        if (msc == '\0') {
+            *ret_size = sprintf(str_buf, "%c%hhu", 'a' + x, y);
+        } else {
+            *ret_size = sprintf(str_buf, "%c%c%hhu", msc, 'a' + x, y);
+        }
+        return ERR_OK;
     }
 
     error_code _debug_print(game* self, size_t* ret_size, char* str_buf)
@@ -480,12 +713,16 @@ namespace {
 
     error_code _set_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER p, bool* wins)
     {
+        opts_repr& opts = _get_opts(self);
+        data_repr& data = _get_repr(self);
+        data.gameboard[y][x].player = p;
         //TODO
         return ERR_STATE_UNRECOVERABLE;
     }
 
     error_code _get_node_connections(game* self, uint8_t x, uint8_t y, uint8_t* conn)
     {
+        opts_repr& opts = _get_opts(self);
         data_repr& data = _get_repr(self);
         *conn = data.gameboard[y][x].connections;
         return ERR_OK;
