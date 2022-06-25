@@ -41,19 +41,26 @@ enum TWIXT_PP_PLAYER : player_id {
     TWIXT_PP_PLAYER_INVALID,
 };
 
+enum TWIXT_PP_DIR : uint8_t {
+    TWIXT_PP_DIR_RT = 1 << 3,
+    TWIXT_PP_DIR_RB = 1 << 2,
+    TWIXT_PP_DIR_BR = 1 << 1,
+    TWIXT_PP_DIR_BL = 1 << 0,
+};
+
 typedef struct twixt_pp_node_s {
     TWIXT_PP_PLAYER player : 2;
     uint16_t graph_id : 14; // 14 bits are enough for boards up to 128x128
     // order for these: 0b0000XYZW
     // X right top, Y right bottom, Z bottom right, W bottom left
     uint8_t connections : 4; // stores the right and downward facing connections that exist
-    uint8_t collisions : 4; // stores the right and downward facing connection paths that are blocked by collisions
+    uint8_t collisions; // stores the right and downward facing connection paths that are blocked by collisions for both players, 0bWWWWBBBB
 } twixt_pp_node;
 
 typedef struct twixt_pp_graph_s {
     uint16_t graph_id : 14; // joined graphs point to the true graph which connects this node
-    bool connect_low : 1; // left / down
-    bool connect_high : 1; // right / up
+    bool connect_low : 1; // left / up
+    bool connect_high : 1; // right / down
 } twixt_pp_graph;
 
 typedef struct twixt_pp_options_s {
@@ -66,8 +73,14 @@ typedef struct twixt_pp_options_s {
 typedef struct twixt_pp_internal_methods_s {
 
     error_code (*get_node)(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER* p);
-    error_code (*set_node)(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER p, bool* wins);
+    error_code (*set_node)(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER p, bool* wins); // wins may be NULL, then it is ignored
     error_code (*get_node_connections)(game* self, uint8_t x, uint8_t y, uint8_t* conn); // right and downward facing existing connections
+    error_code (*get_node_collisions)(game* self, uint8_t x, uint8_t y, uint8_t* collisions);
+
+    // connection is only placed if collision free
+    // call such that x1 y1 is left / top of x2 y2
+    // supplying wins is NOT optional
+    error_code (*set_connection)(game* self, uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, bool* wins);
 
 } twixt_pp_internal_methods;
 

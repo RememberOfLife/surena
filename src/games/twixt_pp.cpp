@@ -93,6 +93,8 @@ namespace {
     error_code _get_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER* p);
     error_code _set_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER p, bool* wins);
     error_code _get_node_connections(game* self, uint8_t x, uint8_t y, uint8_t* conn);
+    error_code _get_node_collisions(game* self, uint8_t x, uint8_t y, uint8_t* collisions);
+    error_code _set_connection(game* self, uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, bool* wins);
 
     // implementation
 
@@ -236,7 +238,7 @@ namespace {
 
     error_code _get_options_bin_ref(game* self, void** ret_bin_ref)
     {
-        *(opts_repr*)ret_bin_ref = _get_opts(self);
+        *(opts_repr**)ret_bin_ref = &_get_opts(self);
         return ERR_OK;
     }
 
@@ -498,6 +500,8 @@ namespace {
         return ERR_OK;
     }
 
+    //TODO move gen and is legal move should check for pie rule if it is enabled
+
     error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves)
     {
         if (moves == NULL) {
@@ -507,7 +511,13 @@ namespace {
         data_repr& data = _get_repr(self);
         uint32_t move_cnt = 0;
         for (int iy = 0; iy < opts.wy; iy++) {
+            if ((iy == 0 || iy == opts.wy - 1) && player == TWIXT_PP_PLAYER_BLACK) {
+                continue;
+            }
             for (int ix = 0; ix < opts.wx; ix++) {
+                if ((ix == 0 || ix == opts.wx - 1) && player == TWIXT_PP_PLAYER_WHITE) {
+                    continue;
+                }
                 if (data.gameboard[iy][ix].player == TWIXT_PP_PLAYER_NONE) {
                     // add the free tile to the return vector
                     moves[move_cnt++] = (ix << 8) | iy;
@@ -533,6 +543,10 @@ namespace {
         int ix = (move >> 8) & 0xFF;
         int iy = move & 0xFF;
         if (data.gameboard[iy][ix].player != TWIXT_PP_PLAYER_NONE) {
+            return ERR_INVALID_INPUT;
+        }
+        opts_repr& opts = _get_opts(self);
+        if (((ix == 0 || ix == opts.wx - 1) && player == TWIXT_PP_PLAYER_WHITE) || ((iy == 0 || iy == opts.wy - 1) && player == TWIXT_PP_PLAYER_BLACK)) {
             return ERR_INVALID_INPUT;
         }
         return ERR_OK;
@@ -625,8 +639,8 @@ namespace {
             }
         }
         uint8_t x = ((msc - 'a' + 1) * 26) + (lsc - 'a');
-        y = opts.wy - y - 1; // swap out y coords so axes are bottom left
-        printf("\n=== %hhu %hhu ===\n", x, y);
+        // y = opts.wy - y - 1; // swap out y coords so axes are bottom left
+        y--; // move strings go from 1-n
         TWIXT_PP_PLAYER cell_player;
         _get_node(self, x, y, &cell_player);
         if (cell_player == TWIXT_PP_PLAYER_INVALID) {
@@ -649,7 +663,8 @@ namespace {
         opts_repr& opts = _get_opts(self);
         uint8_t x = (move >> 8) & 0xFF;
         uint8_t y = move & 0xFF;
-        y = opts.wy - y - 1; // swap out y coords so axes are bottom left
+        // y = opts.wy - y - 1; // swap out y coords so axes are bottom left
+        y++; // move strings go from 1-n
         char msc = '\0';
         if (x > 25) {
             msc = 'a' + (x / 26) - 1;
@@ -671,6 +686,19 @@ namespace {
         opts_repr& opts = _get_opts(self);
         data_repr& data = _get_repr(self);
         const char* ostr = str_buf;
+
+        // print all node infos and all graphs for debugging purposes
+        // for (int iy = 0; iy < opts.wy; iy++) {
+        //     for (int ix = 0; ix < opts.wy; ix++) {
+        //         if (data.gameboard[iy][ix].player != TWIXT_PP_PLAYER_INVALID && data.gameboard[iy][ix].player != TWIXT_PP_PLAYER_NONE) {
+        //             printf("%d-%d: (%c) %hu, CON:%hhu COL:%hhu\n", ix, iy, data.gameboard[iy][ix].player == TWIXT_PP_PLAYER_WHITE ? 'O' : 'X' ,data.gameboard[iy][ix].graph_id, data.gameboard[iy][ix].connections, data.gameboard[iy][ix].collisions);
+        //         }
+        //     }
+        // }
+        // for (auto it = data.graph_map.begin(); it != data.graph_map.end(); it++) {
+        //     printf("[%hu]: %hu, low:%u high:%u\n", it->first, it->second.graph_id, it->second.connect_low, it->second.connect_high);
+        // }
+
         for (int iy = 0; iy < opts.wy; iy++) {
             for (int ix = 0; ix < opts.wy; ix++) {
                 TWIXT_PP_PLAYER node_player = TWIXT_PP_PLAYER_INVALID;
@@ -716,15 +744,218 @@ namespace {
         opts_repr& opts = _get_opts(self);
         data_repr& data = _get_repr(self);
         data.gameboard[y][x].player = p;
-        //TODO
-        return ERR_STATE_UNRECOVERABLE;
+        // try to place all connections
+        bool win = false;
+        bool rwins;
+        _set_connection(self, x, y, x + 2, y - 1, &rwins);
+        win |= rwins;
+        _set_connection(self, x, y, x + 2, y + 1, &rwins);
+        win |= rwins;
+        _set_connection(self, x, y, x + 1, y + 2, &rwins);
+        win |= rwins;
+        _set_connection(self, x, y, x - 1, y + 2, &rwins);
+        win |= rwins;
+        _set_connection(self, x - 2, y + 1, x, y, &rwins);
+        win |= rwins;
+        _set_connection(self, x - 2, y - 1, x, y, &rwins);
+        win |= rwins;
+        _set_connection(self, x - 1, y - 2, x, y, &rwins);
+        win |= rwins;
+        _set_connection(self, x + 1, y - 2, x, y, &rwins);
+        win |= rwins;
+        if (data.gameboard[y][x].graph_id == 0) {
+            // no connection created, so this node was not joined into another graph, create a new graph for it, and give it the nodes connect qualities
+            data.gameboard[y][x].graph_id = data.next_graph_id;
+            data.graph_map[data.next_graph_id] = (twixt_pp_graph){
+                .graph_id = data.next_graph_id,
+                .connect_low = (x == 0 || y == 0),
+                .connect_high = (x == opts.wx - 1 || y == opts.wy - 1),
+            };
+            data.next_graph_id++;
+        }
+        if (wins) {
+            *wins = win;
+        }
+        return ERR_OK;
     }
 
-    error_code _get_node_connections(game* self, uint8_t x, uint8_t y, uint8_t* conn)
+    error_code _get_node_connections(game* self, uint8_t x, uint8_t y, uint8_t* connections)
     {
         opts_repr& opts = _get_opts(self);
         data_repr& data = _get_repr(self);
-        *conn = data.gameboard[y][x].connections;
+        if (x < 0 || y < 0 || x >= opts.wx || y >= opts.wy) {
+            *connections = 0;
+        } else {
+            *connections = data.gameboard[y][x].connections;
+        }
+        return ERR_OK;
+    }
+
+    error_code _get_node_collisions(game* self, uint8_t x, uint8_t y, uint8_t* collisions)
+    {
+        opts_repr& opts = _get_opts(self);
+        data_repr& data = _get_repr(self);
+        if (x < 0 || y < 0 || x >= opts.wx || y >= opts.wy) {
+            *collisions = 0;
+        } else {
+            *collisions = data.gameboard[y][x].collisions;
+        }
+        return ERR_OK;
+    }
+
+    // impl hidden: try to add the collision if node exists, do not adjust by player offset
+    void _add_collision(game* self, uint8_t x, uint8_t y, uint8_t dir, TWIXT_PP_PLAYER np)
+    {
+        opts_repr& opts = _get_opts(self);
+        data_repr& data = _get_repr(self);
+        if (x < 0 || y < 0 || x >= opts.wx || y >= opts.wy) {
+            return;
+        }
+        data.gameboard[y][x].collisions |= (dir << (np == TWIXT_PP_PLAYER_WHITE ? 4 : 0));
+    }
+    error_code _set_connection(game* self, uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, bool* wins)
+    {
+        // check that all of the point exist, and there is no out of bounds
+        TWIXT_PP_PLAYER np1;
+        _get_node(self, x1, y1, &np1);
+        TWIXT_PP_PLAYER np2;
+        _get_node(self, x2, y2, &np2);
+        if (np1 == TWIXT_PP_PLAYER_INVALID || np2 == TWIXT_PP_PLAYER_INVALID || np1 != np2 || np1 == TWIXT_PP_PLAYER_NONE) {
+            return ERR_OK;
+        }
+
+        opts_repr& opts = _get_opts(self);
+        data_repr& data = _get_repr(self);
+        // get what type of connection this is
+        uint8_t conn_dir = 0;
+        if (x2 < x1) {
+            // bottom left
+            conn_dir = TWIXT_PP_DIR_BL;
+        } else if (y2 < y1) {
+            // right top
+            conn_dir = TWIXT_PP_DIR_RT;
+        } else if (x2 - x1 > y2 - y1) {
+            // right bottom
+            conn_dir = TWIXT_PP_DIR_RB;
+        } else {
+            // bottom right
+            conn_dir = TWIXT_PP_DIR_BR;
+        }
+
+        // place only if collision bit is not set
+        if ((data.gameboard[y1][x1].collisions & (conn_dir << (np1 == TWIXT_PP_PLAYER_WHITE ? 4 : 0))) != 0) {
+            return ERR_OK;
+        }
+        data.gameboard[y1][x1].connections |= conn_dir;
+
+        // invalidate the opponents collision bits for all of the 9 crossing connections
+        TWIXT_PP_PLAYER op = (np1 == TWIXT_PP_PLAYER_WHITE ? TWIXT_PP_PLAYER_BLACK : TWIXT_PP_PLAYER_WHITE);
+        switch (conn_dir) {
+            /*
+            numbers do matter, if drawn on a board then you can mirror it to the other side and they will still hold
+            likewise just rotating gives the other combination for both mirrored sides
+            */
+            case (TWIXT_PP_DIR_RT): { // right top
+                _add_collision(self, x1 + 1, y1 - 1, TWIXT_PP_DIR_RB, op); // 1
+                _add_collision(self, x1 + 2, y1 - 2, TWIXT_PP_DIR_BL, op); // 2
+                _add_collision(self, x1 + 1, y1 - 2, TWIXT_PP_DIR_BR, op); // 3
+                _add_collision(self, x1 + 0, y1 - 1, TWIXT_PP_DIR_RB, op); // 4
+                _add_collision(self, x1 + 1, y1 - 1, TWIXT_PP_DIR_BR, op); // 5
+                _add_collision(self, x1 + 1, y1 - 1, TWIXT_PP_DIR_BL, op); // 6
+                _add_collision(self, x1 + 0, y1 - 2, TWIXT_PP_DIR_BR, op); // 7
+                _add_collision(self, x1 - 1, y1 - 1, TWIXT_PP_DIR_RB, op); // 8
+                _add_collision(self, x1 + 0, y1 - 1, TWIXT_PP_DIR_BR, op); // 9
+            } break;
+            case (TWIXT_PP_DIR_RB): { // right bottom
+                _add_collision(self, x1 - 1, y1 + 1, TWIXT_PP_DIR_RT, op); // 1
+                _add_collision(self, x1 + 0, y1 - 1, TWIXT_PP_DIR_BR, op); // 2
+                _add_collision(self, x1 + 1, y1 - 1, TWIXT_PP_DIR_BL, op); // 3
+                _add_collision(self, x1 + 0, y1 + 1, TWIXT_PP_DIR_RT, op); // 4
+                _add_collision(self, x1 + 1, y1 + 0, TWIXT_PP_DIR_BL, op); // 5
+                _add_collision(self, x1 + 1, y1 + 0, TWIXT_PP_DIR_BR, op); // 6
+                _add_collision(self, x1 + 2, y1 - 1, TWIXT_PP_DIR_BL, op); // 7
+                _add_collision(self, x1 + 1, y1 + 1, TWIXT_PP_DIR_RT, op); // 8
+                _add_collision(self, x1 + 2, y1 + 0, TWIXT_PP_DIR_BL, op); // 9
+            } break;
+            case (TWIXT_PP_DIR_BR): { // bottom right
+                _add_collision(self, x1 + 1, y1 + 1, TWIXT_PP_DIR_BL, op); // 1
+                _add_collision(self, x1 + 0, y1 + 1, TWIXT_PP_DIR_RB, op); // 2
+                _add_collision(self, x1 + 0, y1 + 2, TWIXT_PP_DIR_RT, op); // 3
+                _add_collision(self, x1 + 1, y1 + 0, TWIXT_PP_DIR_BL, op); // 4
+                _add_collision(self, x1 - 1, y1 + 2, TWIXT_PP_DIR_RT, op); // 5
+                _add_collision(self, x1 - 1, y1 + 0, TWIXT_PP_DIR_RB, op); // 6
+                _add_collision(self, x1 + 0, y1 + 1, TWIXT_PP_DIR_RT, op); // 7
+                _add_collision(self, x1 + 1, y1 - 1, TWIXT_PP_DIR_BL, op); // 8
+                _add_collision(self, x1 - 1, y1 + 1, TWIXT_PP_DIR_RT, op); // 9
+            } break;
+            case (TWIXT_PP_DIR_BL): { // bottom left
+                _add_collision(self, x1 - 1, y1 - 1, TWIXT_PP_DIR_BR, op); // 1
+                _add_collision(self, x1 - 1, y1 + 1, TWIXT_PP_DIR_RT, op); // 2
+                _add_collision(self, x1 - 1, y1 + 0, TWIXT_PP_DIR_RB, op); // 3
+                _add_collision(self, x1 - 1, y1 + 0, TWIXT_PP_DIR_BR, op); // 4
+                _add_collision(self, x1 - 2, y1 + 0, TWIXT_PP_DIR_RB, op); // 5
+                _add_collision(self, x1 - 2, y1 + 2, TWIXT_PP_DIR_RT, op); // 6
+                _add_collision(self, x1 - 1, y1 + 1, TWIXT_PP_DIR_RB, op); // 7
+                _add_collision(self, x1 - 1, y1 + 1, TWIXT_PP_DIR_BR, op); // 8
+                _add_collision(self, x1 - 2, y1 + 1, TWIXT_PP_DIR_RB, op); // 9
+            } break;
+        }
+
+        // get graph id of both nodes, at least one will exist
+        uint16_t graph_id1 = data.gameboard[y1][x1].graph_id;
+        uint16_t graph_id2 = data.gameboard[y2][x2].graph_id;
+
+        // get merged connect quality for both from graph, or from node if no parent graph, save in cq_*1
+        // also, while in the check, resolve graph ids to their true parent graph if applicable
+        bool cq_low;
+        bool cq_high;
+        if (graph_id1 > 0) {
+            while (graph_id1 != data.graph_map[graph_id1].graph_id) {
+                graph_id1 = data.graph_map[graph_id1].graph_id;
+            }
+            cq_low = data.graph_map[graph_id1].connect_low;
+            cq_high = data.graph_map[graph_id1].connect_high;
+        } else {
+            cq_low = (x1 == 0 || y1 == 0);
+            cq_high = (x1 == opts.wx - 1 || y1 == opts.wy - 1);
+        }
+        if (graph_id2 > 0) {
+            while (graph_id2 != data.graph_map[graph_id2].graph_id) {
+                graph_id2 = data.graph_map[graph_id2].graph_id;
+            }
+            cq_low |= data.graph_map[graph_id2].connect_low;
+            cq_high |= data.graph_map[graph_id2].connect_high;
+        } else {
+            cq_low |= (x2 == 0 || y2 == 0);
+            cq_high |= (x2 == opts.wx - 1 || y2 == opts.wy - 1);
+        }
+        
+        if (graph_id1 == 0) {
+            // one node has no parent graph, merge it into the other graph AND merge any connect qualities
+            data.gameboard[y1][x1].graph_id = graph_id2;
+            data.graph_map[graph_id2].connect_low |= cq_low;
+            data.graph_map[graph_id2].connect_high |= cq_high;
+            graph_id1 = graph_id2; // swap ids for win check later
+        } else if (graph_id2 == 0) {
+            // same as above but for graph_id2
+            data.gameboard[y2][x2].graph_id = graph_id1;
+            data.graph_map[graph_id1].connect_low |= cq_low;
+            data.graph_map[graph_id1].connect_high |= cq_high;
+        } else {
+            // if both have a parent graph,  this means the node being added was parented into the graph map in an earlier connection
+            // just need to merge the graphs connect qualities now, and reparent one onto the other
+            data.graph_map[graph_id1].connect_low |= cq_low;
+            data.graph_map[graph_id1].connect_high |= cq_high;
+            data.graph_map[graph_id2].graph_id = graph_id1;
+        }
+
+        // if the resulting new parent graph for both nodes now contains both connect qualities, then mark as wins=true
+        if (data.graph_map[graph_id1].connect_low && data.graph_map[graph_id1].connect_high) {
+            *wins = true;
+        } else {
+            *wins = false;
+        }
+
         return ERR_OK;
     }
 
@@ -734,6 +965,8 @@ static const twixt_pp_internal_methods twixt_pp_gbe_internal_methods{
     .get_node = _get_node,
     .set_node = _set_node,
     .get_node_connections = _get_node_connections,
+    .get_node_collisions = _get_node_collisions,
+    .set_connection = _set_connection,
 };
 
 const game_methods twixt_pp_gbe{
