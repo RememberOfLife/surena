@@ -40,7 +40,8 @@ namespace {
         std::unordered_map<uint16_t, twixt_pp_graph> graph_map;
         uint16_t next_graph_id;
         std::vector<std::vector<twixt_pp_node>> gameboard; // white plays vertical and black horizontal per default, gameboard[iy][ix]
-        bool pie_swap;
+        bool pie_swap; // if this is true while it is blacks turn, they swap move to mirror it as theirs, then set false
+        uint16_t swap_target;
     };
 
     opts_repr& _get_opts(game* self)
@@ -95,6 +96,7 @@ namespace {
     error_code _get_node_connections(game* self, uint8_t x, uint8_t y, uint8_t* conn);
     error_code _get_node_collisions(game* self, uint8_t x, uint8_t y, uint8_t* collisions);
     error_code _set_connection(game* self, uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, bool* wins);
+    error_code _can_swap(game* self, bool* swap_available);
 
     // implementation
 
@@ -156,7 +158,7 @@ namespace {
             .state_str = (size_t)(opts.wy * (opts.wx > 3 ? opts.wx + 1 : 4) + 4),
             .player_count = 2,
             .max_players_to_move = 1,
-            .max_moves = (uint32_t)(opts.wx * opts.wy + (opts.wx > opts.wy ? opts.wx : opts.wy) * 2 - 4),
+            .max_moves = (uint32_t)(opts.wx * opts.wy - 3),
             .max_results = 1,
             .move_str = 6,
             .print_str = (size_t)(opts.wx * opts.wy + opts.wy + 1),
@@ -189,7 +191,7 @@ namespace {
             .state_str = (size_t)(opts.wy * (opts.wx > 3 ? opts.wx + 1 : 4) + 4),
             .player_count = 2,
             .max_players_to_move = 1,
-            .max_moves = (uint32_t)(opts.wx * opts.wy + (opts.wx > opts.wy ? opts.wx : opts.wy) * 2 - 4),
+            .max_moves = (uint32_t)(opts.wx * opts.wy - 3),
             .max_results = 1,
             .move_str = 6,
             .print_str = (size_t)(opts.wx * opts.wy + opts.wy + 1),
@@ -214,7 +216,7 @@ namespace {
             .state_str = (size_t)(opts.wy * (opts.wx > 3 ? opts.wx + 1 : 4) + 4),
             .player_count = 2,
             .max_players_to_move = 1,
-            .max_moves = (uint32_t)(opts.wx * opts.wy + (opts.wx > opts.wy ? opts.wx : opts.wy) * 2 - 4),
+            .max_moves = (uint32_t)(opts.wx * opts.wy - 3),
             .max_results = 1,
             .move_str = 6,
             .print_str = (size_t)(opts.wx * opts.wy + opts.wy + 1),
@@ -500,8 +502,6 @@ namespace {
         return ERR_OK;
     }
 
-    //TODO move gen and is legal move should check for pie rule if it is enabled
-
     error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves)
     {
         if (moves == NULL) {
@@ -524,6 +524,9 @@ namespace {
                 }
             }
         }
+        if (data.pie_swap == true && data.current_player == TWIXT_PP_PLAYER_BLACK) {
+            moves[move_cnt++] = TWIXT_PP_MOVE_SWAP;
+        }
         *ret_count = move_cnt;
         return ERR_OK;
     }
@@ -540,6 +543,12 @@ namespace {
             return ERR_INVALID_INPUT;
         }
         data_repr& data = _get_repr(self);
+        if (move == TWIXT_PP_MOVE_SWAP) {
+            if (data.pie_swap == true && data.current_player == TWIXT_PP_PLAYER_BLACK) {
+                return ERR_OK;
+            }
+            return ERR_INVALID_INPUT;
+        }
         int ix = (move >> 8) & 0xFF;
         int iy = move & 0xFF;
         if (data.gameboard[iy][ix].player != TWIXT_PP_PLAYER_NONE) {
@@ -556,9 +565,34 @@ namespace {
     {
         opts_repr& opts = _get_opts(self);
         data_repr& data = _get_repr(self);
+
+        if (move == TWIXT_PP_MOVE_SWAP) {
+            // use swap target to give whites move to black
+            int sx = (data.swap_target >> 8) & 0xFF;
+            int sy = data.swap_target & 0xFF;
+
+            data.gameboard[sy][sx].player = TWIXT_PP_PLAYER_BLACK;
+            if (sx != sy) {
+                data.gameboard[sx][sy] = data.gameboard[sy][sx];
+                data.gameboard[sy][sx] = (twixt_pp_node){TWIXT_PP_PLAYER_NONE, 0, 0, 0};
+            }
+            
+            data.pie_swap = false;
+            data.current_player = TWIXT_PP_PLAYER_WHITE;
+            return ERR_OK;
+        }
         
         int tx = (move >> 8) & 0xFF;
         int ty = move & 0xFF;
+
+        if (data.pie_swap == true) {
+            if (data.current_player == TWIXT_PP_PLAYER_WHITE) {
+                data.swap_target = (tx << 8) | ty;
+            }
+            if (data.current_player == TWIXT_PP_PLAYER_BLACK) {
+                data.pie_swap = false;
+            }
+        }
 
         bool wins;
         // set node updates graph structures in the backend, and informs us if this move is winning for the current player
@@ -627,6 +661,10 @@ namespace {
             return ERR_INVALID_INPUT;
         }
         opts_repr& opts = _get_opts(self);
+        if (opts.pie_swap == true && strcmp(str, "swap") == 0) {
+            *ret_move = TWIXT_PP_MOVE_SWAP;
+            return ERR_OK;
+        }
         char msc = '\0';
         char lsc = '\0';
         uint8_t y = 0;
@@ -661,6 +699,10 @@ namespace {
             return ERR_OK;
         }
         opts_repr& opts = _get_opts(self);
+        if (opts.pie_swap == true && move == TWIXT_PP_MOVE_SWAP) {
+            *ret_size = sprintf(str_buf, "swap");
+            return ERR_OK;
+        }
         uint8_t x = (move >> 8) & 0xFF;
         uint8_t y = move & 0xFF;
         // y = opts.wy - y - 1; // swap out y coords so axes are bottom left
@@ -959,6 +1001,13 @@ namespace {
         return ERR_OK;
     }
 
+    error_code _can_swap(game* self, bool* swap_available)
+    {
+        data_repr& data = _get_repr(self);
+        *swap_available = (data.pie_swap == true && data.current_player == TWIXT_PP_PLAYER_BLACK);
+        return ERR_OK;
+    }
+
 }
 
 static const twixt_pp_internal_methods twixt_pp_gbe_internal_methods{
@@ -967,6 +1016,7 @@ static const twixt_pp_internal_methods twixt_pp_gbe_internal_methods{
     .get_node_connections = _get_node_connections,
     .get_node_collisions = _get_node_collisions,
     .set_connection = _set_connection,
+    .can_swap = _can_swap,
 };
 
 const game_methods twixt_pp_gbe{

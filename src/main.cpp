@@ -14,7 +14,7 @@
 #include "surena/game.h"
 
 namespace surena {
-    const semver version = {0, 9, 0};
+    const semver version = {0, 10, 0};
 }
 
 // args https://github.com/p-ranav/argparse

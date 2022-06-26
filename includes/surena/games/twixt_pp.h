@@ -48,6 +48,8 @@ enum TWIXT_PP_DIR : uint8_t {
     TWIXT_PP_DIR_BL = 1 << 0,
 };
 
+static const move_code TWIXT_PP_MOVE_SWAP = 1<<17;
+
 typedef struct twixt_pp_node_s {
     TWIXT_PP_PLAYER player : 2;
     uint16_t graph_id : 14; // 14 bits are enough for boards up to 128x128
@@ -67,7 +69,7 @@ typedef struct twixt_pp_options_s {
     // this NOT only defines the playable area, so it includes the 1 wide borders on each side, max 128, min 3
     uint8_t wx;
     uint8_t wy;
-    bool pie_swap; //TODO this is a move, swap colors / swap move ?
+    bool pie_swap; // this is a move, mirroring on the diagonal from top left top bottom right
 } twixt_pp_options;
 
 typedef struct twixt_pp_internal_methods_s {
@@ -81,6 +83,8 @@ typedef struct twixt_pp_internal_methods_s {
     // call such that x1 y1 is left / top of x2 y2
     // supplying wins is NOT optional
     error_code (*set_connection)(game* self, uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, bool* wins);
+
+    error_code (*can_swap)(game* self, bool* swap_available);
 
 } twixt_pp_internal_methods;
 

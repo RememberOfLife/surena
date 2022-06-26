@@ -9,7 +9,7 @@ General purpose board game backend and some AI to go with it.
 |Havannah|DONE|
 |TicTacToe|DONE|
 |TicTacToe.Ultimate|DONE|
-|TwixT.PP|WIP|
+|TwixT.PP|DONE|
 
 ### games todo
 
