@@ -13,6 +13,12 @@
 extern "C" {
 #endif
 
+uint64_t surena_get_ms64()
+{
+    std::chrono::time_point<std::chrono::steady_clock> t = std::chrono::steady_clock::now();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(t.time_since_epoch()).count();
+}
+
 void eevent_create(engine_event* e, uint32_t engine_id, eevent_type type)
 {
     *e = (engine_event){
@@ -157,9 +163,11 @@ void eevent_create_option_spin_mm(engine_event* e, uint32_t engine_id, const cha
             .value = {
                 .spin = spin,
             },
-            .mm = {
-                .min = min,
-                .max = max,
+            .l = {
+                .mm = {
+                    .min = min,
+                    .max = max,
+                },
             },
         },
     };
@@ -176,8 +184,10 @@ void eevent_create_option_combo(engine_event* e, uint32_t engine_id, const char*
             .value = {
                 .combo = combo ? strdup(combo) : NULL,
             },
-            .v = {
-                .var = NULL,
+            .l = {
+                .v = {
+                    .var = NULL,
+                },
             },
         },
     };
@@ -203,8 +213,10 @@ void eevent_create_option_combo_var(engine_event* e, uint32_t engine_id, const c
             .value = {
                 .combo = combo ? strdup(combo) : NULL,
             },
-            .v = {
-                .var = varcpy,
+            .l = {
+                .v = {
+                    .var = varcpy,
+                },
             },
         },
     };
@@ -253,9 +265,11 @@ void eevent_create_option_spind_mmd(engine_event* e, uint32_t engine_id, const c
             .value = {
                 .spind = spin,
             },
-            .mmd = {
-                .min = min,
-                .max = max,
+            .l = {
+                .mmd = {
+                    .min = min,
+                    .max = max,
+                },
             },
         },
     };
@@ -277,9 +291,11 @@ void eevent_create_option_u64_mm(engine_event* e, uint32_t engine_id, const char
             .value = {
                 .u64 = u64,
             },
-            .mm = {
-                .min = min,
-                .max = max,
+            .l = {
+                .mm = {
+                    .min = min,
+                    .max = max,
+                },
             },
         },
     };
@@ -455,7 +471,7 @@ void eevent_destroy(engine_event* e)
             free(e->option.name);
             if (e->option.type == EE_OPTION_TYPE_COMBO) {
                 free(e->option.value.combo);
-                free(e->option.v.var);
+                free(e->option.l.v.var);
             }
             if (e->option.type == EE_OPTION_TYPE_STRING) {
                 free(e->option.value.str);
@@ -492,7 +508,7 @@ struct eevent_queue_impl {
     std::condition_variable cv;
 };
 
-static_assert(sizeof(eevent_queue) == sizeof(eevent_queue_impl), "eevent_queue impl size missmatch");
+static_assert(sizeof(eevent_queue) >= sizeof(eevent_queue_impl), "eevent_queue impl size missmatch");
 
 void eevent_queue_create(eevent_queue* eq)
 {

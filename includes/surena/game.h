@@ -107,10 +107,10 @@ typedef struct buf_sizer_s {
     // counts have to be multiplied by their specific data size
     size_t state_str; // byte size
     uint8_t player_count; // count, for n players, the player_ids are [1,n]
-    uint8_t max_players_to_move; // player count
-    uint32_t max_moves; // move count
-    uint32_t max_actions; // move count, feature
-    uint8_t max_results; // player count
+    uint8_t max_players_to_move; // maximum number of players that can simultaneously be to move
+    uint32_t max_moves; // maximum number of moves returned by get_concrete_move(s_ordered/_probabilities)
+    uint32_t max_actions; // maximum number of actions returned by get_actions, feature
+    uint8_t max_results; // maximum number of players that can simultaneously win
     size_t move_str; // byte size
     size_t print_str; // byte size, feature
 } buf_sizer;

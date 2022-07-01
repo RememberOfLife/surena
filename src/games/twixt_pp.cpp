@@ -571,6 +571,7 @@ namespace {
             int sx = (data.swap_target >> 8) & 0xFF;
             int sy = data.swap_target & 0xFF;
 
+            //BUG on non-square board this swap might access out of bounds elements
             data.gameboard[sy][sx].player = TWIXT_PP_PLAYER_BLACK;
             if (sx != sy) {
                 data.gameboard[sx][sy] = data.gameboard[sy][sx];

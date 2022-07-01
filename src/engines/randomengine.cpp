@@ -106,6 +106,7 @@ namespace {
     {
         data_repr& data = *data_p;
         engine_event e;
+        engine_event e2;
 
         // send id and options
         eevent_create_id(&e, engine_id, "Random", "surena_default");
@@ -116,8 +117,36 @@ namespace {
         eevent_destroy(&e);
 
         bool quit = false;
+        bool use_timeout = false;
+        int64_t timeout = 0;
+        uint32_t search_time = 0;
+        uint32_t search_time_last = 0;
         while (!quit) {
-            eevent_queue_pop(&data.inbox, &e, 1000);
+            uint64_t wait_start = surena_get_ms64();
+            uint32_t wait_time = 512; // default wait time for new events
+            if (use_timeout && timeout < wait_time) {
+                wait_time = timeout;
+            }
+            eevent_queue_pop(&data.inbox, &e, wait_time);
+            wait_time = surena_get_ms64() - wait_start;
+            search_time += wait_time;
+            if (data.searching && search_time_last + 256 < search_time) {
+                // periodic search time send
+                search_time_last = search_time;
+                eevent_create_searchinfo(&e2, engine_id);
+                eevent_set_searchinfo_time(&e2, search_time);
+                eevent_set_searchinfo_nps(&e2, 1);
+                eevent_queue_push(data.outbox, &e2);
+                eevent_destroy(&e2);
+            }
+            timeout -= wait_time;
+            if (use_timeout && timeout <= 0) {
+                // timeout has occured, send stop to self
+                eevent_create_stop_empty(&e2, engine_id);
+                eevent_queue_push(&data.inbox, &e2);
+                eevent_destroy(&e2);
+                use_timeout = false;
+            }
             if (e.engine_id != engine_id) {
                 eevent_create_log(&e, engine_id, ERR_INVALID_INPUT, "engine id mismatch");
                 eevent_queue_push(data.outbox, &e);
@@ -127,13 +156,7 @@ namespace {
             bool fallthrough = false;
             switch (e.type) {
                 case EE_TYPE_NULL: {
-                    if (data.searching) {
-                        //TODO properly send this periodically
-                        //TODO offer some get tick time in the engine api
-                        eevent_create_searchinfo(&e, engine_id);
-                        eevent_set_searchinfo_nps(&e, 1);
-                        eevent_queue_push(data.outbox, &e);
-                    }
+                    // pass
                 } break;
                 case EE_TYPE_EXIT: {
                     quit = true;
@@ -228,9 +251,14 @@ namespace {
                         break;
                     }
                     data.searching = true;
+                    timeout = e.start.timeout;
+                    if (timeout > 0) {
+                        use_timeout = true;
+                    }
+                    search_time = 0;
+                    search_time_last = 0;
                     eevent_create_start_empty(&e, engine_id);
                     eevent_queue_push(data.outbox, &e);
-                    //TODO respect timeout as set by the gui
                 } break;
                 case EE_TYPE_ENGINE_SEARCHINFO: {
                     assert(0);
@@ -251,6 +279,7 @@ namespace {
                     eevent_queue_push(data.outbox, &e);
                     eevent_destroy(&e);
                     data.searching = false;
+                    use_timeout = false;
                     fallthrough = true;
                 } /* fallthrough */;
                 case EE_TYPE_ENGINE_BESTMOVE: {
@@ -274,6 +303,7 @@ namespace {
                     data.the_game.methods->get_concrete_moves(&data.the_game, ptm[0], &moves_c, moves);
 
                     eevent_create_searchinfo(&e, engine_id);
+                    eevent_set_searchinfo_time(&e, search_time);
                     eevent_set_searchinfo_depth(&e, ptm_c);
                     eevent_set_searchinfo_nodes(&e, moves_c);
                     eevent_queue_push(data.outbox, &e);
@@ -312,7 +342,7 @@ namespace {
 const engine_methods randomengine_ebe{
 
     .engine_name = "Random",
-    .version = semver{1, 1, 0},
+    .version = semver{1, 2, 0},
     .features = engine_feature_flags{
         .options = false,
         .options_bin = false,

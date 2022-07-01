@@ -14,6 +14,10 @@ extern "C" {
 static const uint64_t SURENA_ENGINE_API_VERSION = 6;
 
 
+// general purpose timing function that counts up monotonically
+uint64_t surena_get_ms64();
+
+
 
 typedef uint32_t eevent_type;
 // engine events
@@ -117,16 +121,16 @@ typedef struct ee_engine_option_s {
     union {
         struct {
             uint64_t min;
-            uint64_t max;
+            uint64_t max; // iff SPIN, must fullfill assert(max <= UINT64_MAX / 2), U64 does NOT have this restriction
         } mm;
         struct {
             double min;
-            double max; // iff SPIN, must fullfill assert(max <= UINT64_MAX / 2), U64 does NOT have this restriction
+            double max;
         } mmd;
         struct {
             char* var; // separated by '\0', normal terminator at the end still applies, i.e. ends on \0\0
         } v;
-    }; // min,max / var, only engine outbound
+    } l; // limits: min,max / var, only engine outbound
 } ee_engine_option;
 
 typedef uint8_t time_control_type;
