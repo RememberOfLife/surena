@@ -92,7 +92,7 @@ namespace {
 
     /* same for internals */
     error_code _get_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER* p);
-    error_code _set_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER p, bool* wins);
+    error_code _set_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER p, uint8_t connection_mask, bool* wins);
     error_code _get_node_connections(game* self, uint8_t x, uint8_t y, uint8_t* conn);
     error_code _get_node_collisions(game* self, uint8_t x, uint8_t y, uint8_t* collisions);
     error_code _set_connection(game* self, uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, bool* wins);
@@ -147,7 +147,7 @@ namespace {
                 return ERR_INVALID_INPUT;
             }
         }
-        if (opts.wx < 3 || opts.wx > 128 || opts.wy < 3 || opts.wy > 128) {
+        if (opts.wx < 5 || opts.wx > 128 || opts.wy < 5 || opts.wy > 128) {
             free(self->data1);
             self->data1 = NULL;
             return ERR_INVALID_INPUT;
@@ -155,7 +155,7 @@ namespace {
 
         self->sizer = (buf_sizer){
             .options_str = 9,
-            .state_str = (size_t)(opts.wy * (opts.wx > 3 ? opts.wx + 1 : 4) + 4),
+            .state_str = (size_t)(opts.wy * opts.wx * 5 + 1 + 4),
             .player_count = 2,
             .max_players_to_move = 1,
             .max_moves = (uint32_t)(opts.wx * opts.wy - 3),
@@ -180,7 +180,7 @@ namespace {
         if (options_struct != NULL) {
             opts = *(opts_repr*)options_struct;
         }
-        if (opts.wx < 3 || opts.wx > 128 || opts.wy < 3 || opts.wy > 128) {
+        if (opts.wx < 5 || opts.wx > 128 || opts.wy < 5 || opts.wy > 128) {
             free(self->data1);
             self->data1 = NULL;
             return ERR_INVALID_INPUT;
@@ -188,7 +188,7 @@ namespace {
 
         self->sizer = (buf_sizer){
             .options_str = 9,
-            .state_str = (size_t)(opts.wy * (opts.wx > 3 ? opts.wx + 1 : 4) + 4),
+            .state_str = (size_t)(opts.wy * opts.wx * 5 + 1 + 4),
             .player_count = 2,
             .max_players_to_move = 1,
             .max_moves = (uint32_t)(opts.wx * opts.wy - 3),
@@ -213,7 +213,7 @@ namespace {
 
         self->sizer = (buf_sizer){
             .options_str = 9,
-            .state_str = (size_t)(opts.wy * (opts.wx > 3 ? opts.wx + 1 : 4) + 4),
+            .state_str = (size_t)(opts.wy * opts.wx * 5 + 1 + 4),
             .player_count = 2,
             .max_players_to_move = 1,
             .max_moves = (uint32_t)(opts.wx * opts.wy - 3),
@@ -306,6 +306,15 @@ namespace {
         // board horizontal lines, numbers to denote blank spaces, '/' for next line, top and bottom rows are 2 nodes short
         int y = 0;
         int x = 1;
+        int x_moves = 0;
+        int o_moves = 0;
+        std::vector<std::vector<uint8_t>> conn_masks;
+        conn_masks.reserve(opts.wy);
+        for (int iy = 0; iy < opts.wy; iy++) {
+            std::vector<uint8_t> conn_mask_row_vector{};
+            conn_mask_row_vector.resize(opts.wx, 0);
+            conn_masks.push_back(std::move(conn_mask_row_vector));
+        }
         // get cell fillings
         bool advance_segment = false;
         while (!advance_segment) {
@@ -315,14 +324,65 @@ namespace {
                         // out of bounds board
                         return ERR_INVALID_INPUT;
                     }
-                    _set_node(self, x++, y, TWIXT_PP_PLAYER_WHITE, NULL);
+                    // get realized connections mask, if any
+                    uint8_t conn_mask = 0x0F;
+                    if (*(str+1) == '.' || *(str+1) == ':') {
+                        conn_mask = 0;
+                        char conn_pattern[4];
+                        int ec = sscanf(str+1, "%c%c%c%c", &conn_pattern[0], &conn_pattern[1], &conn_pattern[2], &conn_pattern[3]);
+                        if (ec != 4) {
+                            // missing connections mask pattern
+                            return ERR_INVALID_INPUT;
+                        }
+                        str += 4;
+                        for (int cmi = 0; cmi < 4; cmi++) {
+                            if (conn_pattern[cmi] != '.' && conn_pattern[cmi] != ':') {
+                                // missing connections mask pattern
+                                return ERR_INVALID_INPUT;
+                            }
+                        }
+                        conn_mask |= (conn_pattern[0] == ':' ? TWIXT_PP_DIR_RT : 0);
+                        conn_mask |= (conn_pattern[1] == ':' ? TWIXT_PP_DIR_RB : 0);
+                        conn_mask |= (conn_pattern[2] == ':' ? TWIXT_PP_DIR_BR : 0);
+                        conn_mask |= (conn_pattern[3] == ':' ? TWIXT_PP_DIR_BL : 0);
+                    }
+                    conn_masks[y][x] = conn_mask;
+                    _set_node(self, x++, y, TWIXT_PP_PLAYER_WHITE, 0x00, NULL);
+                    o_moves++;
+                    if (o_moves == 1 && x_moves == 0) {
+                        data.swap_target = ((x-1) << 8) | y;
+                    }
                 } break;
                 case 'X': {
                     if (x < 0 || x >= opts.wx || y < 0 || y > opts.wy || ((y == 0 || y == opts.wy - 1) && x == opts.wx - 1)) {
                         // out of bounds board
                         return ERR_INVALID_INPUT;
                     }
-                    _set_node(self, x++, y, TWIXT_PP_PLAYER_BLACK, NULL);
+                    // get realized connections mask, if any
+                    uint8_t conn_mask = 0x0F;
+                    if (*(str+1) == '.' || *(str+1) == ':') {
+                        conn_mask = 0;
+                        char conn_pattern[4];
+                        int ec = sscanf(str+1, "%c%c%c%c", &conn_pattern[0], &conn_pattern[1], &conn_pattern[2], &conn_pattern[3]);
+                        if (ec != 4) {
+                            // missing connections mask pattern
+                            return ERR_INVALID_INPUT;
+                        }
+                        str += 4;
+                        for (int cmi = 0; cmi < 4; cmi++) {
+                            if (conn_pattern[cmi] != '.' && conn_pattern[cmi] != ':') {
+                                // missing connections mask pattern
+                                return ERR_INVALID_INPUT;
+                            }
+                        }
+                        conn_mask |= (conn_pattern[0] == ':' ? TWIXT_PP_DIR_RT : 0);
+                        conn_mask |= (conn_pattern[1] == ':' ? TWIXT_PP_DIR_RB : 0);
+                        conn_mask |= (conn_pattern[2] == ':' ? TWIXT_PP_DIR_BR : 0);
+                        conn_mask |= (conn_pattern[3] == ':' ? TWIXT_PP_DIR_BL : 0);
+                    }
+                    conn_masks[y][x] = conn_mask;
+                    _set_node(self, x++, y, TWIXT_PP_PLAYER_BLACK, 0x00, NULL);
+                    x_moves++;
                 } break;
                 case '1':
                 case '2':
@@ -355,7 +415,7 @@ namespace {
                             // out of bounds board
                             return ERR_INVALID_INPUT;
                         }
-                        _set_node(self, x++, y, TWIXT_PP_PLAYER_NONE, NULL);
+                        _set_node(self, x++, y, TWIXT_PP_PLAYER_NONE, 0xFF, NULL);
                     }
                 } break;
                 case '/': { // advance to next
@@ -372,6 +432,25 @@ namespace {
             }
             str++;
         }
+        // disable swap status if unavailable by x/o moves
+        if (o_moves > 1 || x_moves > 0) {
+            data.pie_swap &= false;
+        }
+        // place all nodes again, this time with their conn mask
+        {
+            TWIXT_PP_PLAYER cell_player;
+            for (int y = 0; y < opts.wy; y++) {
+                for (int x = 0; x < opts.wx; x++) {
+                    _get_node(self, x, y, &cell_player);
+                    if (cell_player == TWIXT_PP_PLAYER_INVALID || cell_player == TWIXT_PP_PLAYER_NONE) {
+                        continue;
+                    } else {
+                        _set_node(self, x, y, cell_player, conn_masks[y][x], NULL);
+                        //TODO record iswin to check with the later set winning player
+                    }
+                }
+            }
+        }
         // current player
         switch (*str) {
             case '-': {
@@ -387,6 +466,10 @@ namespace {
                 // failure, ran out of str to use or got invalid character
                 return ERR_INVALID_INPUT;
             } break;
+        }
+        // swap is only available for strictly legal play
+        if (data.pie_swap && ((o_moves == 1 && data.current_player != TWIXT_PP_PLAYER_BLACK) || (o_moves == 0 && data.current_player != TWIXT_PP_PLAYER_WHITE))) {
+            data.pie_swap &= false;
         }
         str++;
         if (*str != ' ') {
@@ -438,6 +521,27 @@ namespace {
                         empty_cells = 0;
                     }
                     str += sprintf(str, "%c", (cell_player == TWIXT_PP_PLAYER_WHITE ? 'O' : 'X'));
+                    // if the current node does not have all right/bottom dir connections available actually placed, add the connection pattern
+                    uint8_t dir_available = 0;
+                    TWIXT_PP_PLAYER avail_player;
+                    _get_node(self, x + 2, y - 1, &avail_player);
+                    dir_available |= (cell_player == avail_player ? TWIXT_PP_DIR_RT : 0);
+                    _get_node(self, x + 2, y + 1, &avail_player);
+                    dir_available |= (cell_player == avail_player ? TWIXT_PP_DIR_RB : 0);
+                    _get_node(self, x + 1, y + 2, &avail_player);
+                    dir_available |= (cell_player == avail_player ? TWIXT_PP_DIR_BR : 0);
+                    _get_node(self, x - 1, y + 2, &avail_player);
+                    dir_available |= (cell_player == avail_player ? TWIXT_PP_DIR_BL : 0);
+                    uint8_t realized_conns;
+                    _get_node_connections(self, x, y, &realized_conns);
+                    if (dir_available & ~realized_conns) {
+                        // there exist available connections that are not realized, emit connection pattern
+                        str += sprintf(str, "%c%c%c%c",
+                            (realized_conns & TWIXT_PP_DIR_RT) ? ':' : '.',
+                            (realized_conns & TWIXT_PP_DIR_RB) ? ':' : '.',
+                            (realized_conns & TWIXT_PP_DIR_BR) ? ':' : '.',
+                            (realized_conns & TWIXT_PP_DIR_BL) ? ':' : '.');
+                    }
                 }
             }
             if (empty_cells > 0) {
@@ -571,7 +675,7 @@ namespace {
             int sx = (data.swap_target >> 8) & 0xFF;
             int sy = data.swap_target & 0xFF;
 
-            //BUG on non-square board this swap might access out of bounds elements
+            //BUG on non-square board this swap can access out of bounds elements
             data.gameboard[sy][sx].player = TWIXT_PP_PLAYER_BLACK;
             if (sx != sy) {
                 data.gameboard[sx][sy] = data.gameboard[sy][sx];
@@ -597,7 +701,7 @@ namespace {
 
         bool wins;
         // set node updates graph structures in the backend, and informs us if this move is winning for the current player
-        _set_node(self, tx, ty, data.current_player, &wins);
+        _set_node(self, tx, ty, data.current_player, 0xFF, &wins);
 
         if (tx > 0 && tx < opts.wx - 1 && ty > 0 && ty < opts.wy) {
             data.remaining_inner_nodes--;
@@ -721,6 +825,7 @@ namespace {
         return ERR_OK;
     }
 
+    //TODO somehow needs to display disambiguation information for position where realized connections of nodes are not clear
     error_code _debug_print(game* self, size_t* ret_size, char* str_buf)
     {
         if (str_buf == NULL) {
@@ -782,30 +887,52 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _set_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER p, bool* wins)
+    error_code _set_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER p, uint8_t connection_mask, bool* wins)
     {
         opts_repr& opts = _get_opts(self);
         data_repr& data = _get_repr(self);
         data.gameboard[y][x].player = p;
+        if (p == TWIXT_PP_PLAYER_NONE) {
+            if (wins) {
+                *wins = false;
+            }
+            return ERR_OK;
+        }
         // try to place all connections
         bool win = false;
         bool rwins;
-        _set_connection(self, x, y, x + 2, y - 1, &rwins);
-        win |= rwins;
-        _set_connection(self, x, y, x + 2, y + 1, &rwins);
-        win |= rwins;
-        _set_connection(self, x, y, x + 1, y + 2, &rwins);
-        win |= rwins;
-        _set_connection(self, x, y, x - 1, y + 2, &rwins);
-        win |= rwins;
-        _set_connection(self, x - 2, y + 1, x, y, &rwins);
-        win |= rwins;
-        _set_connection(self, x - 2, y - 1, x, y, &rwins);
-        win |= rwins;
-        _set_connection(self, x - 1, y - 2, x, y, &rwins);
-        win |= rwins;
-        _set_connection(self, x + 1, y - 2, x, y, &rwins);
-        win |= rwins;
+        if (connection_mask & TWIXT_PP_DIR_RT) {
+            _set_connection(self, x, y, x + 2, y - 1, &rwins);
+            win |= rwins;
+        }
+        if (connection_mask & TWIXT_PP_DIR_RB) {
+            _set_connection(self, x, y, x + 2, y + 1, &rwins);
+            win |= rwins;
+        }
+        if (connection_mask & TWIXT_PP_DIR_BR) {
+            _set_connection(self, x, y, x + 1, y + 2, &rwins);
+            win |= rwins;
+        }
+        if (connection_mask & TWIXT_PP_DIR_BL) {
+            _set_connection(self, x, y, x - 1, y + 2, &rwins);
+            win |= rwins;
+        }
+        if (connection_mask & (TWIXT_PP_DIR_RT<<4)) {
+            _set_connection(self, x - 2, y + 1, x, y, &rwins);
+            win |= rwins;
+        }
+        if (connection_mask & (TWIXT_PP_DIR_RB<<4)) {
+            _set_connection(self, x - 2, y - 1, x, y, &rwins);
+            win |= rwins;
+        }
+        if (connection_mask & (TWIXT_PP_DIR_BR<<4)) {
+            _set_connection(self, x - 1, y - 2, x, y, &rwins);
+            win |= rwins;
+        }
+        if (connection_mask & (TWIXT_PP_DIR_BL<<4)) {
+            _set_connection(self, x + 1, y - 2, x, y, &rwins);
+            win |= rwins;
+        }
         if (data.gameboard[y][x].graph_id == 0) {
             // no connection created, so this node was not joined into another graph, create a new graph for it, and give it the nodes connect qualities
             data.gameboard[y][x].graph_id = data.next_graph_id;

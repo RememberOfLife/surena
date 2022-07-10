@@ -75,7 +75,7 @@ typedef struct twixt_pp_options_s {
 typedef struct twixt_pp_internal_methods_s {
 
     error_code (*get_node)(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER* p);
-    error_code (*set_node)(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER p, bool* wins); // wins may be NULL, then it is ignored
+    error_code (*set_node)(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER p, uint8_t connection_mask, bool* wins); // wins may be NULL, then it is ignored
     error_code (*get_node_connections)(game* self, uint8_t x, uint8_t y, uint8_t* conn); // right and downward facing existing connections
     error_code (*get_node_collisions)(game* self, uint8_t x, uint8_t y, uint8_t* collisions);
 

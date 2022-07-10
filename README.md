@@ -41,6 +41,11 @@ General purpose board game backend and some AI to go with it.
 * separate out squirrelnoise5 into a dep?
 
 ## ideas
+* need some way to get a true state representing info dump out of a game
+  * e.g. 50 move rule in chess isnt encoded in the state
+  * manage this with binary state export feature flag? or general state export type specifies
+* team games with team rewards
+* games with rewards more complicated than just win/loss
 * some games may need to have access to some sort of time control for their functionality (munchkin and upcount time control games)
 * clone method for the game:
   * option to choose if to discretize if available or not

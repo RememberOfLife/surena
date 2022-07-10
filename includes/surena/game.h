@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 10;
+static const uint64_t SURENA_GAME_API_VERSION = 11;
 
 typedef uint32_t error_code;
 // general purpose error codes

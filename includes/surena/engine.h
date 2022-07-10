@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_ENGINE_API_VERSION = 6;
+static const uint64_t SURENA_ENGINE_API_VERSION = 7;
 
 
 // general purpose timing function that counts up monotonically
@@ -141,7 +141,7 @@ enum TIME_CONTROL_TYPE {
     TIME_CONTROL_TYPE_TIME,
     TIME_CONTROL_TYPE_BONUS, // add a persistent bonus AFTER every move
     TIME_CONTROL_TYPE_DELAY, // transient delay at the start of a move BEFORE the clock starts counting down, unused delay time is lost
-    TIME_CONTROL_TYPE_BYO, // available time resets every move, timing out transfers to the next time control
+    TIME_CONTROL_TYPE_BYO, // available time resets every move, timing out transfers to the next time control, can also be used for correspondence
     TIME_CONTROL_TYPE_UPCOUNT, // time counts upwards
 
     TIME_CONTROL_TYPE_COUNT,
@@ -372,10 +372,15 @@ typedef struct engine_methods_s {
     // "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789" additionally '-' and '_' but not at the start or end
     const char* engine_name;
     const semver version;
-    const engine_feature_flags features;
+    const engine_feature_flags features; // these will never change depending on options
 
+    // the frontend method specific internal method struct, NULL if not available
+    // use the engine_name to make sure you know what this will be
     const void* internal_methods;
 
+    // returns the error string complementing the most recent occured error
+    // returns NULL if there is error string available for this error
+    // the string is still owned by the frontend method backend, do not free it
     const char* (*get_last_error)(engine* self);
 
     error_code (*create_with_opts_str)(engine* self, uint32_t engine_id, eevent_queue* outbox, eevent_queue** inbox, const char* str);
@@ -388,7 +393,7 @@ typedef struct engine_methods_s {
 
     error_code (*destroy)(engine* self);
 
-    error_code (*is_game_compatible)(engine* self, game* compat_game);
+    error_code (*is_game_compatible)(engine* self, game* compat_game); //TODO should this even take the engine at all?
 
 } engine_methods;
 
