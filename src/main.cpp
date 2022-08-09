@@ -106,9 +106,6 @@ int main(int argc, char** argv)
         }
     }
 
-    // for debugging
-    // game_method = &havannah_gbe;
-
     if (game_method == NULL) {
         printf("no game method specified\n");
         exit(1);

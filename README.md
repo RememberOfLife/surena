@@ -29,21 +29,19 @@ General purpose board game backend and some AI to go with it.
 |Wizards|HI, RM||
 
 ## todos
+* use rerrorf in the game impls to clarify errors
+* move the move history functionality from mirabel into here, add plugin functionality for e.g. (universal -> pgn -> universal)
+  * want similar translation layer for (de)serialization?
+* byte serialization util, basically a stream with diff in/out ops
 * rerrorf function fixes
-  * if no string given, auto fill with get general error string from game.h
-  * boilerplate: free data2 on destruction, make sure not to copy and clone
+  * if no string given, auto fill with get general error string from game.h, want this? or not
+  * make sure not to copy and clone
 * use readline in main https://stackoverflow.com/questions/2600528/c-readline-function
-* plugin init / cleanup (game+engine)
-* use snprintf (https://stackoverflow.com/a/26910616) to get the correct size of the error string in the _rerrorf function
 * add uci wrapper engine for general purpose chess engines (same for tak)
 * document workflow for non perfect information games
-* base64 util func
-* separate out squirrelnoise5 into a dep?
+* separate out squirrelnoise5 into a dep? ; make noise a c usable thing
 
 ## ideas
-* need some way to get a true state representing info dump out of a game
-  * e.g. 50 move rule in chess isnt encoded in the state
-  * manage this with binary state export feature flag? or general state export type specifies
 * team games with team rewards
 * games with rewards more complicated than just win/loss
 * some games may need to have access to some sort of time control for their functionality (munchkin and upcount time control games)

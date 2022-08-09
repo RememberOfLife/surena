@@ -6,6 +6,7 @@
 typedef const char* (*get_last_error_gf_t)(game* self);
 typedef error_code (*create_with_opts_str_gf_t)(game* self, const char* str);
 typedef error_code (*create_with_opts_bin_gf_t)(game* self, void* options_struct);
+typedef error_code (*create_deserialize_gf_t)(game* self, uint8_t* buf);
 typedef error_code (*create_default_gf_t)(game* self);
 typedef error_code (*export_options_str_gf_t)(game* self, size_t* ret_size, char* str);
 typedef error_code (*get_options_bin_ref_gf_t)(game* self, void** ret_bin_ref);
@@ -15,6 +16,7 @@ typedef error_code (*copy_from_gf_t)(game* self, game* other);
 typedef error_code (*compare_gf_t)(game* self, game* other, bool* ret_equal);
 typedef error_code (*import_state_gf_t)(game* self, const char* str);
 typedef error_code (*export_state_gf_t)(game* self, size_t* ret_size, char* str);
+typedef error_code (*serialize_gf_t)(game* self, size_t* ret_size, char* buf);
 typedef error_code (*players_to_move_gf_t)(game* self, uint8_t* ret_count, player_id* players);
 typedef error_code (*get_concrete_moves_gf_t)(game* self, player_id player, uint32_t* ret_count, move_code* moves);
 typedef error_code (*get_concrete_move_probabilities_gf_t)(game* self, player_id player, uint32_t* ret_count, float* move_probabilities);

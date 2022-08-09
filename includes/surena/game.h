@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 11;
+static const uint64_t SURENA_GAME_API_VERSION = 12;
 
 typedef uint32_t error_code;
 // general purpose error codes
@@ -27,10 +27,14 @@ enum ERR {
     ERR_UNSTABLE_POSITION,
     ERR_SYNC_COUNTER_MISMATCH,
     ERR_RETRY, // retrying the same call again may yet still work
+    ERR_CUSTOM_UNSPEC, // unspecified custom error, check get_last_error for a detailed string
     ERR_ENUM_DEFAULT_OFFSET, // not an error, start game method specific error enums at this offset
 };
 // returns NULL if the err is not a general error
 const char* get_general_error_string(error_code err);
+// instead of returning an error code, one can return rerrorf which automatically manages fmt string buffer allocation for the error string
+// call rerrorf with ec=ERR_OK to free (*pbuf)
+error_code rerrorf(char** pbuf, error_code ec, const char* fmt, ...);
 
 // anywhere a rng seed is use, SEED_NONE represents not using the rng
 static const uint64_t SEED_NONE = 0;
@@ -62,6 +66,8 @@ typedef struct game_feature_flags_s {
     bool options_bin : 1;
     // supports the ability to read the options bin of a created game
     bool options_bin_ref : 1;
+
+    bool serializable : 1; // this is a binary serialization of the game, must be absolutely accurate representation of the game state
 
     // bool perfect_information : 1; // needed?
 
@@ -105,6 +111,7 @@ typedef struct buf_sizer_s {
     // all below are valid after create
     // byte sizes for string can be directly allocated (they include their zero-terminator)
     // counts have to be multiplied by their specific data size
+    size_t serialization_size; // byte size
     size_t state_str; // byte size
     uint8_t player_count; // count, for n players, the player_ids are [1,n]
     uint8_t max_players_to_move; // maximum number of players that can simultaneously be to move
@@ -153,8 +160,8 @@ typedef struct game_methods_s {
     // e.g. these would expose get_cell and set_cell on a tictactoe board to enable rw-access to the state 
     const void* internal_methods;
 
-    // returns the error string complementing the most recent occured error
-    // returns NULL if there is error string available for this error
+    // returns the error string complementing the most recent occured error (i.e. only available if != ERR_OK)
+    // returns NULL if there is no error string available for this error
     // the string is still owned by the game method backend, do not free it
     const char* (*get_last_error)(game* self);
 
@@ -169,6 +176,12 @@ typedef struct game_methods_s {
     // if str is NULL then the default options are loaded
     // see create_default for more
     error_code (*create_with_opts_bin)(game* self, void* options_struct);
+
+    // FEATURE: serializable
+    // use the given byte buffer to create the game data
+    // calling this with a NULL buf is invalid
+    // see create_default for more
+    error_code (*create_deserialize)(game* self, uint8_t* buf);
 
     // construct and initialize a new game specific data object into self
     // if any options exist, the defaults are used
@@ -217,6 +230,12 @@ typedef struct game_methods_s {
     // writes the game state to a universal state string
     // returns the length of the state string written, 0 if failure, excluding null character
     error_code (*export_state)(game* self, size_t* ret_size, char* str);
+
+    // FEATURE: serializable
+    // writes the game state to a game specific raw byte representation that is absolutely accurate to the state of the game
+    // returns the number of serialization bytes written, 0 if failure
+    error_code (*serialize)(game* self, size_t* ret_size, char* buf);
+    //TODO is it fine that this is not available for games where no state has been loaded yet?, probably not :/
 
     // writes the player ids to move from this state
     // writes PLAYER_RAND if the current move branch is decided by randomness

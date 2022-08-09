@@ -3,14 +3,14 @@
 // provides very limited subset of semver
 //TODO maybe replace this by a proper solution?
 
-#include "stdbool.h"
-#include "stdint.h"
+#include <stdbool.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct semver {
+typedef struct semver_s {
     uint32_t major;
     uint32_t minor;
     uint32_t patch;

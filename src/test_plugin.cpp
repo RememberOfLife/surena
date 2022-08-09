@@ -13,6 +13,9 @@ uint64_t plugin_get_game_capi_version()
     return SURENA_GAME_API_VERSION;
 }
 
+void plugin_init_game()
+{}
+
 void plugin_get_game_methods(uint32_t* count, const game_methods** methods)
 {
     *count = 1;
@@ -21,3 +24,6 @@ void plugin_get_game_methods(uint32_t* count, const game_methods** methods)
     }
     methods[0] = &tictactoe_gbe;
 }
+
+void plugin_cleanup_game()
+{}

@@ -1,6 +1,5 @@
 #include <array>
 #include <bitset>
-#include <cstdarg>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -17,19 +16,7 @@
 
 namespace {
     
-    // general purpose helpers for opts, data, errors
-
-    error_code _rerrorf(game* self, error_code ec, const char* fmt, ...)
-    {
-        if (self->data2 == NULL) {
-            self->data2 = malloc(1024); //TODO correct size from where?
-        }
-        va_list args;
-        va_start(args, fmt);
-        vsprintf((char*)self->data2, fmt, args);
-        va_end(args);
-        return ec;
-    }
+    // general purpose helpers for opts, data
     
     typedef havannah_options opts_repr;
 
@@ -62,6 +49,7 @@ namespace {
     const char* _get_last_error(game* self);
     error_code _create_with_opts_str(game* self, const char* str);
     error_code _create_with_opts_bin(game* self, void* options_struct);
+    GF_UNUSED(create_deserialize);
     error_code _create_default(game* self);
     error_code _export_options_str(game* self, size_t* ret_size, char* str);
     GF_UNUSED(get_options_bin_ref);
@@ -71,6 +59,7 @@ namespace {
     error_code _compare(game* self, game* other, bool* ret_equal);
     error_code _import_state(game* self, const char* str);
     error_code _export_state(game* self, size_t* ret_size, char* str);
+    GF_UNUSED(serialize);
     error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players);
     error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves);
     GF_UNUSED(get_concrete_move_probabilities);
@@ -111,6 +100,7 @@ namespace {
         if (self->data1 == NULL) {
             return ERR_OUT_OF_MEMORY;
         }
+        self->data2 = NULL;
         
         opts_repr& opts = _get_opts(self);
         opts.size = 8;
@@ -143,6 +133,7 @@ namespace {
         if (self->data1 == NULL) {
             return ERR_OUT_OF_MEMORY;
         }
+        self->data2 = NULL;
         
         opts_repr& opts = _get_opts(self);
         opts.size = 8;
@@ -170,6 +161,7 @@ namespace {
         if (self->data1 == NULL) {
             return ERR_OUT_OF_MEMORY;
         }
+        self->data2 = NULL;
 
         opts_repr& opts = _get_opts(self);
         opts.size = 8;
@@ -203,6 +195,8 @@ namespace {
         delete (data_repr*)self->data1;
         // free(self->data); // not required in the vector+map version
         self->data1 = NULL;
+        free(self->data2);
+        self->data2 = NULL;
         return ERR_OK;
     }
 
@@ -935,6 +929,7 @@ const game_methods havannah_gbe{
         .options = true,
         .options_bin = true,
         .options_bin_ref = false,
+        .serializable = false,
         .random_moves = false,
         .hidden_information = false,
         .simultaneous_moves = false,
