@@ -14,7 +14,7 @@
 
 namespace {
 
-    error_code _rerrorf(engine* self, error_code ec, const char* fmt, ...)
+    error_code rerrorf(engine* self, error_code ec, const char* fmt, ...)
     {
         if (self->data2 == NULL) {
             self->data2 = malloc(1024); //TODO correct size from where?
@@ -36,7 +36,7 @@ namespace {
         bool searching;
     };
 
-    data_repr& _get_repr(engine* self)
+    data_repr& get_repr(engine* self)
     {
         return *((data_repr*)(self->data1));
     }
@@ -44,32 +44,32 @@ namespace {
     // forward declares
 
     // engine wrapper
-    const char* _get_last_error(engine* self);
-    error_code _create_default(engine* self, uint32_t engine_id, eevent_queue* outbox, eevent_queue** inbox);
-    error_code _destroy(engine* self);
-    error_code _is_game_compatible(engine* self, game* compat_game);
+    const char* get_last_error(engine* self);
+    error_code create_default(engine* self, uint32_t engine_id, eevent_queue* outbox, eevent_queue** inbox);
+    error_code destroy(engine* self);
+    error_code is_game_compatible(engine* self, game* compat_game);
     // engine loop2222
-    void _engine_loop(data_repr* data_p, uint32_t engine_id);
+    void engine_loop(data_repr* data_p, uint32_t engine_id);
 
     // implementation
 
-    const char* _get_last_error(engine* self)
+    const char* get_last_error(engine* self)
     {
         return (char*)self->data2;
     }
     
-    error_code _create_default(engine* self, uint32_t engine_id, eevent_queue* outbox, eevent_queue** inbox)
+    error_code create_default(engine* self, uint32_t engine_id, eevent_queue* outbox, eevent_queue** inbox)
     {
         self->data1 = malloc(sizeof(data_repr));
         if (self->data1 == NULL) {
             return ERR_OUT_OF_MEMORY;
         }
         self->engine_id = engine_id;
-        data_repr& data = _get_repr(self);
+        data_repr& data = get_repr(self);
         data.outbox = outbox;
         eevent_queue_create(&data.inbox);
         *inbox = &data.inbox;
-        data.runner = new std::thread(_engine_loop, (data_repr*)self->data1, engine_id);
+        data.runner = new std::thread(engine_loop, (data_repr*)self->data1, engine_id);
         data.the_game.methods = NULL;
         data.rng_seed = 42;
         data.rng_counter = 0;
@@ -77,9 +77,9 @@ namespace {
         return ERR_OK;
     }
     
-    error_code _destroy(engine* self)
+    error_code destroy(engine* self)
     {
-        data_repr& data = _get_repr(self);
+        data_repr& data = get_repr(self);
         engine_event e_quit = (engine_event){
             .type = EE_TYPE_EXIT
         };
@@ -92,7 +92,7 @@ namespace {
         return ERR_OK;
     }
     
-    error_code _is_game_compatible(engine* self, game* compat_game)
+    error_code is_game_compatible(engine* self, game* compat_game)
     {
         if (compat_game->methods->features.random_moves | compat_game->methods->features.hidden_information | compat_game->methods->features.simultaneous_moves) {
             return ERR_INVALID_INPUT;
@@ -102,7 +102,7 @@ namespace {
     
     // engine loop
 
-    void _engine_loop(data_repr* data_p, uint32_t engine_id)
+    void engine_loop(data_repr* data_p, uint32_t engine_id)
     {
         data_repr& data = *data_p;
         engine_event e;
@@ -352,11 +352,11 @@ const engine_methods randomengine_ebe{
     },
     .internal_methods = NULL,
     
-    .get_last_error = _get_last_error,
+    .get_last_error = get_last_error,
     .create_with_opts_str = NULL,
     .create_with_opts_bin = NULL,
-    .create_default = _create_default,
-    .destroy = _destroy,
-    .is_game_compatible = _is_game_compatible,
+    .create_default = create_default,
+    .destroy = destroy,
+    .is_game_compatible = is_game_compatible,
     
 };

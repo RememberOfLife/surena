@@ -41,4 +41,4 @@ typedef error_code (*get_move_str_gf_t)(game* self, player_id player, move_code 
 typedef error_code (*debug_print_gf_t)(game* self, size_t* ret_size, char* str_buf);
 
 // unused game function macro so we can correctly set unimplemented features to NULL
-#define GF_UNUSED(gfname) static void* _##gfname = NULL
+#define GF_UNUSED(gfname) static void* gfname = NULL

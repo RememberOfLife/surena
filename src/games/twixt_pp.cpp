@@ -31,70 +31,70 @@ namespace {
         uint16_t swap_target;
     };
 
-    opts_repr& _get_opts(game* self)
+    opts_repr& get_opts(game* self)
     {
         return ((data_repr*)(self->data1))->opts;
     }
 
-    data_repr& _get_repr(game* self)
+    data_repr& get_repr(game* self)
     {
         return *((data_repr*)(self->data1));
     }
 
     // forward declare everything to allow for inlining at least in this unit
-    const char* _get_last_error(game* self);
-    error_code _create_with_opts_str(game* self, const char* str);
-    error_code _create_with_opts_bin(game* self, void* options_struct);
+    const char* get_last_error(game* self);
+    error_code create_with_opts_str(game* self, const char* str);
+    error_code create_with_opts_bin(game* self, void* options_struct);
     GF_UNUSED(create_deserialize);
-    error_code _create_default(game* self);
-    error_code _export_options_str(game* self, size_t* ret_size, char* str);
-    error_code _get_options_bin_ref(game* self, void** ret_bin_ref);
-    error_code _destroy(game* self);
-    error_code _clone(game* self, game* clone_target);
-    error_code _copy_from(game* self, game* other);
-    error_code _compare(game* self, game* other, bool* ret_equal);
-    error_code _import_state(game* self, const char* str);
-    error_code _export_state(game* self, size_t* ret_size, char* str);
+    error_code create_default(game* self);
+    error_code export_options_str(game* self, size_t* ret_size, char* str);
+    error_code get_options_bin_ref(game* self, void** ret_bin_ref);
+    error_code destroy(game* self);
+    error_code clone(game* self, game* clone_target);
+    error_code copy_from(game* self, game* other);
+    error_code compare(game* self, game* other, bool* ret_equal);
+    error_code import_state(game* self, const char* str);
+    error_code export_state(game* self, size_t* ret_size, char* str);
     GF_UNUSED(serialize);
-    error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players);
-    error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves);
+    error_code players_to_move(game* self, uint8_t* ret_count, player_id* players);
+    error_code get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves);
     GF_UNUSED(get_concrete_move_probabilities);
     GF_UNUSED(get_concrete_moves_ordered); //TODO
     GF_UNUSED(get_actions);
-    error_code _is_legal_move(game* self, player_id player, move_code move, sync_counter sync);
+    error_code is_legal_move(game* self, player_id player, move_code move, sync_counter sync);
     GF_UNUSED(move_to_action);
     GF_UNUSED(is_action);
-    error_code _make_move(game* self, player_id player, move_code move);
-    error_code _get_results(game* self, uint8_t* ret_count, player_id* players);
+    error_code make_move(game* self, player_id player, move_code move);
+    error_code get_results(game* self, uint8_t* ret_count, player_id* players);
     GF_UNUSED(get_sync_counter);
     GF_UNUSED(id); //TODO
     GF_UNUSED(eval); //TODO
     GF_UNUSED(discretize);
-    error_code _playout(game* self, uint64_t seed);
+    error_code playout(game* self, uint64_t seed);
     GF_UNUSED(redact_keep_state);
     GF_UNUSED(export_sync_data);
     GF_UNUSED(release_sync_data);
     GF_UNUSED(import_sync_data);
-    error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move);
-    error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
-    error_code _debug_print(game* self, size_t* ret_size, char* str_buf);
+    error_code get_move_code(game* self, player_id player, const char* str, move_code* ret_move);
+    error_code get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
+    error_code debug_print(game* self, size_t* ret_size, char* str_buf);
 
     /* same for internals */
-    error_code _get_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER* p);
-    error_code _set_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER p, uint8_t connection_mask, bool* wins);
-    error_code _get_node_connections(game* self, uint8_t x, uint8_t y, uint8_t* conn);
-    error_code _get_node_collisions(game* self, uint8_t x, uint8_t y, uint8_t* collisions);
-    error_code _set_connection(game* self, uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, bool* wins);
-    error_code _can_swap(game* self, bool* swap_available);
+    error_code get_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER* p);
+    error_code set_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER p, uint8_t connection_mask, bool* wins);
+    error_code get_node_connections(game* self, uint8_t x, uint8_t y, uint8_t* conn);
+    error_code get_node_collisions(game* self, uint8_t x, uint8_t y, uint8_t* collisions);
+    error_code set_connection(game* self, uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, bool* wins);
+    error_code can_swap(game* self, bool* swap_available);
 
     // implementation
 
-    const char* _get_last_error(game* self)
+    const char* get_last_error(game* self)
     {
         return (char*)self->data2; // in this scheme opts are saved together with the state in data1, and data2 is the last error string
     }
 
-    error_code _create_with_opts_str(game* self, const char* str)
+    error_code create_with_opts_str(game* self, const char* str)
     {
         self->data1 = new(malloc(sizeof(data_repr))) data_repr();
         if (self->data1 == NULL) {
@@ -102,7 +102,7 @@ namespace {
         }
         self->data2 = NULL;
         
-        opts_repr& opts = _get_opts(self);
+        opts_repr& opts = get_opts(self);
         opts.wx = 24;
         opts.wy = 24;
         opts.pie_swap = true;
@@ -156,7 +156,7 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _create_with_opts_bin(game* self, void* options_struct)
+    error_code create_with_opts_bin(game* self, void* options_struct)
     {
         self->data1 = new(malloc(sizeof(data_repr))) data_repr();
         if (self->data1 == NULL) {
@@ -164,7 +164,7 @@ namespace {
         }
         self->data2 = NULL;
         
-        opts_repr& opts = _get_opts(self);
+        opts_repr& opts = get_opts(self);
         opts.wx = 24;
         opts.wy = 24;
         opts.pie_swap = true;
@@ -190,7 +190,7 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _create_default(game* self)
+    error_code create_default(game* self)
     {
         self->data1 = new(malloc(sizeof(data_repr))) data_repr();
         if (self->data1 == NULL) {
@@ -198,7 +198,7 @@ namespace {
         }
         self->data2 = NULL;
 
-        opts_repr& opts = _get_opts(self);
+        opts_repr& opts = get_opts(self);
         opts.wx = 24;
         opts.wy = 24;
         opts.pie_swap = true;
@@ -216,12 +216,12 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _export_options_str(game* self, size_t* ret_size, char* str)
+    error_code export_options_str(game* self, size_t* ret_size, char* str)
     {
         if (str == NULL) {
             return ERR_INVALID_INPUT;
         }
-        opts_repr& opts = _get_opts(self);
+        opts_repr& opts = get_opts(self);
         if (opts.wx == opts.wy) {
             *ret_size = sprintf(str, "%hhu%c", opts.wx, opts.pie_swap ? '+' : '\0');
         } else {
@@ -230,13 +230,13 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _get_options_bin_ref(game* self, void** ret_bin_ref)
+    error_code get_options_bin_ref(game* self, void** ret_bin_ref)
     {
-        *(opts_repr**)ret_bin_ref = &_get_opts(self);
+        *(opts_repr**)ret_bin_ref = &get_opts(self);
         return ERR_OK;
     }
 
-    error_code _destroy(game* self)
+    error_code destroy(game* self)
     {
         delete (data_repr*)self->data1;
         self->data1 = NULL;
@@ -245,13 +245,13 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _clone(game* self, game* clone_target)
+    error_code clone(game* self, game* clone_target)
     {
         if (clone_target == NULL) {
             return ERR_INVALID_INPUT;
         }
         clone_target->methods = self->methods;
-        opts_repr& opts = _get_opts(self);
+        opts_repr& opts = get_opts(self);
         error_code ec = clone_target->methods->create_with_opts_bin(clone_target, &opts);
         if (ec != ERR_OK) {
             return ec;
@@ -260,22 +260,22 @@ namespace {
         return ERR_OK;
     }
     
-    error_code _copy_from(game* self, game* other)
+    error_code copy_from(game* self, game* other)
     {
         *(data_repr*)self->data1 = *(data_repr*)other->data1;
         return ERR_OK;
     }
 
-    error_code _compare(game* self, game* other, bool* ret_equal)
+    error_code compare(game* self, game* other, bool* ret_equal)
     {
         //TODO
         return ERR_STATE_CORRUPTED;
     }
 
-    error_code _import_state(game* self, const char* str)
+    error_code import_state(game* self, const char* str)
     {
-        opts_repr& opts = _get_opts(self);
-        data_repr& data = _get_repr(self);
+        opts_repr& opts = get_opts(self);
+        data_repr& data = get_repr(self);
         data.current_player = TWIXT_PP_PLAYER_WHITE;
         data.winning_player = TWIXT_PP_PLAYER_INVALID;
         data.remaining_inner_nodes = opts.wx * opts.wy;
@@ -341,7 +341,7 @@ namespace {
                         conn_mask |= (conn_pattern[3] == ':' ? TWIXT_PP_DIR_BL : 0);
                     }
                     conn_masks[y][x] = conn_mask;
-                    _set_node(self, x++, y, TWIXT_PP_PLAYER_WHITE, 0x00, NULL);
+                    set_node(self, x++, y, TWIXT_PP_PLAYER_WHITE, 0x00, NULL);
                     o_moves++;
                     if (o_moves == 1 && x_moves == 0) {
                         data.swap_target = ((x-1) << 8) | y;
@@ -375,7 +375,7 @@ namespace {
                         conn_mask |= (conn_pattern[3] == ':' ? TWIXT_PP_DIR_BL : 0);
                     }
                     conn_masks[y][x] = conn_mask;
-                    _set_node(self, x++, y, TWIXT_PP_PLAYER_BLACK, 0x00, NULL);
+                    set_node(self, x++, y, TWIXT_PP_PLAYER_BLACK, 0x00, NULL);
                     x_moves++;
                 } break;
                 case '1':
@@ -409,7 +409,7 @@ namespace {
                             // out of bounds board
                             return ERR_INVALID_INPUT;
                         }
-                        _set_node(self, x++, y, TWIXT_PP_PLAYER_NONE, 0xFF, NULL);
+                        set_node(self, x++, y, TWIXT_PP_PLAYER_NONE, 0xFF, NULL);
                     }
                 } break;
                 case '/': { // advance to next
@@ -435,11 +435,11 @@ namespace {
             TWIXT_PP_PLAYER cell_player;
             for (int y = 0; y < opts.wy; y++) {
                 for (int x = 0; x < opts.wx; x++) {
-                    _get_node(self, x, y, &cell_player);
+                    get_node(self, x, y, &cell_player);
                     if (cell_player == TWIXT_PP_PLAYER_INVALID || cell_player == TWIXT_PP_PLAYER_NONE) {
                         continue;
                     } else {
-                        _set_node(self, x, y, cell_player, conn_masks[y][x], NULL);
+                        set_node(self, x, y, cell_player, conn_masks[y][x], NULL);
                         //TODO record iswin to check with the later set winning player
                     }
                 }
@@ -490,19 +490,19 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _export_state(game* self, size_t* ret_size, char* str)
+    error_code export_state(game* self, size_t* ret_size, char* str)
     {
         if (str == NULL) {
             return ERR_INVALID_INPUT;
         }
-        opts_repr& opts = _get_opts(self);
-        data_repr& data = _get_repr(self);
+        opts_repr& opts = get_opts(self);
+        data_repr& data = get_repr(self);
         const char* ostr = str;
         TWIXT_PP_PLAYER cell_player;
         for (int y = 0; y < opts.wy; y++) {
             int empty_cells = 0;
             for (int x = 0; x < opts.wx; x++) {
-                _get_node(self, x, y, &cell_player);
+                get_node(self, x, y, &cell_player);
                 if (cell_player == TWIXT_PP_PLAYER_INVALID) {
                     continue;
                 }
@@ -518,16 +518,16 @@ namespace {
                     // if the current node does not have all right/bottom dir connections available actually placed, add the connection pattern
                     uint8_t dir_available = 0;
                     TWIXT_PP_PLAYER avail_player;
-                    _get_node(self, x + 2, y - 1, &avail_player);
+                    get_node(self, x + 2, y - 1, &avail_player);
                     dir_available |= (cell_player == avail_player ? TWIXT_PP_DIR_RT : 0);
-                    _get_node(self, x + 2, y + 1, &avail_player);
+                    get_node(self, x + 2, y + 1, &avail_player);
                     dir_available |= (cell_player == avail_player ? TWIXT_PP_DIR_RB : 0);
-                    _get_node(self, x + 1, y + 2, &avail_player);
+                    get_node(self, x + 1, y + 2, &avail_player);
                     dir_available |= (cell_player == avail_player ? TWIXT_PP_DIR_BR : 0);
-                    _get_node(self, x - 1, y + 2, &avail_player);
+                    get_node(self, x - 1, y + 2, &avail_player);
                     dir_available |= (cell_player == avail_player ? TWIXT_PP_DIR_BL : 0);
                     uint8_t realized_conns;
-                    _get_node_connections(self, x, y, &realized_conns);
+                    get_node_connections(self, x, y, &realized_conns);
                     if (dir_available & ~realized_conns) {
                         // there exist available connections that are not realized, emit connection pattern
                         str += sprintf(str, "%c%c%c%c",
@@ -548,7 +548,7 @@ namespace {
         // current player
         player_id ptm;
         uint8_t ptm_count;
-        _players_to_move(self, &ptm_count, &ptm);
+        players_to_move(self, &ptm_count, &ptm);
         if (ptm_count == 0) {
             ptm = TWIXT_PP_PLAYER_NONE;
         }
@@ -566,7 +566,7 @@ namespace {
         // result player
         player_id res;
         uint8_t res_count;
-        _get_results(self, &res_count, &res);
+        get_results(self, &res_count, &res);
         if (res_count == 0) {
             res = TWIXT_PP_PLAYER_NONE;
         }
@@ -585,13 +585,13 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players)
+    error_code players_to_move(game* self, uint8_t* ret_count, player_id* players)
     {
         if (players == NULL) {
             return ERR_INVALID_INPUT;
         }
         *ret_count = 1;
-        data_repr& data = _get_repr(self);
+        data_repr& data = get_repr(self);
         if (data.current_player == PLAYER_NONE) {
             *ret_count = 0;
             return ERR_OK;
@@ -600,13 +600,13 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves)
+    error_code get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves)
     {
         if (moves == NULL) {
             return ERR_INVALID_INPUT;
         }
-        opts_repr& opts = _get_opts(self);
-        data_repr& data = _get_repr(self);
+        opts_repr& opts = get_opts(self);
+        data_repr& data = get_repr(self);
         uint32_t move_cnt = 0;
         for (int iy = 0; iy < opts.wy; iy++) {
             if ((iy == 0 || iy == opts.wy - 1) && player == TWIXT_PP_PLAYER_BLACK) {
@@ -629,18 +629,18 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _is_legal_move(game* self, player_id player, move_code move, sync_counter sync)
+    error_code is_legal_move(game* self, player_id player, move_code move, sync_counter sync)
     {
         if (move == MOVE_NONE) {
             return ERR_INVALID_INPUT;
         }
         player_id ptm;
         uint8_t ptm_count;
-        _players_to_move(self, &ptm_count, &ptm);
+        players_to_move(self, &ptm_count, &ptm);
         if (ptm != player) {
             return ERR_INVALID_INPUT;
         }
-        data_repr& data = _get_repr(self);
+        data_repr& data = get_repr(self);
         if (move == TWIXT_PP_MOVE_SWAP) {
             if (data.pie_swap == true && data.current_player == TWIXT_PP_PLAYER_BLACK) {
                 return ERR_OK;
@@ -652,17 +652,17 @@ namespace {
         if (data.gameboard[iy][ix].player != TWIXT_PP_PLAYER_NONE) {
             return ERR_INVALID_INPUT;
         }
-        opts_repr& opts = _get_opts(self);
+        opts_repr& opts = get_opts(self);
         if (((ix == 0 || ix == opts.wx - 1) && player == TWIXT_PP_PLAYER_WHITE) || ((iy == 0 || iy == opts.wy - 1) && player == TWIXT_PP_PLAYER_BLACK)) {
             return ERR_INVALID_INPUT;
         }
         return ERR_OK;
     }
 
-    error_code _make_move(game* self, player_id player, move_code move)
+    error_code make_move(game* self, player_id player, move_code move)
     {
-        opts_repr& opts = _get_opts(self);
-        data_repr& data = _get_repr(self);
+        opts_repr& opts = get_opts(self);
+        data_repr& data = get_repr(self);
 
         if (move == TWIXT_PP_MOVE_SWAP) {
             // use swap target to give whites move to black
@@ -695,7 +695,7 @@ namespace {
 
         bool wins;
         // set node updates graph structures in the backend, and informs us if this move is winning for the current player
-        _set_node(self, tx, ty, data.current_player, 0xFF, &wins);
+        set_node(self, tx, ty, data.current_player, 0xFF, &wins);
 
         if (tx > 0 && tx < opts.wx - 1 && ty > 0 && ty < opts.wy) {
             data.remaining_inner_nodes--;
@@ -715,13 +715,13 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _get_results(game* self, uint8_t* ret_count, player_id* players)
+    error_code get_results(game* self, uint8_t* ret_count, player_id* players)
     {
         if (players == NULL) {
             return ERR_INVALID_INPUT;
         }
         *ret_count = 1;
-        data_repr& data = _get_repr(self);
+        data_repr& data = get_repr(self);
         if (data.current_player != TWIXT_PP_PLAYER_NONE) {
             *ret_count = 0;
             return ERR_OK;
@@ -730,26 +730,26 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _playout(game* self, uint64_t seed)
+    error_code playout(game* self, uint64_t seed)
     {
         uint32_t ctr = 0;
         move_code* moves;
         uint32_t moves_count;
-        _get_concrete_moves(self, TWIXT_PP_PLAYER_NONE, &moves_count, moves);
+        get_concrete_moves(self, TWIXT_PP_PLAYER_NONE, &moves_count, moves);
         moves = (move_code*)malloc(moves_count * sizeof(move_code));
         player_id ptm;
         uint8_t ptm_count;
-        _players_to_move(self, &ptm_count, &ptm);
+        players_to_move(self, &ptm_count, &ptm);
         while (ptm_count > 0) {
-            _get_concrete_moves(self, ptm, &moves_count, moves);
-            _make_move(self, ptm ,moves[squirrelnoise5(ctr++, seed)%moves_count]);
-            _players_to_move(self, &ptm_count, &ptm);
+            get_concrete_moves(self, ptm, &moves_count, moves);
+            make_move(self, ptm ,moves[squirrelnoise5(ctr++, seed)%moves_count]);
+            players_to_move(self, &ptm_count, &ptm);
         }
         free(moves);
         return ERR_OK;
     }
 
-    error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move)
+    error_code get_move_code(game* self, player_id player, const char* str, move_code* ret_move)
     {
         if (strlen(str) >= 1 && str[0] == '-') {
             *ret_move = MOVE_NONE;
@@ -759,7 +759,7 @@ namespace {
             *ret_move = MOVE_NONE;
             return ERR_INVALID_INPUT;
         }
-        opts_repr& opts = _get_opts(self);
+        opts_repr& opts = get_opts(self);
         if (opts.pie_swap == true && strcmp(str, "swap") == 0) {
             *ret_move = TWIXT_PP_MOVE_SWAP;
             return ERR_OK;
@@ -779,7 +779,7 @@ namespace {
         // y = opts.wy - y - 1; // swap out y coords so axes are bottom left
         y--; // move strings go from 1-n
         TWIXT_PP_PLAYER cell_player;
-        _get_node(self, x, y, &cell_player);
+        get_node(self, x, y, &cell_player);
         if (cell_player == TWIXT_PP_PLAYER_INVALID) {
             *ret_move = MOVE_NONE;
             return ERR_INVALID_INPUT;
@@ -788,7 +788,7 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf)
+    error_code get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf)
     {
         if (str_buf == NULL) {
             return ERR_INVALID_INPUT;
@@ -797,7 +797,7 @@ namespace {
             *ret_size = sprintf(str_buf, "-");
             return ERR_OK;
         }
-        opts_repr& opts = _get_opts(self);
+        opts_repr& opts = get_opts(self);
         if (opts.pie_swap == true && move == TWIXT_PP_MOVE_SWAP) {
             *ret_size = sprintf(str_buf, "swap");
             return ERR_OK;
@@ -820,13 +820,13 @@ namespace {
     }
 
     //TODO somehow needs to display disambiguation information for position where realized connections of nodes are not clear
-    error_code _debug_print(game* self, size_t* ret_size, char* str_buf)
+    error_code debug_print(game* self, size_t* ret_size, char* str_buf)
     {
         if (str_buf == NULL) {
             return ERR_INVALID_INPUT;
         }
-        opts_repr& opts = _get_opts(self);
-        data_repr& data = _get_repr(self);
+        opts_repr& opts = get_opts(self);
+        data_repr& data = get_repr(self);
         const char* ostr = str_buf;
 
         // print all node infos and all graphs for debugging purposes
@@ -844,7 +844,7 @@ namespace {
         for (int iy = 0; iy < opts.wy; iy++) {
             for (int ix = 0; ix < opts.wy; ix++) {
                 TWIXT_PP_PLAYER node_player = TWIXT_PP_PLAYER_INVALID;
-                _get_node(self, ix, iy, &node_player);
+                get_node(self, ix, iy, &node_player);
                 switch (node_player) {
                     case TWIXT_PP_PLAYER_INVALID: {
                         str_buf += sprintf(str_buf, " ");
@@ -869,10 +869,10 @@ namespace {
     //=====
     // game internal methods
 
-    error_code _get_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER* p)
+    error_code get_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER* p)
     {
-        opts_repr& opts = _get_opts(self);
-        data_repr& data = _get_repr(self);
+        opts_repr& opts = get_opts(self);
+        data_repr& data = get_repr(self);
         if (x < 0 || y < 0 || x >= opts.wx || y >= opts.wy) {
             *p = TWIXT_PP_PLAYER_INVALID;
         } else {
@@ -881,10 +881,10 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _set_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER p, uint8_t connection_mask, bool* wins)
+    error_code set_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER p, uint8_t connection_mask, bool* wins)
     {
-        opts_repr& opts = _get_opts(self);
-        data_repr& data = _get_repr(self);
+        opts_repr& opts = get_opts(self);
+        data_repr& data = get_repr(self);
         data.gameboard[y][x].player = p;
         if (p == TWIXT_PP_PLAYER_NONE) {
             if (wins) {
@@ -896,35 +896,35 @@ namespace {
         bool win = false;
         bool rwins;
         if (connection_mask & TWIXT_PP_DIR_RT) {
-            _set_connection(self, x, y, x + 2, y - 1, &rwins);
+            set_connection(self, x, y, x + 2, y - 1, &rwins);
             win |= rwins;
         }
         if (connection_mask & TWIXT_PP_DIR_RB) {
-            _set_connection(self, x, y, x + 2, y + 1, &rwins);
+            set_connection(self, x, y, x + 2, y + 1, &rwins);
             win |= rwins;
         }
         if (connection_mask & TWIXT_PP_DIR_BR) {
-            _set_connection(self, x, y, x + 1, y + 2, &rwins);
+            set_connection(self, x, y, x + 1, y + 2, &rwins);
             win |= rwins;
         }
         if (connection_mask & TWIXT_PP_DIR_BL) {
-            _set_connection(self, x, y, x - 1, y + 2, &rwins);
+            set_connection(self, x, y, x - 1, y + 2, &rwins);
             win |= rwins;
         }
         if (connection_mask & (TWIXT_PP_DIR_RT<<4)) {
-            _set_connection(self, x - 2, y + 1, x, y, &rwins);
+            set_connection(self, x - 2, y + 1, x, y, &rwins);
             win |= rwins;
         }
         if (connection_mask & (TWIXT_PP_DIR_RB<<4)) {
-            _set_connection(self, x - 2, y - 1, x, y, &rwins);
+            set_connection(self, x - 2, y - 1, x, y, &rwins);
             win |= rwins;
         }
         if (connection_mask & (TWIXT_PP_DIR_BR<<4)) {
-            _set_connection(self, x - 1, y - 2, x, y, &rwins);
+            set_connection(self, x - 1, y - 2, x, y, &rwins);
             win |= rwins;
         }
         if (connection_mask & (TWIXT_PP_DIR_BL<<4)) {
-            _set_connection(self, x + 1, y - 2, x, y, &rwins);
+            set_connection(self, x + 1, y - 2, x, y, &rwins);
             win |= rwins;
         }
         if (data.gameboard[y][x].graph_id == 0) {
@@ -943,10 +943,10 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _get_node_connections(game* self, uint8_t x, uint8_t y, uint8_t* connections)
+    error_code get_node_connections(game* self, uint8_t x, uint8_t y, uint8_t* connections)
     {
-        opts_repr& opts = _get_opts(self);
-        data_repr& data = _get_repr(self);
+        opts_repr& opts = get_opts(self);
+        data_repr& data = get_repr(self);
         if (x < 0 || y < 0 || x >= opts.wx || y >= opts.wy) {
             *connections = 0;
         } else {
@@ -955,10 +955,10 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _get_node_collisions(game* self, uint8_t x, uint8_t y, uint8_t* collisions)
+    error_code get_node_collisions(game* self, uint8_t x, uint8_t y, uint8_t* collisions)
     {
-        opts_repr& opts = _get_opts(self);
-        data_repr& data = _get_repr(self);
+        opts_repr& opts = get_opts(self);
+        data_repr& data = get_repr(self);
         if (x < 0 || y < 0 || x >= opts.wx || y >= opts.wy) {
             *collisions = 0;
         } else {
@@ -968,28 +968,28 @@ namespace {
     }
 
     // impl hidden: try to add the collision if node exists, do not adjust by player offset
-    void _add_collision(game* self, uint8_t x, uint8_t y, uint8_t dir, TWIXT_PP_PLAYER np)
+    void add_collision(game* self, uint8_t x, uint8_t y, uint8_t dir, TWIXT_PP_PLAYER np)
     {
-        opts_repr& opts = _get_opts(self);
-        data_repr& data = _get_repr(self);
+        opts_repr& opts = get_opts(self);
+        data_repr& data = get_repr(self);
         if (x < 0 || y < 0 || x >= opts.wx || y >= opts.wy) {
             return;
         }
         data.gameboard[y][x].collisions |= (dir << (np == TWIXT_PP_PLAYER_WHITE ? 4 : 0));
     }
-    error_code _set_connection(game* self, uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, bool* wins)
+    error_code set_connection(game* self, uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, bool* wins)
     {
         // check that all of the point exist, and there is no out of bounds
         TWIXT_PP_PLAYER np1;
-        _get_node(self, x1, y1, &np1);
+        get_node(self, x1, y1, &np1);
         TWIXT_PP_PLAYER np2;
-        _get_node(self, x2, y2, &np2);
+        get_node(self, x2, y2, &np2);
         if (np1 == TWIXT_PP_PLAYER_INVALID || np2 == TWIXT_PP_PLAYER_INVALID || np1 != np2 || np1 == TWIXT_PP_PLAYER_NONE) {
             return ERR_OK;
         }
 
-        opts_repr& opts = _get_opts(self);
-        data_repr& data = _get_repr(self);
+        opts_repr& opts = get_opts(self);
+        data_repr& data = get_repr(self);
         // get what type of connection this is
         uint8_t conn_dir = 0;
         if (x2 < x1) {
@@ -1020,48 +1020,48 @@ namespace {
             likewise just rotating gives the other combination for both mirrored sides
             */
             case (TWIXT_PP_DIR_RT): { // right top
-                _add_collision(self, x1 + 1, y1 - 1, TWIXT_PP_DIR_RB, op); // 1
-                _add_collision(self, x1 + 2, y1 - 2, TWIXT_PP_DIR_BL, op); // 2
-                _add_collision(self, x1 + 1, y1 - 2, TWIXT_PP_DIR_BR, op); // 3
-                _add_collision(self, x1 + 0, y1 - 1, TWIXT_PP_DIR_RB, op); // 4
-                _add_collision(self, x1 + 1, y1 - 1, TWIXT_PP_DIR_BR, op); // 5
-                _add_collision(self, x1 + 1, y1 - 1, TWIXT_PP_DIR_BL, op); // 6
-                _add_collision(self, x1 + 0, y1 - 2, TWIXT_PP_DIR_BR, op); // 7
-                _add_collision(self, x1 - 1, y1 - 1, TWIXT_PP_DIR_RB, op); // 8
-                _add_collision(self, x1 + 0, y1 - 1, TWIXT_PP_DIR_BR, op); // 9
+                add_collision(self, x1 + 1, y1 - 1, TWIXT_PP_DIR_RB, op); // 1
+                add_collision(self, x1 + 2, y1 - 2, TWIXT_PP_DIR_BL, op); // 2
+                add_collision(self, x1 + 1, y1 - 2, TWIXT_PP_DIR_BR, op); // 3
+                add_collision(self, x1 + 0, y1 - 1, TWIXT_PP_DIR_RB, op); // 4
+                add_collision(self, x1 + 1, y1 - 1, TWIXT_PP_DIR_BR, op); // 5
+                add_collision(self, x1 + 1, y1 - 1, TWIXT_PP_DIR_BL, op); // 6
+                add_collision(self, x1 + 0, y1 - 2, TWIXT_PP_DIR_BR, op); // 7
+                add_collision(self, x1 - 1, y1 - 1, TWIXT_PP_DIR_RB, op); // 8
+                add_collision(self, x1 + 0, y1 - 1, TWIXT_PP_DIR_BR, op); // 9
             } break;
             case (TWIXT_PP_DIR_RB): { // right bottom
-                _add_collision(self, x1 - 1, y1 + 1, TWIXT_PP_DIR_RT, op); // 1
-                _add_collision(self, x1 + 0, y1 - 1, TWIXT_PP_DIR_BR, op); // 2
-                _add_collision(self, x1 + 1, y1 - 1, TWIXT_PP_DIR_BL, op); // 3
-                _add_collision(self, x1 + 0, y1 + 1, TWIXT_PP_DIR_RT, op); // 4
-                _add_collision(self, x1 + 1, y1 + 0, TWIXT_PP_DIR_BL, op); // 5
-                _add_collision(self, x1 + 1, y1 + 0, TWIXT_PP_DIR_BR, op); // 6
-                _add_collision(self, x1 + 2, y1 - 1, TWIXT_PP_DIR_BL, op); // 7
-                _add_collision(self, x1 + 1, y1 + 1, TWIXT_PP_DIR_RT, op); // 8
-                _add_collision(self, x1 + 2, y1 + 0, TWIXT_PP_DIR_BL, op); // 9
+                add_collision(self, x1 - 1, y1 + 1, TWIXT_PP_DIR_RT, op); // 1
+                add_collision(self, x1 + 0, y1 - 1, TWIXT_PP_DIR_BR, op); // 2
+                add_collision(self, x1 + 1, y1 - 1, TWIXT_PP_DIR_BL, op); // 3
+                add_collision(self, x1 + 0, y1 + 1, TWIXT_PP_DIR_RT, op); // 4
+                add_collision(self, x1 + 1, y1 + 0, TWIXT_PP_DIR_BL, op); // 5
+                add_collision(self, x1 + 1, y1 + 0, TWIXT_PP_DIR_BR, op); // 6
+                add_collision(self, x1 + 2, y1 - 1, TWIXT_PP_DIR_BL, op); // 7
+                add_collision(self, x1 + 1, y1 + 1, TWIXT_PP_DIR_RT, op); // 8
+                add_collision(self, x1 + 2, y1 + 0, TWIXT_PP_DIR_BL, op); // 9
             } break;
             case (TWIXT_PP_DIR_BR): { // bottom right
-                _add_collision(self, x1 + 1, y1 + 1, TWIXT_PP_DIR_BL, op); // 1
-                _add_collision(self, x1 + 0, y1 + 1, TWIXT_PP_DIR_RB, op); // 2
-                _add_collision(self, x1 + 0, y1 + 2, TWIXT_PP_DIR_RT, op); // 3
-                _add_collision(self, x1 + 1, y1 + 0, TWIXT_PP_DIR_BL, op); // 4
-                _add_collision(self, x1 - 1, y1 + 2, TWIXT_PP_DIR_RT, op); // 5
-                _add_collision(self, x1 - 1, y1 + 0, TWIXT_PP_DIR_RB, op); // 6
-                _add_collision(self, x1 + 0, y1 + 1, TWIXT_PP_DIR_RT, op); // 7
-                _add_collision(self, x1 + 1, y1 - 1, TWIXT_PP_DIR_BL, op); // 8
-                _add_collision(self, x1 - 1, y1 + 1, TWIXT_PP_DIR_RT, op); // 9
+                add_collision(self, x1 + 1, y1 + 1, TWIXT_PP_DIR_BL, op); // 1
+                add_collision(self, x1 + 0, y1 + 1, TWIXT_PP_DIR_RB, op); // 2
+                add_collision(self, x1 + 0, y1 + 2, TWIXT_PP_DIR_RT, op); // 3
+                add_collision(self, x1 + 1, y1 + 0, TWIXT_PP_DIR_BL, op); // 4
+                add_collision(self, x1 - 1, y1 + 2, TWIXT_PP_DIR_RT, op); // 5
+                add_collision(self, x1 - 1, y1 + 0, TWIXT_PP_DIR_RB, op); // 6
+                add_collision(self, x1 + 0, y1 + 1, TWIXT_PP_DIR_RT, op); // 7
+                add_collision(self, x1 + 1, y1 - 1, TWIXT_PP_DIR_BL, op); // 8
+                add_collision(self, x1 - 1, y1 + 1, TWIXT_PP_DIR_RT, op); // 9
             } break;
             case (TWIXT_PP_DIR_BL): { // bottom left
-                _add_collision(self, x1 - 1, y1 - 1, TWIXT_PP_DIR_BR, op); // 1
-                _add_collision(self, x1 - 1, y1 + 1, TWIXT_PP_DIR_RT, op); // 2
-                _add_collision(self, x1 - 1, y1 + 0, TWIXT_PP_DIR_RB, op); // 3
-                _add_collision(self, x1 - 1, y1 + 0, TWIXT_PP_DIR_BR, op); // 4
-                _add_collision(self, x1 - 2, y1 + 0, TWIXT_PP_DIR_RB, op); // 5
-                _add_collision(self, x1 - 2, y1 + 2, TWIXT_PP_DIR_RT, op); // 6
-                _add_collision(self, x1 - 1, y1 + 1, TWIXT_PP_DIR_RB, op); // 7
-                _add_collision(self, x1 - 1, y1 + 1, TWIXT_PP_DIR_BR, op); // 8
-                _add_collision(self, x1 - 2, y1 + 1, TWIXT_PP_DIR_RB, op); // 9
+                add_collision(self, x1 - 1, y1 - 1, TWIXT_PP_DIR_BR, op); // 1
+                add_collision(self, x1 - 1, y1 + 1, TWIXT_PP_DIR_RT, op); // 2
+                add_collision(self, x1 - 1, y1 + 0, TWIXT_PP_DIR_RB, op); // 3
+                add_collision(self, x1 - 1, y1 + 0, TWIXT_PP_DIR_BR, op); // 4
+                add_collision(self, x1 - 2, y1 + 0, TWIXT_PP_DIR_RB, op); // 5
+                add_collision(self, x1 - 2, y1 + 2, TWIXT_PP_DIR_RT, op); // 6
+                add_collision(self, x1 - 1, y1 + 1, TWIXT_PP_DIR_RB, op); // 7
+                add_collision(self, x1 - 1, y1 + 1, TWIXT_PP_DIR_BR, op); // 8
+                add_collision(self, x1 - 2, y1 + 1, TWIXT_PP_DIR_RB, op); // 9
             } break;
         }
 
@@ -1123,9 +1123,9 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _can_swap(game* self, bool* swap_available)
+    error_code can_swap(game* self, bool* swap_available)
     {
-        data_repr& data = _get_repr(self);
+        data_repr& data = get_repr(self);
         *swap_available = (data.pie_swap == true && data.current_player == TWIXT_PP_PLAYER_BLACK);
         return ERR_OK;
     }
@@ -1133,12 +1133,12 @@ namespace {
 }
 
 static const twixt_pp_internal_methods twixt_pp_gbe_internal_methods{
-    .get_node = _get_node,
-    .set_node = _set_node,
-    .get_node_connections = _get_node_connections,
-    .get_node_collisions = _get_node_collisions,
-    .set_connection = _set_connection,
-    .can_swap = _can_swap,
+    .get_node = get_node,
+    .set_node = set_node,
+    .get_node_connections = get_node_connections,
+    .get_node_collisions = get_node_collisions,
+    .set_connection = set_connection,
+    .can_swap = can_swap,
 };
 
 const game_methods twixt_pp_gbe{

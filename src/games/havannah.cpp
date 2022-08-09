@@ -35,66 +35,66 @@ namespace {
         std::vector<std::vector<havannah_tile>> gameboard;
     };
 
-    opts_repr& _get_opts(game* self)
+    opts_repr& get_opts(game* self)
     {
         return ((data_repr*)(self->data1))->opts;
     }
 
-    data_repr& _get_repr(game* self)
+    data_repr& get_repr(game* self)
     {
         return *((data_repr*)(self->data1));
     }
 
     // forward declare everything to allow for inlining at least in this unit
-    const char* _get_last_error(game* self);
-    error_code _create_with_opts_str(game* self, const char* str);
-    error_code _create_with_opts_bin(game* self, void* options_struct);
+    const char* get_last_error(game* self);
+    error_code create_with_opts_str(game* self, const char* str);
+    error_code create_with_opts_bin(game* self, void* options_struct);
     GF_UNUSED(create_deserialize);
-    error_code _create_default(game* self);
-    error_code _export_options_str(game* self, size_t* ret_size, char* str);
+    error_code create_default(game* self);
+    error_code export_options_str(game* self, size_t* ret_size, char* str);
     GF_UNUSED(get_options_bin_ref);
-    error_code _destroy(game* self);
-    error_code _clone(game* self, game* clone_target);
-    error_code _copy_from(game* self, game* other);
-    error_code _compare(game* self, game* other, bool* ret_equal);
-    error_code _import_state(game* self, const char* str);
-    error_code _export_state(game* self, size_t* ret_size, char* str);
+    error_code destroy(game* self);
+    error_code clone(game* self, game* clone_target);
+    error_code copy_from(game* self, game* other);
+    error_code compare(game* self, game* other, bool* ret_equal);
+    error_code import_state(game* self, const char* str);
+    error_code export_state(game* self, size_t* ret_size, char* str);
     GF_UNUSED(serialize);
-    error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players);
-    error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves);
+    error_code players_to_move(game* self, uint8_t* ret_count, player_id* players);
+    error_code get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves);
     GF_UNUSED(get_concrete_move_probabilities);
     GF_UNUSED(get_concrete_moves_ordered);
     GF_UNUSED(get_actions);
-    error_code _is_legal_move(game* self, player_id player, move_code move, sync_counter sync);
+    error_code is_legal_move(game* self, player_id player, move_code move, sync_counter sync);
     GF_UNUSED(move_to_action);
     GF_UNUSED(is_action);
-    error_code _make_move(game* self, player_id player, move_code move);
-    error_code _get_results(game* self, uint8_t* ret_count, player_id* players);
+    error_code make_move(game* self, player_id player, move_code move);
+    error_code get_results(game* self, uint8_t* ret_count, player_id* players);
     GF_UNUSED(get_sync_counter);
     GF_UNUSED(id);
     GF_UNUSED(eval);
     GF_UNUSED(discretize);
-    error_code _playout(game* self, uint64_t seed);
+    error_code playout(game* self, uint64_t seed);
     GF_UNUSED(redact_keep_state);
     GF_UNUSED(export_sync_data);
     GF_UNUSED(release_sync_data);
     GF_UNUSED(import_sync_data);
-    error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move);
-    error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
-    error_code _debug_print(game* self, size_t* ret_size, char* str_buf);
+    error_code get_move_code(game* self, player_id player, const char* str, move_code* ret_move);
+    error_code get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
+    error_code debug_print(game* self, size_t* ret_size, char* str_buf);
 
-    error_code _get_cell(game* self, int x, int y, HAVANNAH_PLAYER* p);
-    error_code _set_cell(game* self, int x, int y, HAVANNAH_PLAYER p, bool* wins);
-    error_code _get_size(game* self, int* size);
+    error_code get_cell(game* self, int x, int y, HAVANNAH_PLAYER* p);
+    error_code set_cell(game* self, int x, int y, HAVANNAH_PLAYER p, bool* wins);
+    error_code get_size(game* self, int* size);
 
     // implementation
 
-    const char* _get_last_error(game* self)
+    const char* get_last_error(game* self)
     {
         return (char*)self->data2; // in this scheme opts are saved together with the state in data1, and data2 is the last error string
     }
 
-    error_code _create_with_opts_str(game* self, const char* str)
+    error_code create_with_opts_str(game* self, const char* str)
     {
         self->data1 = new(malloc(sizeof(data_repr))) data_repr();
         if (self->data1 == NULL) {
@@ -102,7 +102,7 @@ namespace {
         }
         self->data2 = NULL;
         
-        opts_repr& opts = _get_opts(self);
+        opts_repr& opts = get_opts(self);
         opts.size = 8;
         if (str != NULL) {
             int ec = sscanf(str, "%u", &opts.size);
@@ -127,7 +127,7 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _create_with_opts_bin(game* self, void* options_struct)
+    error_code create_with_opts_bin(game* self, void* options_struct)
     {
         self->data1 = new(malloc(sizeof(data_repr))) data_repr();
         if (self->data1 == NULL) {
@@ -135,7 +135,7 @@ namespace {
         }
         self->data2 = NULL;
         
-        opts_repr& opts = _get_opts(self);
+        opts_repr& opts = get_opts(self);
         opts.size = 8;
         if (options_struct != NULL) {
             opts = *(opts_repr*)options_struct;
@@ -155,7 +155,7 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _create_default(game* self)
+    error_code create_default(game* self)
     {
         self->data1 = new(malloc(sizeof(data_repr))) data_repr();
         if (self->data1 == NULL) {
@@ -163,7 +163,7 @@ namespace {
         }
         self->data2 = NULL;
 
-        opts_repr& opts = _get_opts(self);
+        opts_repr& opts = get_opts(self);
         opts.size = 8;
         opts.board_sizer = 2 * opts.size - 1;
 
@@ -180,17 +180,17 @@ namespace {
         return ERR_OK;
     }
     
-    error_code _export_options_str(game* self, size_t* ret_size, char* str)
+    error_code export_options_str(game* self, size_t* ret_size, char* str)
     {
         if (str == NULL) {
             return ERR_INVALID_INPUT;
         }
-        opts_repr& opts = _get_opts(self);
+        opts_repr& opts = get_opts(self);
         *ret_size = sprintf(str, "%u", opts.size);
         return ERR_OK;
     }
 
-    error_code _destroy(game* self)
+    error_code destroy(game* self)
     {
         delete (data_repr*)self->data1;
         // free(self->data); // not required in the vector+map version
@@ -200,13 +200,13 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _clone(game* self, game* clone_target)
+    error_code clone(game* self, game* clone_target)
     {
         if (clone_target == NULL) {
             return ERR_INVALID_INPUT;
         }
         clone_target->methods = self->methods;
-        opts_repr& opts = _get_opts(self);
+        opts_repr& opts = get_opts(self);
         error_code ec = clone_target->methods->create_with_opts_bin(clone_target, &opts);
         if (ec != ERR_OK) {
             return ec;
@@ -215,13 +215,13 @@ namespace {
         return ERR_OK;
     }
     
-    error_code _copy_from(game* self, game* other)
+    error_code copy_from(game* self, game* other)
     {
         *(data_repr*)self->data1 = *(data_repr*)other->data1;
         return ERR_OK;
     }
 
-    error_code _compare(game* self, game* other, bool* ret_equal)
+    error_code compare(game* self, game* other, bool* ret_equal)
     {
         //BUG this doesnt actually work with the vector and map
         // *ret_equal = (memcmp(self->data1, other->data1, sizeof(data_repr)) == 0);
@@ -230,10 +230,10 @@ namespace {
         return ERR_STATE_CORRUPTED;
     }
 
-    error_code _import_state(game* self, const char* str)
+    error_code import_state(game* self, const char* str)
     {
-        opts_repr& opts = _get_opts(self);
-        data_repr& data = _get_repr(self);
+        opts_repr& opts = get_opts(self);
+        data_repr& data = get_repr(self);
         data.remaining_tiles = (opts.board_sizer * opts.board_sizer) - (opts.size * (opts.size - 1));
         data.current_player = HAVANNAH_PLAYER_WHITE;
         data.winning_player = HAVANNAH_PLAYER_INVALID;
@@ -266,14 +266,14 @@ namespace {
                         // out of bounds board
                         return ERR_INVALID_INPUT;
                     }
-                    _set_cell(self, x++, y, HAVANNAH_PLAYER_WHITE, NULL);
+                    set_cell(self, x++, y, HAVANNAH_PLAYER_WHITE, NULL);
                 } break;
                 case 'X': {
                     if (!((x - y < opts.size) && (y - x < opts.size))) {
                         // out of bounds board
                         return ERR_INVALID_INPUT;
                     }
-                    _set_cell(self, x++, y, HAVANNAH_PLAYER_BLACK, NULL);
+                    set_cell(self, x++, y, HAVANNAH_PLAYER_BLACK, NULL);
                 } break;
                 case '1':
                 case '2':
@@ -306,7 +306,7 @@ namespace {
                             // out of bounds board
                             return ERR_INVALID_INPUT;
                         }
-                        _set_cell(self, x++, y, HAVANNAH_PLAYER_NONE, NULL);
+                        set_cell(self, x++, y, HAVANNAH_PLAYER_NONE, NULL);
                     }
                 } break;
                 case '/': { // advance to next
@@ -365,13 +365,13 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _export_state(game* self, size_t* ret_size, char* str)
+    error_code export_state(game* self, size_t* ret_size, char* str)
     {
         if (str == NULL) {
             return ERR_INVALID_INPUT;
         }
-        opts_repr& opts = _get_opts(self);
-        data_repr& data = _get_repr(self);
+        opts_repr& opts = get_opts(self);
+        data_repr& data = get_repr(self);
         const char* ostr = str;
         HAVANNAH_PLAYER cell_player;
         for (int y = 0; y < opts.board_sizer; y++) {
@@ -380,7 +380,7 @@ namespace {
                 if (!((x - y < opts.size) && (y - x < opts.size))) {
                     continue;
                 }
-                _get_cell(self, x, y, &cell_player);
+                get_cell(self, x, y, &cell_player);
                 if (cell_player == PLAYER_NONE) {
                     empty_cells++;
                 } else {
@@ -402,7 +402,7 @@ namespace {
         // current player
         player_id ptm;
         uint8_t ptm_count;
-        _players_to_move(self, &ptm_count, &ptm);
+        players_to_move(self, &ptm_count, &ptm);
         if (ptm_count == 0) {
             ptm = HAVANNAH_PLAYER_NONE;
         }
@@ -420,7 +420,7 @@ namespace {
         // result player
         player_id res;
         uint8_t res_count;
-        _get_results(self, &res_count, &res);
+        get_results(self, &res_count, &res);
         if (res_count == 0) {
             res = HAVANNAH_PLAYER_NONE;
         }
@@ -439,13 +439,13 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _players_to_move(game* self, uint8_t* ret_count, player_id* players)
+    error_code players_to_move(game* self, uint8_t* ret_count, player_id* players)
     {
         if (players == NULL) {
             return ERR_INVALID_INPUT;
         }
         *ret_count = 1;
-        data_repr& data = _get_repr(self);
+        data_repr& data = get_repr(self);
         if (data.current_player == PLAYER_NONE) {
             *ret_count = 0;
             return ERR_OK;
@@ -454,13 +454,13 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves)
+    error_code get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves)
     {
         if (moves == NULL) {
             return ERR_INVALID_INPUT;
         }
-        opts_repr& opts = _get_opts(self);
-        data_repr& data = _get_repr(self);
+        opts_repr& opts = get_opts(self);
+        data_repr& data = get_repr(self);
         uint32_t move_cnt = 0;
         for (int iy = 0; iy < opts.board_sizer; iy++) {
             for (int ix = 0; ix < opts.board_sizer; ix++) {
@@ -474,18 +474,18 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _is_legal_move(game* self, player_id player, move_code move, sync_counter sync)
+    error_code is_legal_move(game* self, player_id player, move_code move, sync_counter sync)
     {
         if (move == MOVE_NONE) {
             return ERR_INVALID_INPUT;
         }
         player_id ptm;
         uint8_t ptm_count;
-        _players_to_move(self, &ptm_count, &ptm);
+        players_to_move(self, &ptm_count, &ptm);
         if (ptm != player) {
             return ERR_INVALID_INPUT;
         }
-        data_repr& data = _get_repr(self);
+        data_repr& data = get_repr(self);
         int ix = (move >> 8) & 0xFF;
         int iy = move & 0xFF;
         if (data.gameboard[iy][ix].color != HAVANNAH_PLAYER_NONE) {
@@ -494,16 +494,16 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _make_move(game* self, player_id player, move_code move)
+    error_code make_move(game* self, player_id player, move_code move)
     {
-        data_repr& data = _get_repr(self);
+        data_repr& data = get_repr(self);
         
         int tx = (move >> 8) & 0xFF;
         int ty = move & 0xFF;
 
         bool wins;
         // set cell updates graph structures in the backend, and informs us if this move is winning for the current player
-        _set_cell(self, tx, ty, data.current_player, &wins);
+        set_cell(self, tx, ty, data.current_player, &wins);
 
         // if current player is winner set appropriate state
         if (wins) {
@@ -528,13 +528,13 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _get_results(game* self, uint8_t* ret_count, player_id* players)
+    error_code get_results(game* self, uint8_t* ret_count, player_id* players)
     {
         if (players == NULL) {
             return ERR_INVALID_INPUT;
         }
         *ret_count = 1;
-        data_repr& data = _get_repr(self);
+        data_repr& data = get_repr(self);
         if (data.current_player != HAVANNAH_PLAYER_NONE) {
             *ret_count = 0;
             return ERR_OK;
@@ -543,26 +543,26 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _playout(game* self, uint64_t seed)
+    error_code playout(game* self, uint64_t seed)
     {
         uint32_t ctr = 0;
         move_code* moves;
         uint32_t moves_count;
-        _get_concrete_moves(self, HAVANNAH_PLAYER_NONE, &moves_count, moves);
+        get_concrete_moves(self, HAVANNAH_PLAYER_NONE, &moves_count, moves);
         moves = (move_code*)malloc(moves_count * sizeof(move_code));
         player_id ptm;
         uint8_t ptm_count;
-        _players_to_move(self, &ptm_count, &ptm);
+        players_to_move(self, &ptm_count, &ptm);
         while (ptm_count > 0) {
-            _get_concrete_moves(self, ptm, &moves_count, moves);
-            _make_move(self, ptm ,moves[squirrelnoise5(ctr++, seed)%moves_count]);
-            _players_to_move(self, &ptm_count, &ptm);
+            get_concrete_moves(self, ptm, &moves_count, moves);
+            make_move(self, ptm ,moves[squirrelnoise5(ctr++, seed)%moves_count]);
+            players_to_move(self, &ptm_count, &ptm);
         }
         free(moves);
         return ERR_OK;
     }
 
-    error_code _get_move_code(game* self, player_id player, const char* str, move_code* ret_move)
+    error_code get_move_code(game* self, player_id player, const char* str, move_code* ret_move)
     {
         if (strlen(str) >= 1 && str[0] == '-') {
             *ret_move = MOVE_NONE;
@@ -580,7 +580,7 @@ namespace {
         }
         int y = y8;
         HAVANNAH_PLAYER cell_player;
-        _get_cell(self, x, y, &cell_player);
+        get_cell(self, x, y, &cell_player);
         if (cell_player == HAVANNAH_PLAYER_INVALID) {
             *ret_move = MOVE_NONE;
             return ERR_INVALID_INPUT;
@@ -589,7 +589,7 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf)
+    error_code get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf)
     {
         if (str_buf == NULL) {
             return ERR_INVALID_INPUT;
@@ -604,13 +604,13 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _debug_print(game* self, size_t* ret_size, char* str_buf)
+    error_code debug_print(game* self, size_t* ret_size, char* str_buf)
     {
         if (str_buf == NULL) {
             return ERR_INVALID_INPUT;
         }
-        opts_repr& opts = _get_opts(self);
-        data_repr& data = _get_repr(self);
+        opts_repr& opts = get_opts(self);
+        data_repr& data = get_repr(self);
         const char* ostr = str_buf;
         switch (1) { //TODO proper switch in options
             case 0:
@@ -679,10 +679,10 @@ namespace {
     //=====
     // game internal methods
 
-    error_code _get_cell(game* self, int x, int y, HAVANNAH_PLAYER* p)
+    error_code get_cell(game* self, int x, int y, HAVANNAH_PLAYER* p)
     {
-        opts_repr& opts = _get_opts(self);
-        data_repr& data = _get_repr(self);
+        opts_repr& opts = get_opts(self);
+        data_repr& data = get_repr(self);
         if (x < 0 || y < 0 || x >= opts.board_sizer || y >= opts.board_sizer) {
             *p = HAVANNAH_PLAYER_INVALID;
         } else {
@@ -691,10 +691,10 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _set_cell(game* self, int x, int y, HAVANNAH_PLAYER p, bool* wins)
+    error_code set_cell(game* self, int x, int y, HAVANNAH_PLAYER p, bool* wins)
     {
-        opts_repr& opts = _get_opts(self);
-        data_repr& data = _get_repr(self);
+        opts_repr& opts = get_opts(self);
+        data_repr& data = get_repr(self);
 
         bool winner = false; // if this is true by the end, player p wins with this move
         uint8_t contribution_border = 0b00111111; // begin on the north-west corner and it's left border, going counter-clockwise
@@ -902,9 +902,9 @@ namespace {
         return ERR_OK;
     }
 
-    error_code _get_size(game* self, int* size)
+    error_code get_size(game* self, int* size)
     {
-        opts_repr& opts = _get_opts(self);
+        opts_repr& opts = get_opts(self);
         *size = opts.size;
         return ERR_OK;
     }
@@ -914,9 +914,9 @@ namespace {
 const char HAVANNAH_PLAYER_CHARS[4] = {'.', 'O', 'X', '-'}; // none, white, black, invalid
 
 static const havannah_internal_methods havannah_gbe_internal_methods{
-    .get_cell = _get_cell,
-    .set_cell = _set_cell,
-    .get_size = _get_size,
+    .get_cell = get_cell,
+    .set_cell = set_cell,
+    .get_size = get_size,
 };
 
 const game_methods havannah_gbe{
