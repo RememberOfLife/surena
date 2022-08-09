@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 12;
+static const uint64_t SURENA_GAME_API_VERSION = 13;
 
 typedef uint32_t error_code;
 // general purpose error codes
@@ -181,7 +181,7 @@ typedef struct game_methods_s {
     // use the given byte buffer to create the game data
     // calling this with a NULL buf is invalid
     // see create_default for more
-    error_code (*create_deserialize)(game* self, uint8_t* buf);
+    error_code (*create_deserialize)(game* self, char* buf);
 
     // construct and initialize a new game specific data object into self
     // if any options exist, the defaults are used

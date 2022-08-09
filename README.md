@@ -32,7 +32,6 @@ General purpose board game backend and some AI to go with it.
 * use rerrorf in the game impls to clarify errors
 * move the move history functionality from mirabel into here, add plugin functionality for e.g. (universal -> pgn -> universal)
   * want similar translation layer for (de)serialization?
-* byte serialization util, basically a stream with diff in/out ops
 * rerrorf function fixes
   * if no string given, auto fill with get general error string from game.h, want this? or not
   * make sure not to copy and clone

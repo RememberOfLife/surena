@@ -38,8 +38,10 @@ set(SOURCES
     src/games/tictactoe.cpp
     src/games/twixt_pp.cpp
 
+    src/util/base64.c
     src/util/fast_prng.cpp
     src/util/noise.cpp
+    src/util/raw_stream.cpp
     src/util/semver.c
 
     src/engine.cpp

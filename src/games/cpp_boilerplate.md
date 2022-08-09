@@ -74,7 +74,7 @@ namespace {
     const char* get_last_error(game* self);
     error_code create_with_opts_str(game* self, const char* str);
     error_code create_with_opts_bin(game* self, void* options_struct);
-    error_code create_deserialize(game* self, uint8_t* buf);
+    error_code create_deserialize(game* self, char* buf);
     error_code create_default(game* self);
     error_code export_options_str(game* self, size_t* ret_size, char* str);
     error_code get_options_bin_ref(game* self, void** ret_bin_ref);
@@ -127,7 +127,7 @@ namespace {
         //TODO
     }
 
-    error_code create_deserialize(game* self, uint8_t* buf)
+    error_code create_deserialize(game* self, char* buf)
     {
         //TODO
     }

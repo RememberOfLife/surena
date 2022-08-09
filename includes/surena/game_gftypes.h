@@ -6,7 +6,7 @@
 typedef const char* (*get_last_error_gf_t)(game* self);
 typedef error_code (*create_with_opts_str_gf_t)(game* self, const char* str);
 typedef error_code (*create_with_opts_bin_gf_t)(game* self, void* options_struct);
-typedef error_code (*create_deserialize_gf_t)(game* self, uint8_t* buf);
+typedef error_code (*create_deserialize_gf_t)(game* self, char* buf);
 typedef error_code (*create_default_gf_t)(game* self);
 typedef error_code (*export_options_str_gf_t)(game* self, size_t* ret_size, char* str);
 typedef error_code (*get_options_bin_ref_gf_t)(game* self, void** ret_bin_ref);
