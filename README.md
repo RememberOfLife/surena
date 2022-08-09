@@ -38,7 +38,7 @@ General purpose board game backend and some AI to go with it.
 * use readline in main https://stackoverflow.com/questions/2600528/c-readline-function
 * add uci wrapper engine for general purpose chess engines (same for tak)
 * document workflow for non perfect information games
-* separate out squirrelnoise5 into a dep? ; make noise a c usable thing
+* separate out squirrelnoise5 into a dep?
 
 ## ideas
 * team games with team rewards
