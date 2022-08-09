@@ -1,7 +1,11 @@
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
+#include <stddef.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
 SquirrelNoise5 - Squirrel's Raw Noise utilities (version 5)
@@ -55,25 +59,26 @@ The revised SquirrelNoise5 function ensures all input bits affect all output bit
 uint32_t squirrelnoise5(int32_t positionX, uint32_t seed);
 
 // raw pseudorandom noise functions (random-access / deterministic), basis of all other noise
-uint32_t get_1d_u32(int32_t index, uint32_t seed=0);
-uint32_t get_2d_u32(int32_t indexX, int32_t indexY, uint32_t seed=0);
-uint32_t get_3d_u32(int32_t indexX, int32_t indexY, int32_t indexZ, uint32_t seed=0);
-uint32_t get_4d_u32(int32_t indexX, int32_t indexY, int32_t indexZ, int32_t indexT, uint32_t seed=0);
+uint32_t get_1d_u32(int32_t index, uint32_t seed);
+uint32_t get_2d_u32(int32_t indexX, int32_t indexY, uint32_t seed);
+uint32_t get_3d_u32(int32_t indexX, int32_t indexY, int32_t indexZ, uint32_t seed);
+uint32_t get_4d_u32(int32_t indexX, int32_t indexY, int32_t indexZ, int32_t indexT, uint32_t seed);
 
 // same nois, mapped to floats in [0,1] for convenience
-float get_1d_zto(int32_t index, uint32_t seed=0);
-float get_2d_zto(int32_t indexX, int32_t indexY, uint32_t seed=0);
-float get_4d_zto(int32_t indexX, int32_t indexY, int32_t indexZ, uint32_t seed=0);
-float get_4d_zto(int32_t indexX, int32_t indexY, int32_t indexZ, int32_t indexT, uint32_t seed=0);
+float get_1d_zto(int32_t index, uint32_t seed);
+float get_2d_zto(int32_t indexX, int32_t indexY, uint32_t seed);
+float get_4d_zto(int32_t indexX, int32_t indexY, int32_t indexZ, uint32_t seed);
+float get_5d_zto(int32_t indexX, int32_t indexY, int32_t indexZ, int32_t indexT, uint32_t seed);
 
 // same nois, mapped to floats in [-1,1] for convenience
-float get_1d_noto(int32_t index, uint32_t seed=0);
-float get_2d_noto(int32_t indexX, int32_t indexY, uint32_t seed=0);
-float get_3d_noto(int32_t indexX, int32_t indexY, int32_t indexZ, uint32_t seed=0);
-float get_4d_noto(int32_t indexX, int32_t indexY, int32_t indexZ, int32_t indexT, uint32_t seed=0);
+float get_1d_noto(int32_t index, uint32_t seed);
+float get_2d_noto(int32_t indexX, int32_t indexY, uint32_t seed);
+float get_3d_noto(int32_t indexX, int32_t indexY, int32_t indexZ, uint32_t seed);
+float get_5d_noto(int32_t indexX, int32_t indexY, int32_t indexZ, int32_t indexT, uint32_t seed);
 
 // strhash function not part of squirrelnoise
-uint32_t strhash(const char* str, const char* str_end = NULL);
+// pass str_end NULL as default to use normal null character termination
+uint32_t strhash(const char* str, const char* str_end);
 
 /*
 diy inserts:
@@ -88,3 +93,7 @@ Roll float in range [a,b] inclusive
 Roll chance (prob of true) -> bool
 Roll normal distributed float (i.e. only distribute between -1 and 1)
 */
+
+#ifdef __cplusplus
+}
+#endif

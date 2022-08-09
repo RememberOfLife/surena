@@ -40,12 +40,13 @@ set(SOURCES
 
     src/util/base64.c
     src/util/fast_prng.cpp
-    src/util/noise.cpp
-    src/util/raw_stream.cpp
+    src/util/noise.c
+    src/util/raw_stream.c
     src/util/semver.c
 
     src/engine.cpp
     src/game.c
+    src/move_history.c
 
     src/main.cpp
 )

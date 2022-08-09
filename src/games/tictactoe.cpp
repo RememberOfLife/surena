@@ -4,7 +4,7 @@
 #include <cstring>
 
 #include "surena/util/fast_prng.hpp"
-#include "surena/util/noise.hpp"
+#include "surena/util/noise.h"
 #include "surena/util/semver.h"
 #include "surena/game_gftypes.h"
 #include "surena/game.h"

@@ -1,9 +1,13 @@
-#include <cstdint>
-#include <cstring>
+#include <stdint.h>
+#include <string.h>
 
-#include "surena/util/noise.hpp"
+#include "surena/util/noise.h"
 
-// see surena/util/noise.hpp for squirrelnoise5 license
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// see surena/util/noise.h for squirrelnoise5 license
 
 uint32_t squirrelnoise5(int32_t positionX, uint32_t seed)
 {
@@ -71,7 +75,7 @@ float get_4d_zto(int32_t indexX, int32_t indexY, int32_t indexZ, uint32_t seed)
     return (float)(ONE_OVER_MAX_UINT * (double) get_3d_u32( indexX, indexY, indexZ, seed ));
 }
 
-float get_4d_zto(int32_t indexX, int32_t indexY, int32_t indexZ, int32_t indexT, uint32_t seed)
+float get_5d_zto(int32_t indexX, int32_t indexY, int32_t indexZ, int32_t indexT, uint32_t seed)
 {
     const double ONE_OVER_MAX_UINT = (1.0 / (double) 0xFFFFFFFF);
     return (float)(ONE_OVER_MAX_UINT * (double) get_4d_u32( indexX, indexY, indexZ, indexT, seed ));
@@ -95,7 +99,7 @@ float get_3d_noto(int32_t indexX, int32_t indexY, int32_t indexZ, uint32_t seed)
     return (float)(ONE_OVER_MAX_INT * (double) (int) get_3d_u32( indexX, indexY, indexZ, seed ));
 }
 
-float get_4d_noto(int32_t indexX, int32_t indexY, int32_t indexZ, int32_t indexT, uint32_t seed)
+float get_5d_noto(int32_t indexX, int32_t indexY, int32_t indexZ, int32_t indexT, uint32_t seed)
 {
     const double ONE_OVER_MAX_INT = (1.0 / (double) 0x7FFFFFFF);
     return (float)(ONE_OVER_MAX_INT * (double) (int) get_4d_u32( indexX, indexY, indexZ, indexT, seed ));
@@ -114,3 +118,7 @@ uint32_t strhash(const char* str, const char* str_end)
     }
     return acc;
 }
+
+#ifdef __cplusplus
+}
+#endif

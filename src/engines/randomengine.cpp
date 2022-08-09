@@ -6,7 +6,7 @@
 #include <cstring>
 #include <thread>
 
-#include "surena/util/noise.hpp"
+#include "surena/util/noise.h"
 #include "surena/engine.h"
 #include "surena/game.h"
 
