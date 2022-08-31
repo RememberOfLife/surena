@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_MOVE_HISTORY_API_VERSION = 1;
+static const uint64_t SURENA_MOVE_HISTORY_API_VERSION = 2;
 
 typedef struct move_history_s move_history;
 struct move_history_s {
@@ -30,8 +30,9 @@ struct move_history_s {
     uint32_t selected_child; // idx, ~0 is none
     bool is_split;
 
-    // readonly, these are updated by the manipulation functions
-    uint32_t split_height; // childless node has height 0; does not consider the left most child (main line), because IT will be padded out by this height
+    // these are updated by the manipulation functions
+    uint32_t height; // childless node has height 0; height is max of child heights
+    uint32_t split_height; // effective height of this node, for use when parent wants to split and pad out main line by this; max of children but does not consider the left most child (main line)
     uint32_t width; // SUM of widths of children, terminal node has width 1; equal to number of leaf nodes from here
 };
 
@@ -48,6 +49,8 @@ void move_history_select(move_history* h);
 void move_history_promote(move_history* h, bool to_main);
 
 void move_history_demote(move_history* h);
+
+void move_history_split(move_history* h, bool split);
 
 // size_t move_history_measure(move_history* h);
 // void move_history_serialize(move_history* h, char* buf); //TODO into human readable?

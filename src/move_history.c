@@ -12,6 +12,8 @@
 extern "C" {
 #endif
 
+//TODO make split height work as effective height, i.e. during propagation consider max(height, splitheight)
+
 void move_history_create(move_history* h)
 {
     *h = (move_history){
@@ -24,6 +26,8 @@ void move_history_create(move_history* h)
         .idx_in_parent = UINT32_MAX,
         .selected_child = UINT32_MAX,
         .is_split = false,
+        .height = 0,
+        .split_height = 0,
         .width = 1,
     };
 }
@@ -54,7 +58,7 @@ move_history* move_history_insert(move_history* h, player_id player, move_code m
     lp->idx_in_parent = idx_in_parent;
     *ip = lp;
     h->selected_child = idx_in_parent;
-    // propagate height and width increase up through the tree
+    // propagate width increase up through the tree
     bool prop_width = (idx_in_parent > 0);
     move_history* bp = lp;
     if (prop_width) {
@@ -64,10 +68,14 @@ move_history* move_history_insert(move_history* h, player_id player, move_code m
         if (prop_width) {
             bp->width++;
         }
-        //TODO propagate split height
-        // if (bp->parent && bp->idx_in_parent > 0) {
-        //     bp->parent->split_height++;
-        // }
+        // propagate height increase along the tree
+        if (bp->parent && bp->parent->height <= bp->height) {
+            bp->parent->height++;
+        }
+        // split height propagation
+        if (bp->parent && bp->idx_in_parent > 0 && bp->parent->split_height <= bp->height) {
+            bp->parent->split_height++;
+        }
         bp = bp->parent;
     }
     return lp;
@@ -88,7 +96,6 @@ void move_history_select(move_history* h)
 
 void move_history_promote(move_history* h, bool to_main)
 {
-    //TODO set height of parent tree correctly
     // promote to main promote along the entire line
     move_history* promo = h;
     while (promo->parent) {
@@ -124,6 +131,18 @@ void move_history_promote(move_history* h, bool to_main)
             left_sibling->right_sibling = promo->right_sibling;
             promo->right_sibling = promo->parent->left_child;
             promo->parent->left_child = promo;
+            // set split height of parent tree correctly, only if main line changed, only if size relevant lines moved at all
+            if (promo->height + 1 >= promo->parent->split_height || promo->right_sibling->height + 1 >= promo->parent->split_height) {
+                uint32_t sph_max = 0;
+                move_history* sph = promo->right_sibling;
+                while (sph != NULL) {
+                    if (sph->height >= sph_max) {
+                        sph_max = sph->height + 1;
+                    }
+                    sph = sph->right_sibling;
+                }
+                promo->parent->split_height = sph_max;
+            }
         } else {
             // swap links
             left_sibling->right_sibling = promo->right_sibling;
@@ -134,7 +153,6 @@ void move_history_promote(move_history* h, bool to_main)
         left_sibling->idx_in_parent++;
         promo->idx_in_parent -= 1 + idx_skip_len;
         promo->parent->selected_child = promo->idx_in_parent;
-
         if (!to_main) {
             return;
         }
@@ -144,7 +162,6 @@ void move_history_promote(move_history* h, bool to_main)
 
 void move_history_demote(move_history* h)
 {
-    //TODO set height of parent tree correctly
     if (h->parent == NULL || h->right_sibling == NULL) {
         return;
     }
@@ -157,6 +174,18 @@ void move_history_demote(move_history* h)
         h->parent->left_child->right_sibling = h;
         h->parent->left_child->idx_in_parent--;
         h->idx_in_parent++;
+        // set split height of parent tree correctly, only if main line changed, only if size relevant lines moved at all
+        if (h->parent->left_child->height + 1 >= h->parent->split_height || h->height + 1 >= h->parent->split_height) {
+            uint32_t sph_max = 0;
+            move_history* sph = h->parent->left_child->right_sibling;
+            while (sph != NULL) {
+                if (sph->height >= sph_max) {
+                    sph_max = sph->height + 1;
+                }
+                sph = sph->right_sibling;
+            }
+            h->parent->split_height = sph_max;
+        }
     } else {
         // search for the preceeding node in in the list
         while (left_sibling->right_sibling != h) {
@@ -173,6 +202,39 @@ void move_history_demote(move_history* h)
     h->parent->selected_child = h->idx_in_parent;
 }
 
+void move_history_split(move_history* h, bool split)
+{
+    if (h->is_split == split) {
+        return;
+    }
+    h->is_split = split;
+    //TODO implement, this also needs to propagate split heigh and effective height because of split
+}
+
+//TODO temporary fix for the destroy height propagation, put this into a more efficient loop right in the destroy function
+void move_history_recalculate_heights(move_history* h)
+{
+    move_history* lp = h;
+    while (lp != NULL) {
+        uint32_t h_max = 0;
+        uint32_t sph_max = 0;
+        move_history* sph = lp->left_child;
+        if (sph != NULL) {
+            h_max = sph->height + 1;
+            sph = sph->right_sibling;
+        }
+        while (sph != NULL) {
+            if (sph->height >= sph_max) {
+                sph_max = sph->height + 1;
+            }
+            sph = sph->right_sibling;
+        }
+        lp->height = (h_max > sph_max ? h_max : sph_max);
+        lp->split_height = sph_max;
+        lp = lp->parent;
+    }
+}
+
 void move_history_destroy(move_history* h)
 {
     if (h->parent->selected_child == h->idx_in_parent) {
@@ -180,7 +242,7 @@ void move_history_destroy(move_history* h)
     } else if (h->idx_in_parent < h->parent->selected_child) {
         h->parent->selected_child--;
     }
-    //TODO set height of parent tree correctly
+    //TODO set height and split height of parent tree correctly, height propagates up the tree and can consequently change split height
     if (h->parent) {
         move_history* left_sibling = h->parent->left_child;
         if (left_sibling == h) {
@@ -208,6 +270,7 @@ void move_history_destroy(move_history* h)
                 bp = bp->parent;
             }
         }
+        move_history_recalculate_heights(h->parent);
         h->parent = NULL;
         h->right_sibling = NULL;
     }

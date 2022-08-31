@@ -14,18 +14,6 @@
 
 namespace {
 
-    error_code rerrorf(engine* self, error_code ec, const char* fmt, ...)
-    {
-        if (self->data2 == NULL) {
-            self->data2 = malloc(1024); //TODO correct size from where?
-        }
-        va_list args;
-        va_start(args, fmt);
-        vsprintf((char*)self->data2, fmt, args);
-        va_end(args);
-        return ec;
-    }
-
     struct data_repr {
         eevent_queue* outbox;
         eevent_queue inbox;
@@ -48,7 +36,7 @@ namespace {
     error_code create_default(engine* self, uint32_t engine_id, eevent_queue* outbox, eevent_queue** inbox);
     error_code destroy(engine* self);
     error_code is_game_compatible(engine* self, game* compat_game);
-    // engine loop2222
+    // engine loop
     void engine_loop(data_repr* data_p, uint32_t engine_id);
 
     // implementation
