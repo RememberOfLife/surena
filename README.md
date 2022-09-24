@@ -20,6 +20,7 @@ General purpose board game backend and some AI to go with it.
 * use readline in main https://stackoverflow.com/questions/2600528/c-readline-function
 * add uci wrapper engine for general purpose chess engines (same for tak)
 * document workflow for non perfect information games
+* stop clang-format newline after structs unions etc.. if already within a struct, union, class, function!
 
 ## ideas
 * how to do legacy game legacy information properly? just pass around increasing options strings encoding the legacy?

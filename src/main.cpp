@@ -15,7 +15,7 @@
 
 namespace surena {
     const semver version = {0, 10, 0};
-}
+} // namespace surena
 
 // args https://github.com/p-ranav/argparse
 
@@ -121,11 +121,9 @@ int main(int argc, char** argv)
         .data1 = NULL,
         .data2 = NULL,
     };
-    printf("game method: %s.%s.%s %d.%d.%d\n",
-        thegame.methods->game_name, thegame.methods->variant_name, thegame.methods->impl_name,
-        thegame.methods->version.major, thegame.methods->version.minor, thegame.methods->version.patch);
+    printf("game method: %s.%s.%s %d.%d.%d\n", thegame.methods->game_name, thegame.methods->variant_name, thegame.methods->impl_name, thegame.methods->version.major, thegame.methods->version.minor, thegame.methods->version.patch);
     if (thegame.methods->features.options) {
-        ec = thegame.methods->create_with_opts_str(&thegame, game_options); 
+        ec = thegame.methods->create_with_opts_str(&thegame, game_options);
         if (ec != ERR_OK) {
             printf("failed to create with options \"%s\": #%d %s\n", game_options, ec, thegame.methods->get_last_error(&thegame));
             exit(1);
@@ -158,7 +156,7 @@ int main(int argc, char** argv)
     if (move_str_size < 1024) {
         // increase input buffer to prevent typical input overflows
         // this does not serve security purposes but rather usability, overflow security is handled later on
-        move_str_size = 1024; 
+        move_str_size = 1024;
     }
     char* move_str = (char*)malloc(move_str_size);
     player_id ptm;

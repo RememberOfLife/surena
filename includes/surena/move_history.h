@@ -13,6 +13,7 @@ extern "C" {
 static const uint64_t SURENA_MOVE_HISTORY_API_VERSION = 2;
 
 typedef struct move_history_s move_history;
+
 struct move_history_s {
     // the move how we got here, the root node of a move history tree is always PLAYER_NONE and MOVE_NONE
     player_id player;

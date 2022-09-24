@@ -20,11 +20,11 @@ const char b64_inv[80] = {62, -1, 63, -1, -1, 52, 53, 54, 55, 56, 57, 58, 59, 60
 size_t b64_encode_size(size_t size_bytes)
 {
     // round up to nearest 3 multiple, div by 3 for 3 byte blocks and times 4 for the characters of each block
-	size_t ret = size_bytes;
-	if (size_bytes % 3 != 0) {
-		ret += 3 - (size_bytes % 3);
+    size_t ret = size_bytes;
+    if (size_bytes % 3 != 0) {
+        ret += 3 - (size_bytes % 3);
     }
-	return ((ret / 3) * 4);
+    return ((ret / 3) * 4);
 }
 
 size_t b64_decode_size(char* data_chars)
@@ -46,17 +46,17 @@ size_t b64_decode_size(char* data_chars)
 
 size_t b64_encode(char* data_chars, char* data_bytes, size_t len)
 {
-	if (data_bytes == NULL || len == 0) {
+    if (data_bytes == NULL || len == 0) {
         if (data_chars) {
             *data_chars = '\0';
         }
-		return 0;
+        return 0;
     }
-	size_t bi = 0; // byte triple idx
-	size_t ci = 0; // char quartet idx
-	while (bi < len) {
+    size_t bi = 0; // byte triple idx
+    size_t ci = 0; // char quartet idx
+    while (bi < len) {
         // accumulate 3 bytes of data
-		uint32_t acc = (data_bytes[bi] << 16);
+        uint32_t acc = (data_bytes[bi] << 16);
         if (bi + 1 < len) {
             acc |= (data_bytes[bi + 1] << 8);
         }
@@ -64,39 +64,39 @@ size_t b64_encode(char* data_chars, char* data_bytes, size_t len)
             acc |= data_bytes[bi + 2];
         }
         // produces at least 2 chars of data
-		data_chars[ci] = b64_chars[(acc >> 18) & 0b111111];
-		data_chars[ci+1] = b64_chars[(acc >> 12) & 0b111111];
+        data_chars[ci] = b64_chars[(acc >> 18) & 0b111111];
+        data_chars[ci + 1] = b64_chars[(acc >> 12) & 0b111111];
         // check if data exists or needs padding
-        data_chars[ci + 2] = ((bi +1 < len) ? b64_chars[(acc >> 6) & 0b111111] : '=');
+        data_chars[ci + 2] = ((bi + 1 < len) ? b64_chars[(acc >> 6) & 0b111111] : '=');
         data_chars[ci + 3] = ((bi + 2 < len) ? b64_chars[acc & 0b111111] : '=');
         bi += 3;
         ci += 4;
-	}
+    }
     data_chars[ci] = '\0';
     return ci + 1;
 }
 
 bool b64_is_valid_char(char c)
 {
-	if (c >= '0' && c <= '9') {
-		return 1;
+    if (c >= '0' && c <= '9') {
+        return 1;
     }
-	if (c >= 'A' && c <= 'Z') {
-		return 1;
+    if (c >= 'A' && c <= 'Z') {
+        return 1;
     }
-	if (c >= 'a' && c <= 'z') {
-		return 1;
+    if (c >= 'a' && c <= 'z') {
+        return 1;
     }
-	if (c == '+' || c == '-' || c == '=') {
-		return 1;
+    if (c == '+' || c == '-' || c == '=') {
+        return 1;
     }
-	return 0;
+    return 0;
 }
 
 size_t b64_decode(char* data_bytes, char* data_chars)
 {
-	if (data_bytes == NULL || data_chars == NULL) {
-		return 0;
+    if (data_bytes == NULL || data_chars == NULL) {
+        return 0;
     }
     //TODO move strlen and valid char into the decoding loop
     size_t strlen = 0;
@@ -110,26 +110,26 @@ size_t b64_decode(char* data_bytes, char* data_chars)
     if (strlen % 4 != 0) {
         return 0;
     }
-	size_t ci = 0;
-	size_t bi = 0;
-	while (ci < strlen) {
+    size_t ci = 0;
+    size_t bi = 0;
+    while (ci < strlen) {
         // writeout is interweaved with readin to accomodate fewer checks
         // magic number 43 comes from '+' which is the offset of the b64_inv array
         uint32_t v = (b64_inv[data_chars[ci] - 43] << 18);
-		v |= (b64_inv[data_chars[ci + 1] - 43] << 12);
-		data_bytes[bi] = ((v >> 16) & 0xFF); // writeout byte1
+        v |= (b64_inv[data_chars[ci + 1] - 43] << 12);
+        data_bytes[bi] = ((v >> 16) & 0xFF); // writeout byte1
         if (data_chars[ci + 2] != '=') {
-		    v |= (b64_inv[data_chars[ci + 2] - 43] << 6);
-			data_bytes[bi + 1] = ((v >> 8) & 0xFF); // writeout byte2 (optional)
+            v |= (b64_inv[data_chars[ci + 2] - 43] << 6);
+            data_bytes[bi + 1] = ((v >> 8) & 0xFF); // writeout byte2 (optional)
         }
         if (data_chars[ci + 3] != '=') {
-		    v |= b64_inv[data_chars[ci + 3] - 43];
-			data_bytes[bi + 2] = (v & 0xFF); // writeout byte3 (optional)
+            v |= b64_inv[data_chars[ci + 3] - 43];
+            data_bytes[bi + 2] = (v & 0xFF); // writeout byte3 (optional)
         }
         ci += 4;
         bi += 3;
-	}
-	return bi;
+    }
+    return bi;
 }
 
 #ifdef __cplusplus

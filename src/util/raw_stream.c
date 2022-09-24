@@ -206,7 +206,8 @@ void rs_w_float(raw_stream* rs, float v)
     union {
         float f;
         uint8_t u8[sizeof(float)];
-    } f32 = { .f = v };
+    } f32 = {.f = v};
+
     for (int i = 0; i < sizeof(float); i++) {
         rs_w_uint8(rs, f32.u8[i]);
     }
@@ -218,6 +219,7 @@ float rs_r_float(raw_stream* rs)
         float f;
         uint8_t u8[sizeof(float)];
     } f32;
+
     for (int i = 0; i < sizeof(float); i++) {
         f32.u8[i] = rs_r_uint8(rs);
     }
@@ -229,7 +231,8 @@ void rs_w_double(raw_stream* rs, double v)
     union {
         double d;
         uint8_t u8[sizeof(double)];
-    } f64 = { .d = v };
+    } f64 = {.d = v};
+
     for (int i = 0; i < sizeof(double); i++) {
         rs_w_uint8(rs, f64.u8[i]);
     }
@@ -241,6 +244,7 @@ double rs_r_double(raw_stream* rs)
         double d;
         uint8_t u8[sizeof(double)];
     } f64;
+
     for (int i = 0; i < sizeof(double); i++) {
         f64.u8[i] = rs_r_uint8(rs);
     }

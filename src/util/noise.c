@@ -59,50 +59,50 @@ uint32_t get_4d_u32(int32_t indexX, int32_t indexY, int32_t indexZ, int32_t inde
 
 float get_1d_zto(int32_t index, uint32_t seed)
 {
-    const double ONE_OVER_MAX_UINT = (1.0 / (double) 0xFFFFFFFF);
-    return (float)(ONE_OVER_MAX_UINT * (double) squirrelnoise5( index, seed ));
+    const double ONE_OVER_MAX_UINT = (1.0 / (double)0xFFFFFFFF);
+    return (float)(ONE_OVER_MAX_UINT * (double)squirrelnoise5(index, seed));
 }
 
 float get_2d_zto(int32_t indexX, int32_t indexY, uint32_t seed)
 {
-    const double ONE_OVER_MAX_UINT = (1.0 / (double) 0xFFFFFFFF);
-    return (float)(ONE_OVER_MAX_UINT * (double) get_2d_u32( indexX, indexY, seed ));
+    const double ONE_OVER_MAX_UINT = (1.0 / (double)0xFFFFFFFF);
+    return (float)(ONE_OVER_MAX_UINT * (double)get_2d_u32(indexX, indexY, seed));
 }
 
 float get_4d_zto(int32_t indexX, int32_t indexY, int32_t indexZ, uint32_t seed)
 {
-    const double ONE_OVER_MAX_UINT = (1.0 / (double) 0xFFFFFFFF);
-    return (float)(ONE_OVER_MAX_UINT * (double) get_3d_u32( indexX, indexY, indexZ, seed ));
+    const double ONE_OVER_MAX_UINT = (1.0 / (double)0xFFFFFFFF);
+    return (float)(ONE_OVER_MAX_UINT * (double)get_3d_u32(indexX, indexY, indexZ, seed));
 }
 
 float get_5d_zto(int32_t indexX, int32_t indexY, int32_t indexZ, int32_t indexT, uint32_t seed)
 {
-    const double ONE_OVER_MAX_UINT = (1.0 / (double) 0xFFFFFFFF);
-    return (float)(ONE_OVER_MAX_UINT * (double) get_4d_u32( indexX, indexY, indexZ, indexT, seed ));
+    const double ONE_OVER_MAX_UINT = (1.0 / (double)0xFFFFFFFF);
+    return (float)(ONE_OVER_MAX_UINT * (double)get_4d_u32(indexX, indexY, indexZ, indexT, seed));
 }
 
 float get_1d_noto(int32_t index, uint32_t seed)
 {
-    const double ONE_OVER_MAX_INT = (1.0 / (double) 0x7FFFFFFF);
-    return (float)(ONE_OVER_MAX_INT * (double) (int) squirrelnoise5( index, seed ));
+    const double ONE_OVER_MAX_INT = (1.0 / (double)0x7FFFFFFF);
+    return (float)(ONE_OVER_MAX_INT * (double)(int)squirrelnoise5(index, seed));
 }
 
 float get_2d_noto(int32_t indexX, int32_t indexY, uint32_t seed)
 {
-    const double ONE_OVER_MAX_INT = (1.0 / (double) 0x7FFFFFFF);
-    return (float)(ONE_OVER_MAX_INT * (double) (int) get_2d_u32( indexX, indexY, seed ));
+    const double ONE_OVER_MAX_INT = (1.0 / (double)0x7FFFFFFF);
+    return (float)(ONE_OVER_MAX_INT * (double)(int)get_2d_u32(indexX, indexY, seed));
 }
 
 float get_3d_noto(int32_t indexX, int32_t indexY, int32_t indexZ, uint32_t seed)
 {
-    const double ONE_OVER_MAX_INT = (1.0 / (double) 0x7FFFFFFF);
-    return (float)(ONE_OVER_MAX_INT * (double) (int) get_3d_u32( indexX, indexY, indexZ, seed ));
+    const double ONE_OVER_MAX_INT = (1.0 / (double)0x7FFFFFFF);
+    return (float)(ONE_OVER_MAX_INT * (double)(int)get_3d_u32(indexX, indexY, indexZ, seed));
 }
 
 float get_5d_noto(int32_t indexX, int32_t indexY, int32_t indexZ, int32_t indexT, uint32_t seed)
 {
-    const double ONE_OVER_MAX_INT = (1.0 / (double) 0x7FFFFFFF);
-    return (float)(ONE_OVER_MAX_INT * (double) (int) get_4d_u32( indexX, indexY, indexZ, indexT, seed ));
+    const double ONE_OVER_MAX_INT = (1.0 / (double)0x7FFFFFFF);
+    return (float)(ONE_OVER_MAX_INT * (double)(int)get_4d_u32(indexX, indexY, indexZ, indexT, seed));
 }
 
 uint32_t strhash(const char* str, const char* str_end)
@@ -111,7 +111,7 @@ uint32_t strhash(const char* str, const char* str_end)
     if (!str_end) {
         str_end = str + strlen(str);
     }
-    while (str <= str_end) {
+    while (str < str_end) {
         acc *= squirrelnoise5(acc, *str);
         acc ^= squirrelnoise5(*str, acc);
         str++;

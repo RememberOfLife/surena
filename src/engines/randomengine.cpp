@@ -45,7 +45,7 @@ namespace {
     {
         return (char*)self->data2;
     }
-    
+
     error_code create_default(engine* self, uint32_t engine_id, eevent_queue* outbox, eevent_queue** inbox)
     {
         self->data1 = malloc(sizeof(data_repr));
@@ -64,13 +64,12 @@ namespace {
         data.searching = false;
         return ERR_OK;
     }
-    
+
     error_code destroy(engine* self)
     {
         data_repr& data = get_repr(self);
         engine_event e_quit = (engine_event){
-            .type = EE_TYPE_EXIT
-        };
+            .type = EE_TYPE_EXIT};
         eevent_queue_push(&data.inbox, &e_quit);
         data.runner->join();
         eevent_queue_destroy(&data.inbox);
@@ -79,7 +78,7 @@ namespace {
         free(self->data2);
         return ERR_OK;
     }
-    
+
     error_code is_game_compatible(engine* self, game* compat_game)
     {
         if (compat_game->methods->features.random_moves | compat_game->methods->features.hidden_information | compat_game->methods->features.simultaneous_moves) {
@@ -87,7 +86,7 @@ namespace {
         }
         return ERR_OK;
     }
-    
+
     // engine loop
 
     void engine_loop(data_repr* data_p, uint32_t engine_id)
@@ -302,7 +301,7 @@ namespace {
                     e.scoreinfo.forced_end[0] = EE_SCOREINFO_FORCED_UNKNOWN;
                     eevent_queue_push(data.outbox, &e);
                     eevent_destroy(&e);
-                    
+
                     eevent_create_bestmove(&e, engine_id, 1);
                     e.bestmove.player[0] = ptm[0];
                     e.bestmove.move[0] = moves[squirrelnoise5(data.rng_counter, data.rng_seed) % moves_c];
@@ -325,7 +324,7 @@ namespace {
         eevent_destroy(&e);
     }
 
-}
+} // namespace
 
 const engine_methods randomengine_ebe{
 
@@ -339,12 +338,12 @@ const engine_methods randomengine_ebe{
         .draw_and_resign = false,
     },
     .internal_methods = NULL,
-    
+
     .get_last_error = get_last_error,
     .create_with_opts_str = NULL,
     .create_with_opts_bin = NULL,
     .create_default = create_default,
     .destroy = destroy,
     .is_game_compatible = is_game_compatible,
-    
+
 };

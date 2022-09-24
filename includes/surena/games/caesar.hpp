@@ -21,7 +21,7 @@ namespace surena {
             TOKENTYPE_PROVINCE = 1,
             TOKENTYPE_INFLUENCE = 2,
         };
-        
+
         enum ProvinceBonus : uint8_t {
             PROVINCEBONUS_SENATE = 0,
             PROVINCEBONUS_TACTICS = 1,
@@ -58,10 +58,12 @@ namespace surena {
             bool faceup; // B13
             Color influence_player; // B12
             bool influence_direction; // 11
+
             union tile_type {
                 InfluenceType influence_type;
                 ProvinceBonus province_bonus;
             }; // B10 B9 B8
+
             uint8_t influence_strength; // B7 B6
             InfluenceType influence_basetype; // B5 B4
             bool bordercontrol; // B3
@@ -78,75 +80,74 @@ namespace surena {
             char name[7];
         };
 
-        public:
+      public:
 
-            // start with id of described node, then list of node ids that this node is connected to,
-            // suffix every node with the influence type that may be placed on this connection,
-            // only suffix if the target node id is GREATER than the origin (forward declaring)
-            // prefix the influence type with bordercontrol if applicable
-            // finish sub list with 0
-            // close node list with another 0 (i.e. as if starting a new node with id 0)
-            // the 0 node is followed by a list of node ids that provide double control tokens on capture and always have a senate bonus
-            // close everything with a 0
-            static uint8_t default_gameboard_nodes[];
-            // list of associations between node names and node ids, at most 6 character long names, end list with the 0 node
-            static gameboardNodeId default_gameboard_ids[];
+        // start with id of described node, then list of node ids that this node is connected to,
+        // suffix every node with the influence type that may be placed on this connection,
+        // only suffix if the target node id is GREATER than the origin (forward declaring)
+        // prefix the influence type with bordercontrol if applicable
+        // finish sub list with 0
+        // close node list with another 0 (i.e. as if starting a new node with id 0)
+        // the 0 node is followed by a list of node ids that provide double control tokens on capture and always have a senate bonus
+        // close everything with a 0
+        static uint8_t default_gameboard_nodes[];
+        // list of associations between node names and node ids, at most 6 character long names, end list with the 0 node
+        static gameboardNodeId default_gameboard_ids[];
 
-            // token type lookup table
-            static uint8_t LUT_token_type[];
+        // token type lookup table
+        static uint8_t LUT_token_type[];
 
-        private:
+      private:
 
-            // state
-            Caesar::Color current_player;
-            Caesar::Color winning_player;
+        // state
+        Caesar::Color current_player;
+        Caesar::Color winning_player;
 
-            gameboardNodeId* node_ids;
-            Token* nodes;
-            uint32_t* connections_intermediate; // intermediate table for perfect hashing on connections
-            Token* connections;
+        gameboardNodeId* node_ids;
+        Token* nodes;
+        uint32_t* connections_intermediate; // intermediate table for perfect hashing on connections
+        Token* connections;
 
-            //TODO state for each player: control markers left and 4 senate slots with value, and whats available in the bag+centurion+wealth
-            // use extra vector for definitely holding handcards and definitely not holding handcards
-            // keep list of province bonuses to work through for each player
+        //TODO state for each player: control markers left and 4 senate slots with value, and whats available in the bag+centurion+wealth
+        // use extra vector for definitely holding handcards and definitely not holding handcards
+        // keep list of province bonuses to work through for each player
 
-        public:
+      public:
 
-            //TODO expansions?
-            Caesar(uint8_t gameboard_nodes[], gameboardNodeId gameboard_ids[]);
+        //TODO expansions?
+        Caesar(uint8_t gameboard_nodes[], gameboardNodeId gameboard_ids[]);
 
-            ~Caesar();
-            
-            void import_state(const char* str) override;
-            uint32_t export_state(char* str) override; 
+        ~Caesar();
 
-            uint8_t player_to_move() override;
+        void import_state(const char* str) override;
+        uint32_t export_state(char* str) override;
 
-            std::vector<uint64_t> get_moves() override;
+        uint8_t player_to_move() override;
 
-            void apply_move(uint64_t move_id) override;
+        std::vector<uint64_t> get_moves() override;
 
-            uint8_t get_result() override;
+        void apply_move(uint64_t move_id) override;
 
-            void discretize(uint64_t seed) override;
+        uint8_t get_result() override;
 
-            uint8_t perform_playout(uint64_t seed) override;
-            
-            Game* clone() override;
-            void copy_from(Game* target) override;
+        void discretize(uint64_t seed) override;
 
-            uint64_t get_move_id(std::string move_string) override;
-            std::string get_move_string(uint64_t move_id) override;
-            
-            void debug_print() override;
+        uint8_t perform_playout(uint64_t seed) override;
 
-        private:
+        Game* clone() override;
+        void copy_from(Game* target) override;
 
-            // helpers
+        uint64_t get_move_id(std::string move_string) override;
+        std::string get_move_string(uint64_t move_id) override;
 
-            //TODO some cheap hashing function with an offset
-            uint32_t OffsetHash(uint32_t i_a, uint32_t i_b, uint32_t offset);
+        void debug_print() override;
 
+      private:
+
+        // helpers
+
+        //TODO some cheap hashing function with an offset
+        uint32_t OffsetHash(uint32_t i_a, uint32_t i_b, uint32_t offset);
     };
 
-}
+} // namespace surena

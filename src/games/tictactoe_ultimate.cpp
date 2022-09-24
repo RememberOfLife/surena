@@ -14,7 +14,7 @@
 namespace {
 
     // general purpose helpers for opts, data
-    
+
     struct data_repr {
         // origin bottom left, y upwards, x to the right
         // individual boards work like standard tictactoe board
@@ -130,7 +130,7 @@ namespace {
         memcpy(clone_target->data1, self->data1, sizeof(data_repr));
         return ERR_OK;
     }
-    
+
     error_code copy_from(game* self, game* other)
     {
         memcpy(self->data1, other->data1, sizeof(data_repr));
@@ -189,7 +189,7 @@ namespace {
                 case '7':
                 case '8':
                 case '9': { // empty squares
-                    for (int place_empty = (*str)-'0'; place_empty > 0; place_empty--) {
+                    for (int place_empty = (*str) - '0'; place_empty > 0; place_empty--) {
                         if (x > 8) {
                             // out of bounds board
                             return ERR_INVALID_INPUT;
@@ -223,9 +223,9 @@ namespace {
         }
         // get global target, if any, otherwise its reset already
         if (*str != '-') {
-            data.global_target_x = (*str)-'a';
+            data.global_target_x = (*str) - 'a';
             str++;
-            data.global_target_y = (*str)-'1';
+            data.global_target_y = (*str) - '1';
             if (data.global_target_x < 0 || data.global_target_x > 2 || data.global_target_y < 0 || data.global_target_y > 2) {
                 return ERR_INVALID_INPUT;
             }
@@ -309,7 +309,7 @@ namespace {
         }
         // global target
         if (data.global_target_x >= 0 && data.global_target_y >= 0) {
-            str += sprintf(str, " %c%c", 'a'+data.global_target_x, '0'+data.global_target_y);
+            str += sprintf(str, " %c%c", 'a' + data.global_target_x, '0' + data.global_target_y);
         } else {
             str += sprintf(str, " -");
         }
@@ -349,7 +349,7 @@ namespace {
                 str += sprintf(str, " O");
             } break;
         }
-        *ret_size = str-ostr;
+        *ret_size = str - ostr;
         return ERR_OK;
     }
 
@@ -386,8 +386,8 @@ namespace {
         player_id cell_player;
         if (data.global_target_x >= 0 && data.global_target_y >= 0) {
             // only give moves for the target local board
-            for (int ly = data.global_target_y*3; ly < data.global_target_y*3+3; ly++) {
-                for (int lx = data.global_target_x*3; lx < data.global_target_x*3+3; lx++) {
+            for (int ly = data.global_target_y * 3; ly < data.global_target_y * 3 + 3; ly++) {
+                for (int lx = data.global_target_x * 3; lx < data.global_target_x * 3 + 3; lx++) {
                     get_cell_local(self, lx, ly, &cell_player);
                     if (cell_player == PLAYER_NONE) {
                         moves[count++] = (ly << 4) | lx;
@@ -399,8 +399,8 @@ namespace {
                 for (int gx = 0; gx < 3; gx++) {
                     get_cell_global(self, gx, gy, &cell_player);
                     if (cell_player == PLAYER_NONE) {
-                        for (int ly = gy*3; ly < gy*3+3; ly++) {
-                            for (int lx = gx*3; lx < gx*3+3; lx++) {
+                        for (int ly = gy * 3; ly < gy * 3 + 3; ly++) {
+                            for (int lx = gx * 3; lx < gx * 3 + 3; lx++) {
                                 get_cell_local(self, lx, ly, &cell_player);
                                 if (cell_player == PLAYER_NONE) {
                                     moves[count++] = (ly << 4) | lx;
@@ -528,7 +528,7 @@ namespace {
         players_to_move(self, &ptm_count, &ptm);
         while (ptm_count > 0) {
             get_concrete_moves(self, ptm, &moves_count, moves);
-            make_move(self, ptm ,moves[rng.rand()%moves_count]);
+            make_move(self, ptm, moves[rng.rand() % moves_count]);
             players_to_move(self, &ptm_count, &ptm);
         }
         return ERR_OK;
@@ -545,8 +545,8 @@ namespace {
             return ERR_INVALID_INPUT;
         }
         move_code move_id = 0;
-        int x = (str[0]-'a');
-        int y = (str[1]-'0');
+        int x = (str[0] - 'a');
+        int y = (str[1] - '0');
         if (x < 0 || x > 8 || y < 0 || y > 8) {
             *ret_move = MOVE_NONE;
             return ERR_INVALID_INPUT;
@@ -585,21 +585,21 @@ namespace {
         str_buf += sprintf(str_buf, "global target: %s\n", (data.global_target_x >= 0 && data.global_target_y >= 0) ? global_target_str : "-");
         for (int gy = 2; gy >= 0; gy--) {
             for (int ly = 2; ly >= 0; ly--) {
-                str_buf += sprintf(str_buf, "%c ", '0'+(gy*3+ly));
+                str_buf += sprintf(str_buf, "%c ", '0' + (gy * 3 + ly));
                 for (int gx = 0; gx < 3; gx++) {
                     for (int lx = 0; lx < 3; lx++) {
                         get_cell_global(self, gx, gy, &cell_player);
                         if (cell_player == 0) {
-                            get_cell_local(self, gx*3+lx, gy*3+ly, &cell_player);
+                            get_cell_local(self, gx * 3 + lx, gy * 3 + ly, &cell_player);
                         }
                         switch (cell_player) {
                             case (1): {
                                 str_buf += sprintf(str_buf, "X");
                             } break;
-                            case (2):{ 
+                            case (2): {
                                 str_buf += sprintf(str_buf, "O");
                             } break;
-                            case (3):{ 
+                            case (3): {
                                 str_buf += sprintf(str_buf, "=");
                             } break;
                             default: {
@@ -618,7 +618,7 @@ namespace {
         str_buf += sprintf(str_buf, "  ");
         for (int gx = 0; gx < 3; gx++) {
             for (int lx = 0; lx < 3; lx++) {
-                str_buf += sprintf(str_buf, "%c", 'a'+(gx*3+lx));
+                str_buf += sprintf(str_buf, "%c", 'a' + (gx * 3 + lx));
             }
             str_buf += sprintf(str_buf, " ");
         }
@@ -628,7 +628,7 @@ namespace {
 
     //=====
     // game internal methods
-    
+
     error_code check_result(game* self, uint32_t state, player_id* ret_p)
     {
         // return 0 if game running, 1-2 for player wins, 3 for draw
@@ -648,8 +648,7 @@ namespace {
             get_cell(self, state, i, 0, &cell_player_i0);
             get_cell(self, state, i, 1, &cell_player_i1);
             get_cell(self, state, i, 2, &cell_player_i2);
-            if (cell_player_0i == cell_player_1i && cell_player_0i == cell_player_2i && cell_player_0i != 0
-                || cell_player_i0 == cell_player_i1 && cell_player_i0 == cell_player_i2 && cell_player_i0 != 0) {
+            if (cell_player_0i == cell_player_1i && cell_player_0i == cell_player_2i && cell_player_0i != 0 || cell_player_i0 == cell_player_i1 && cell_player_i0 == cell_player_i2 && cell_player_i0 != 0) {
                 win = true;
                 get_cell(self, state, i, i, &state_winner);
             }
@@ -664,8 +663,7 @@ namespace {
         get_cell(self, state, 2, 2, &cell_player_22);
         get_cell(self, state, 0, 2, &cell_player_02);
         get_cell(self, state, 2, 0, &cell_player_20);
-        if ((cell_player_00 == cell_player_11 && cell_player_00 == cell_player_22
-            || cell_player_02 == cell_player_11 && cell_player_02 == cell_player_20) && cell_player_11 != 0) {
+        if ((cell_player_00 == cell_player_11 && cell_player_00 == cell_player_22 || cell_player_02 == cell_player_11 && cell_player_02 == cell_player_20) && cell_player_11 != 0) {
             win = true;
             get_cell(self, state, 1, 1, &state_winner);
         }
@@ -690,57 +688,57 @@ namespace {
     }
 
     error_code get_cell(game* self, uint32_t state, int x, int y, player_id* ret_p)
-    {        
+    {
         // shift over the correct 2 bits representing the player at that position
-        *ret_p = ((state >> (y*6+x*2)) & 0b11);
+        *ret_p = ((state >> (y * 6 + x * 2)) & 0b11);
         return ERR_OK;
     }
-    
+
     error_code set_cell(game* self, uint32_t* state, int x, int y, player_id p)
     {
         player_id pc;
         get_cell(self, *state, x, y, &pc);
-        int offset = (y*6+x*2);
+        int offset = (y * 6 + x * 2);
         // new_state = current_value xor (current_value xor new_value)
         *state ^= ((((uint32_t)pc) << offset) ^ (((uint32_t)p) << offset));
         return ERR_OK;
     }
-    
+
     error_code get_cell_global(game* self, int x, int y, player_id* ret_p)
     {
         data_repr& data = get_repr(self);
         get_cell(self, data.global_board, x, y, ret_p);
         return ERR_OK;
     }
-    
+
     error_code set_cell_global(game* self, int x, int y, player_id p)
     {
         data_repr& data = get_repr(self);
         set_cell(self, &(data.global_board), x, y, p);
         return ERR_OK;
     }
-    
+
     error_code get_cell_local(game* self, int x, int y, player_id* ret_p)
     {
         data_repr& data = get_repr(self);
-        get_cell(self, data.board[y/3][x/3], x%3, y%3, ret_p);
+        get_cell(self, data.board[y / 3][x / 3], x % 3, y % 3, ret_p);
         return ERR_OK;
     }
-    
+
     error_code set_cell_local(game* self, int x, int y, player_id p)
     {
         data_repr& data = get_repr(self);
         set_cell(self, &(data.board[y / 3][x / 3]), x % 3, y % 3, p);
         return ERR_OK;
     }
-    
+
     error_code get_global_target(game* self, uint8_t* ret)
     {
         data_repr& data = get_repr(self);
         *ret = ((data.global_target_y == -1 ? 3 : data.global_target_y) << 2) | (data.global_target_x == -1 ? 3 : data.global_target_x);
         return ERR_OK;
     }
-    
+
     error_code set_global_target(game* self, int x, int y)
     {
         data_repr& data = get_repr(self);
@@ -748,14 +746,14 @@ namespace {
         data.global_target_y = y;
         return ERR_OK;
     }
-    
+
     error_code set_current_player(game* self, player_id p)
     {
         data_repr& data = get_repr(self);
         data.current_player = p;
         return ERR_OK;
     }
-    
+
     error_code set_result(game* self, player_id p)
     {
         data_repr& data = get_repr(self);
@@ -763,7 +761,7 @@ namespace {
         return ERR_OK;
     }
 
-}
+} // namespace
 
 static const tictactoe_ultimate_internal_methods tictactoe_ultimate_gbe_internal_methods{
     .check_result = check_result,
@@ -801,9 +799,9 @@ const game_methods tictactoe_ultimate_gbe{
         .print = true,
     },
     .internal_methods = (void*)&tictactoe_ultimate_gbe_internal_methods,
-    
-    #include "surena/game_impl.h"
-    
+
+#include "surena/game_impl.h"
+
 };
 
 //TODO fix X/O enum, same as tictactoe_standard

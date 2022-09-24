@@ -14,9 +14,7 @@ bool SEMVER_equal(semver l, semver r)
 
 bool SEMVER_satisfies(semver required, semver provided)
 {
-    return provided.major == required.major
-        && provided.minor >= required.major
-        && provided.patch >= required.patch;
+    return provided.major == required.major && provided.minor >= required.major && provided.patch >= required.patch;
 }
 
 #ifdef __cplusplus

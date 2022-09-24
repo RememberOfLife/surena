@@ -13,13 +13,11 @@ extern "C" {
 
 static const uint64_t SURENA_ENGINE_API_VERSION = 7;
 
-
 // general purpose timing function that counts up monotonically
 uint64_t surena_get_ms64();
 
-
-
 typedef uint32_t eevent_type;
+
 // engine events
 enum EE_TYPE {
     // special
@@ -110,6 +108,7 @@ enum EE_OPTION_TYPE {
 typedef struct ee_engine_option_s {
     char* name;
     eevent_option_type type;
+
     union {
         bool check;
         uint64_t spin;
@@ -118,15 +117,18 @@ typedef struct ee_engine_option_s {
         double spind;
         uint64_t u64;
     } value; // this is the default value when sent by the engine, and the new value to use when sent by the gui
+
     union {
         struct {
             uint64_t min;
             uint64_t max; // iff SPIN, must fullfill assert(max <= UINT64_MAX / 2), U64 does NOT have this restriction
         } mm;
+
         struct {
             double min;
             double max;
         } mmd;
+
         struct {
             char* var; // separated by '\0', normal terminator at the end still applies, i.e. ends on \0\0
         } v;
@@ -177,12 +179,12 @@ typedef struct ee_engine_start_s {
 typedef uint8_t ee_searchinfo_flags;
 
 enum EE_SEARCHINFO_FLAG_TYPE {
-    EE_SEARCHINFO_FLAG_TYPE_TIME = 1<<0,
-    EE_SEARCHINFO_FLAG_TYPE_DEPTH = 1<<1,
-    EE_SEARCHINFO_FLAG_TYPE_SELDEPTH = 1<<2,
-    EE_SEARCHINFO_FLAG_TYPE_NODES = 1<<3,
-    EE_SEARCHINFO_FLAG_TYPE_NPS = 1<<4,
-    EE_SEARCHINFO_FLAG_TYPE_HASHFULL = 1<<5, // uses just a float [0,1] instead of uci permill
+    EE_SEARCHINFO_FLAG_TYPE_TIME = 1 << 0,
+    EE_SEARCHINFO_FLAG_TYPE_DEPTH = 1 << 1,
+    EE_SEARCHINFO_FLAG_TYPE_SELDEPTH = 1 << 2,
+    EE_SEARCHINFO_FLAG_TYPE_NODES = 1 << 3,
+    EE_SEARCHINFO_FLAG_TYPE_NPS = 1 << 4,
+    EE_SEARCHINFO_FLAG_TYPE_HASHFULL = 1 << 5, // uses just a float [0,1] instead of uci permill
 };
 
 typedef struct ee_engine_searchinfo_s {
@@ -236,6 +238,7 @@ typedef struct ee_engine_movescore_s {
 typedef struct engine_event_s {
     eevent_type type;
     uint32_t engine_id;
+
     union {
         ee_log log;
         ee_heartbeat heartbeat;
@@ -338,8 +341,6 @@ void eevent_create_movescore(engine_event* e, uint32_t engine_id, uint32_t count
 
 void eevent_destroy(engine_event* e);
 
-
-
 typedef struct eevent_queue_s {
     char _padding[168];
 } eevent_queue;
@@ -353,8 +354,6 @@ void eevent_queue_destroy(eevent_queue* eq);
 void eevent_queue_push(eevent_queue* eq, engine_event* e);
 
 void eevent_queue_pop(eevent_queue* eq, engine_event* e, uint32_t t);
-
-
 
 typedef struct engine_feature_flags_s {
     bool options : 1;

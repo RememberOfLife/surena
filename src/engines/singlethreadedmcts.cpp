@@ -51,10 +51,10 @@ namespace surena {
         Game* selection_game = gamestate->clone();
         Game* playout_game = gamestate->clone();
         while (true) {
-        //while (iterations < 100) {
+            //while (iterations < 100) {
             if (ms_timeout > 0) {
                 check_clock = std::chrono::steady_clock::now();
-                if(std::chrono::duration_cast<std::chrono::milliseconds>(check_clock-start_clock).count() > ms_timeout) {
+                if (std::chrono::duration_cast<std::chrono::milliseconds>(check_clock - start_clock).count() > ms_timeout) {
                     break;
                 }
             }
@@ -72,13 +72,7 @@ namespace surena {
                 // #1.5 select best node
                 while (curr_node != NULL) {
                     // use UCT for selection of the most worthwhile child to exploit/explore
-                    float curr_weigth = (
-                        (static_cast<float>(curr_node->reward_count) / static_cast<float>(curr_node->playout_count)) +
-                        (
-                            10.4f * //TODO make this an option for the engine
-                            sqrtf( logf(static_cast<float>(parent_playouts)) / static_cast<float>(curr_node->playout_count) )
-                        )
-                    );
+                    float curr_weigth = ((static_cast<float>(curr_node->reward_count) / static_cast<float>(curr_node->playout_count)) + (10.4f * /*TODO make this an option for the engine*/ sqrtf(logf(static_cast<float>(parent_playouts)) / static_cast<float>(curr_node->playout_count))));
                     if (curr_weigth > best_weight) {
                         best_weight = curr_weigth;
                         best_node = curr_node;
@@ -87,7 +81,8 @@ namespace surena {
                     curr_node = curr_node->right_sibling;
                 }
                 curr_node = best_node;
-                if(!curr_node) break;
+                if (!curr_node)
+                    break;
                 selection_game->apply_move(curr_node->move_id);
             }
             // game decided by selection, backpropagate
@@ -109,7 +104,7 @@ namespace surena {
                 }
                 continue;
             }
-        
+
             // #2 make all the new nodes
             std::vector<uint64_t> available_moves = selection_game->get_moves();
             for (int i = 0; i < available_moves.size(); i++) {
@@ -117,7 +112,13 @@ namespace surena {
                 playout_game->apply_move(available_moves[i]);
                 // add node to tree
                 SearchTreeNode* backprop_node = new SearchTreeNode(
-                    target_node, NULL, target_node->left_child, 0, 0, available_moves[i], playout_game->player_to_move()
+                    target_node,
+                    NULL,
+                    target_node->left_child,
+                    0,
+                    0,
+                    available_moves[i],
+                    playout_game->player_to_move()
                 );
                 target_node->left_child = backprop_node;
                 // #3 playout the game, make another copy
@@ -126,7 +127,7 @@ namespace surena {
                 while (backprop_node != NULL) {
                     backprop_node->playout_count++;
                     uint8_t parent_player_to_move = target_node->player_to_move;
-                    if (target_node->parent){
+                    if (target_node->parent) {
                         parent_player_to_move = target_node->parent->player_to_move;
                     }
                     // give reward 2 if winning player, if draw then give reward 1 to all
@@ -145,9 +146,8 @@ namespace surena {
 
     void SinglethreadedMCTS::search_stop()
     {
-
     }
-    
+
     uint64_t SinglethreadedMCTS::get_best_move()
     {
         if (root->left_child == NULL) {
@@ -239,4 +239,4 @@ namespace surena {
         printf("\n");
     }
 
-}
+} // namespace surena

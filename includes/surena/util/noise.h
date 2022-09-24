@@ -78,6 +78,7 @@ float get_5d_noto(int32_t indexX, int32_t indexY, int32_t indexZ, int32_t indexT
 
 // strhash function not part of squirrelnoise
 // pass str_end NULL as default to use normal null character termination
+// str_end points to the first character NOT included in the hash
 uint32_t strhash(const char* str, const char* str_end);
 
 /*

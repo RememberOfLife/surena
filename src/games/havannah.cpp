@@ -15,9 +15,9 @@
 #include "surena/games/havannah.h"
 
 namespace {
-    
+
     // general purpose helpers for opts, data
-    
+
     typedef havannah_options opts_repr;
 
     struct data_repr {
@@ -96,12 +96,12 @@ namespace {
 
     error_code create_with_opts_str(game* self, const char* str)
     {
-        self->data1 = new(malloc(sizeof(data_repr))) data_repr();
+        self->data1 = new (malloc(sizeof(data_repr))) data_repr();
         if (self->data1 == NULL) {
             return ERR_OUT_OF_MEMORY;
         }
         self->data2 = NULL;
-        
+
         opts_repr& opts = get_opts(self);
         opts.size = 8;
         if (str != NULL) {
@@ -116,10 +116,10 @@ namespace {
 
         self->sizer = (buf_sizer){
             .options_str = 16,
-            .state_str = (size_t)(3 * opts.size * opts.size - ( 3 * opts.size - 1 ) + opts.board_sizer + 5),
+            .state_str = (size_t)(3 * opts.size * opts.size - (3 * opts.size - 1) + opts.board_sizer + 5),
             .player_count = 2,
             .max_players_to_move = 1,
-            .max_moves = (uint32_t)(3 * opts.size * opts.size - ( 3 * opts.size - 1 )),
+            .max_moves = (uint32_t)(3 * opts.size * opts.size - (3 * opts.size - 1)),
             .max_results = 1,
             .move_str = 4,
             .print_str = 1000,
@@ -129,12 +129,12 @@ namespace {
 
     error_code create_with_opts_bin(game* self, void* options_struct)
     {
-        self->data1 = new(malloc(sizeof(data_repr))) data_repr();
+        self->data1 = new (malloc(sizeof(data_repr))) data_repr();
         if (self->data1 == NULL) {
             return ERR_OUT_OF_MEMORY;
         }
         self->data2 = NULL;
-        
+
         opts_repr& opts = get_opts(self);
         opts.size = 8;
         if (options_struct != NULL) {
@@ -144,10 +144,10 @@ namespace {
 
         self->sizer = (buf_sizer){
             .options_str = 16,
-            .state_str = (size_t)(3 * opts.size * opts.size - ( 3 * opts.size - 1 ) + opts.board_sizer + 5),
+            .state_str = (size_t)(3 * opts.size * opts.size - (3 * opts.size - 1) + opts.board_sizer + 5),
             .player_count = 2,
             .max_players_to_move = 1,
-            .max_moves = (uint32_t)(3 * opts.size * opts.size - ( 3 * opts.size - 1 )),
+            .max_moves = (uint32_t)(3 * opts.size * opts.size - (3 * opts.size - 1)),
             .max_results = 1,
             .move_str = 4,
             .print_str = 1000,
@@ -157,7 +157,7 @@ namespace {
 
     error_code create_default(game* self)
     {
-        self->data1 = new(malloc(sizeof(data_repr))) data_repr();
+        self->data1 = new (malloc(sizeof(data_repr))) data_repr();
         if (self->data1 == NULL) {
             return ERR_OUT_OF_MEMORY;
         }
@@ -169,17 +169,17 @@ namespace {
 
         self->sizer = (buf_sizer){
             .options_str = 16,
-            .state_str = (size_t)(3 * opts.size * opts.size - ( 3 * opts.size - 1 ) + opts.board_sizer + 5),
+            .state_str = (size_t)(3 * opts.size * opts.size - (3 * opts.size - 1) + opts.board_sizer + 5),
             .player_count = 2,
             .max_players_to_move = 1,
-            .max_moves = (uint32_t)(3 * opts.size * opts.size - ( 3 * opts.size - 1 )),
+            .max_moves = (uint32_t)(3 * opts.size * opts.size - (3 * opts.size - 1)),
             .max_results = 1,
             .move_str = 4,
             .print_str = 1000,
         };
         return ERR_OK;
     }
-    
+
     error_code export_options_str(game* self, size_t* ret_size, char* str)
     {
         if (str == NULL) {
@@ -214,7 +214,7 @@ namespace {
         *(data_repr*)clone_target->data1 = *(data_repr*)self->data1;
         return ERR_OK;
     }
-    
+
     error_code copy_from(game* self, game* other)
     {
         *(data_repr*)self->data1 = *(data_repr*)other->data1;
@@ -294,7 +294,7 @@ namespace {
                             break;
                         }
                         dacc *= 10;
-                        uint32_t ladd = (*str)-'0';
+                        uint32_t ladd = (*str) - '0';
                         if (ladd > opts.board_sizer) {
                             return ERR_INVALID_INPUT;
                         }
@@ -312,7 +312,7 @@ namespace {
                 case '/': { // advance to next
                     y++;
                     // set the operational x as the actual x coord from in the sizer, NOT just counting existing cells from the left
-                    x = (y >= opts.size ? y-opts.size+1 : 0);
+                    x = (y >= opts.size ? y - opts.size + 1 : 0);
                 } break;
                 case ' ': { // advance to next segment
                     advance_segment = true;
@@ -435,7 +435,7 @@ namespace {
                 str += sprintf(str, " X");
             } break;
         }
-        *ret_size = str-ostr;
+        *ret_size = str - ostr;
         return ERR_OK;
     }
 
@@ -497,7 +497,7 @@ namespace {
     error_code make_move(game* self, player_id player, move_code move)
     {
         data_repr& data = get_repr(self);
-        
+
         int tx = (move >> 8) & 0xFF;
         int ty = move & 0xFF;
 
@@ -555,7 +555,7 @@ namespace {
         players_to_move(self, &ptm_count, &ptm);
         while (ptm_count > 0) {
             get_concrete_moves(self, ptm, &moves_count, moves);
-            make_move(self, ptm ,moves[squirrelnoise5(ctr++, seed)%moves_count]);
+            make_move(self, ptm, moves[squirrelnoise5(ctr++, seed) % moves_count]);
             players_to_move(self, &ptm_count, &ptm);
         }
         free(moves);
@@ -572,9 +572,9 @@ namespace {
             *ret_move = MOVE_NONE;
             return ERR_INVALID_INPUT;
         }
-        int x = (str[0]-'a');
+        int x = (str[0] - 'a');
         uint8_t y8;
-        int ec = sscanf(str+1, "%hhu", &y8);
+        int ec = sscanf(str + 1, "%hhu", &y8);
         if (ec != 1) {
             return ERR_INVALID_INPUT;
         }
@@ -600,7 +600,7 @@ namespace {
         }
         int x = (move >> 8) & 0xFF;
         int y = move & 0xFF;
-        *ret_size = sprintf(str_buf, "%c%c", 'a' + x, '0' + y);
+        *ret_size = sprintf(str_buf, "%c%i", 'a' + x, y);
         return ERR_OK;
     }
 
@@ -630,7 +630,7 @@ namespace {
                  x x
                 */
                 for (int iy = 0; iy < opts.board_sizer; iy++) {
-                    int padding_count = (iy <= opts.size-1) ? (opts.size-1)-iy: iy-(opts.size-1);
+                    int padding_count = (iy <= opts.size - 1) ? (opts.size - 1) - iy : iy - (opts.size - 1);
                     for (int ip = 0; ip < padding_count; ip++) {
                         str_buf += sprintf(str_buf, " ");
                     }
@@ -652,27 +652,27 @@ namespace {
                     x
                 */
                 // from: https://www.techiedelight.com/print-matrix-diagonally-positive-slope/#comment-3071
-                for (int sum = 0; sum <= 2*(opts.board_sizer-1); sum++) {
-                    int r_end = std::min(sum, opts.board_sizer-1);
-                    int r = sum - std::min(sum, opts.board_sizer-1);
-                    int paddingCount = (sum < opts.board_sizer) ? (opts.board_sizer-r_end)-1: r;
+                for (int sum = 0; sum <= 2 * (opts.board_sizer - 1); sum++) {
+                    int r_end = std::min(sum, opts.board_sizer - 1);
+                    int r = sum - std::min(sum, opts.board_sizer - 1);
+                    int paddingCount = (sum < opts.board_sizer) ? (opts.board_sizer - r_end) - 1 : r;
                     for (int ip = 0; ip < paddingCount; ip++) {
                         str_buf += sprintf(str_buf, "    ");
                     }
-                    while(r <= r_end) {
-                        if (data.gameboard[r][sum-r].color == HAVANNAH_PLAYER_INVALID) {
+                    while (r <= r_end) {
+                        if (data.gameboard[r][sum - r].color == HAVANNAH_PLAYER_INVALID) {
                             str_buf += sprintf(str_buf, "        ");
                             r++;
                             continue;
                         }
-                        str_buf += sprintf(str_buf, "%c       ", HAVANNAH_PLAYER_CHARS[data.gameboard[r][sum-r].color]);
+                        str_buf += sprintf(str_buf, "%c       ", HAVANNAH_PLAYER_CHARS[data.gameboard[r][sum - r].color]);
                         r++;
                     }
                     str_buf += sprintf(str_buf, "\n");
                 }
                 break;
         }
-        *ret_size = str_buf-ostr;
+        *ret_size = str_buf - ostr;
         return ERR_OK;
     }
 
@@ -698,7 +698,7 @@ namespace {
 
         bool winner = false; // if this is true by the end, player p wins with this move
         uint8_t contribution_border = 0b00111111; // begin on the north-west corner and it's left border, going counter-clockwise
-        uint8_t contribution_corner = 0b00111111; 
+        uint8_t contribution_corner = 0b00111111;
         std::array<uint8_t, 3> adjacent_graphs = {0, 0, 0}; // there can only be a maximum of 3 graphs with gaps in between
         int adjacent_graph_count = 0;
         bool empty_start = true; // true if the first neighbor tile is non-same color
@@ -707,10 +707,10 @@ namespace {
         // discover north-west neighbor
         if (y > 0 && x > 0) {
             // exists
-            if (data.gameboard[y-1][x-1].color == p) {
-                current_graph_id = data.gameboard[y-1][x-1].parent_graph_id;
+            if (data.gameboard[y - 1][x - 1].color == p) {
+                current_graph_id = data.gameboard[y - 1][x - 1].parent_graph_id;
                 empty_start = false;
-            }/* else {
+            } /* else {
                 // not a same colored piece, save previous streak and set gap
                 if (currentGraphId != 0) {
                     adjacentGraphs[adjacentGraphCount++] = currentGraphId;
@@ -730,9 +730,9 @@ namespace {
         }
 
         // discover west neighbor
-        if (x > 0 && (y - x) < opts.size-1) {
-            if (data.gameboard[y][x-1].color == p) {
-                current_graph_id = data.gameboard[y][x-1].parent_graph_id;
+        if (x > 0 && (y - x) < opts.size - 1) {
+            if (data.gameboard[y][x - 1].color == p) {
+                current_graph_id = data.gameboard[y][x - 1].parent_graph_id;
             } else {
                 if (current_graph_id != 0) {
                     adjacent_graphs[adjacent_graph_count++] = current_graph_id;
@@ -751,9 +751,9 @@ namespace {
         }
 
         // discover south-west neighbor
-        if (y < opts.board_sizer-1 && (y - x < opts.size-1)) {
-            if (data.gameboard[y+1][x].color == p) {
-                current_graph_id = data.gameboard[y+1][x].parent_graph_id;
+        if (y < opts.board_sizer - 1 && (y - x < opts.size - 1)) {
+            if (data.gameboard[y + 1][x].color == p) {
+                current_graph_id = data.gameboard[y + 1][x].parent_graph_id;
             } else {
                 if (current_graph_id != 0) {
                     adjacent_graphs[adjacent_graph_count++] = current_graph_id;
@@ -770,11 +770,11 @@ namespace {
             }
             current_graph_id = 0;
         }
-        
+
         // discover south-east neighbor
-        if (y < opts.board_sizer-1 && x < opts.board_sizer-1) {
-            if (data.gameboard[y+1][x+1].color == p) {
-                current_graph_id = data.gameboard[y+1][x+1].parent_graph_id;
+        if (y < opts.board_sizer - 1 && x < opts.board_sizer - 1) {
+            if (data.gameboard[y + 1][x + 1].color == p) {
+                current_graph_id = data.gameboard[y + 1][x + 1].parent_graph_id;
             } else {
                 if (current_graph_id != 0) {
                     adjacent_graphs[adjacent_graph_count++] = current_graph_id;
@@ -793,9 +793,9 @@ namespace {
         }
 
         // discover east neighbor
-        if (x < opts.board_sizer-1 && (x - y < opts.size-1)) {
-            if (data.gameboard[y][x+1].color == p) {
-                current_graph_id = data.gameboard[y][x+1].parent_graph_id;
+        if (x < opts.board_sizer - 1 && (x - y < opts.size - 1)) {
+            if (data.gameboard[y][x + 1].color == p) {
+                current_graph_id = data.gameboard[y][x + 1].parent_graph_id;
             } else {
                 if (current_graph_id != 0) {
                     adjacent_graphs[adjacent_graph_count++] = current_graph_id;
@@ -814,9 +814,9 @@ namespace {
         }
 
         // discover north-east neighbor
-        if (y > 0 && (x - y < opts.size-1)) {
-            if (data.gameboard[y-1][x].color == p) {
-                current_graph_id = data.gameboard[y-1][x].parent_graph_id;
+        if (y > 0 && (x - y < opts.size - 1)) {
+            if (data.gameboard[y - 1][x].color == p) {
+                current_graph_id = data.gameboard[y - 1][x].parent_graph_id;
             } else {
                 if (current_graph_id != 0) {
                     adjacent_graphs[adjacent_graph_count++] = current_graph_id;
@@ -849,7 +849,7 @@ namespace {
                 adjacent_graphs[i] = data.graph_map[adjacent_graphs[i]].parent_graph_id;
             }
         }
-        
+
         // set current graph to the first discovered, if any
         if (adjacent_graph_count > 0) {
             current_graph_id = adjacent_graphs[0];
@@ -867,15 +867,15 @@ namespace {
 
         // no adjacent graphs, create a new one
         if (adjacent_graph_count == 0) {
-                current_graph_id = data.next_graph_id++;
-                data.graph_map[current_graph_id].parent_graph_id = current_graph_id;
+            current_graph_id = data.next_graph_id++;
+            data.graph_map[current_graph_id].parent_graph_id = current_graph_id;
         }
 
         // 2 or 3 adjacent graphs, all get reparented and contribute their features
         for (int i = 1; i < adjacent_graph_count; i++) {
-                data.graph_map[adjacent_graphs[i]].parent_graph_id = current_graph_id;
-                data.graph_map[current_graph_id].connected_borders |= data.graph_map[adjacent_graphs[i]].connected_borders;
-                data.graph_map[current_graph_id].connected_corners |= data.graph_map[adjacent_graphs[i]].connected_corners;
+            data.graph_map[adjacent_graphs[i]].parent_graph_id = current_graph_id;
+            data.graph_map[current_graph_id].connected_borders |= data.graph_map[adjacent_graphs[i]].connected_borders;
+            data.graph_map[current_graph_id].connected_corners |= data.graph_map[adjacent_graphs[i]].connected_corners;
         }
 
         // contribute target tile features
@@ -909,7 +909,7 @@ namespace {
         return ERR_OK;
     }
 
-}
+} // namespace
 
 const char HAVANNAH_PLAYER_CHARS[4] = {'.', 'O', 'X', '-'}; // none, white, black, invalid
 
@@ -941,7 +941,7 @@ const game_methods havannah_gbe{
         .print = true,
     },
     .internal_methods = (void*)&havannah_gbe_internal_methods,
-    
-    #include "surena/game_impl.h"
-    
+
+#include "surena/game_impl.h"
+
 };

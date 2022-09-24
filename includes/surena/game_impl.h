@@ -1,4 +1,5 @@
 // set all the game methods to their implementation, or NULL if they were marked unused my GF_UNUSED
+// clang-format off
 .get_last_error = (get_last_error_gf_t)get_last_error,
 .create_with_opts_str = (create_with_opts_str_gf_t)create_with_opts_str,
 .create_with_opts_bin = (create_with_opts_bin_gf_t)create_with_opts_bin,

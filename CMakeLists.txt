@@ -28,6 +28,7 @@ set(INCLUDES
 set(SOURCES
     src/engines/randomengine.cpp
     # src/engines/singlethreadedmcts.cpp
+    src/engines/uci_wrap.cpp
 
     # src/games/alhambra.cpp
     # src/games/caesar.cpp
@@ -60,6 +61,8 @@ target_compile_options(surena PRIVATE
 )
 
 target_include_directories(surena PRIVATE ${INCLUDES})
+
+target_link_options(surena PRIVATE -rdynamic)
 
 target_link_libraries(surena dl)
 target_link_libraries(surena Threads::Threads)

@@ -9,7 +9,6 @@
 
 namespace surena {
 
-    
     Caesar::Token::Token(ProvinceBonus tile_province_bonus)
     {
         //TODO
@@ -19,22 +18,22 @@ namespace surena {
     {
         //TODO
     }
-    
+
     void Caesar::Token::PlaceInfluence(Color token_color, InfluenceType token_influence_type, uint8_t token_influence_strength, bool token_influence_direction)
     {
         //TODO
     }
-    
+
     void Caesar::Token::PlaceBorderControl(Color token_color)
     {
         //TODO
     }
-    
+
     void Caesar::Token::PlaceControl(Color controlling_player)
     {
         //TODO
     }
-    
+
     Caesar::ProvinceBonus Caesar::Token::RemoveProvinceBonus()
     {
         //TODO
@@ -42,6 +41,7 @@ namespace surena {
     }
 
     uint8_t Caesar::default_gameboard_nodes[] = {
+        // clang-format off
         1, 2, INFLUENCETYPE_SHIELD, 3, INFLUENCETYPE_BOAT, 0,
         2, 1, 5, INFLUENCETYPE_SWORD, 0,
         3, 1, 4, INFLUENCETYPE_BOAT, 6, INFLUENCETYPE_SWORD, 0,
@@ -61,9 +61,11 @@ namespace surena {
         17, 15, 16, 18, INFLUENCETYPE_SHIELD, 0,
         18, 16, 17, 0,
         0, 8, 0,
+        // clang-format on
     };
 
     Caesar::gameboardNodeId Caesar::default_gameboard_ids[] = {
+        // clang-format off
         {1, "HU"},
         {2, "HC"},
         {3, "MT"},
@@ -83,6 +85,7 @@ namespace surena {
         {17, "AS"},
         {18, "SY"},
         {0, ""},
+        // clang-format on
     };
 
     //TODO
@@ -106,21 +109,23 @@ namespace surena {
         }
         //TODO sorted
         // save id-nums to the actual state of gameboard id assocs.
-        node_ids = (gameboardNodeId*)malloc(sizeof(gameboardNodeId)*node_count);
-        nodes = (Token*)malloc(sizeof(Token)*node_count); // will be initialized through moves later on
+        node_ids = (gameboardNodeId*)malloc(sizeof(gameboardNodeId) * node_count);
+        nodes = (Token*)malloc(sizeof(Token) * node_count); // will be initialized through moves later on
         for (int i = 0; i < node_count; i++) {
             node_ids[i] = gameboard_ids[i];
         }
         // create temporary 3(n-2) sized buffer for connection creation, space for ids of conn. nodes
-        int max_connection_count = (3*(node_count-2));
-        Token* tmp_connections = (Token*)malloc(sizeof(Token)*max_connection_count);
+        int max_connection_count = (3 * (node_count - 2));
+        Token* tmp_connections = (Token*)malloc(sizeof(Token) * max_connection_count);
+
         // create temporary conn. state array and intermediate perfect hashing offset array with size from before (USE VECTOR BUCKETS for state array)
         struct ConnectionEntry {
             uint8_t a; // lesser id
             uint8_t b; // greater id
             int connection_id; // id in tmp_connections
         };
-        ConnectionEntry* tmp_connectionentries = (ConnectionEntry*)malloc(sizeof(ConnectionEntry)*max_connection_count);
+
+        ConnectionEntry* tmp_connectionentries = (ConnectionEntry*)malloc(sizeof(ConnectionEntry) * max_connection_count);
         std::vector<uint8_t> double_control_nodes{};
         // walk through the nodes and build connections into the buffer, storing conn. info and used node ids, get num of actual conns.
         int connection_count = 0;
@@ -163,9 +168,9 @@ namespace surena {
             }
         }
         // make vector bucket buffer for perfect hashing
-        std::vector<ConnectionEntry>* connection_buckets = (std::vector<ConnectionEntry>*)malloc(sizeof(std::vector<ConnectionEntry>*)*connection_count);
+        std::vector<ConnectionEntry>* connection_buckets = (std::vector<ConnectionEntry>*)malloc(sizeof(std::vector<ConnectionEntry>*) * connection_count);
         // hash all conns. using offset 0 into the buckets of the tmp state array
-        connections_intermediate = (uint32_t*)malloc(sizeof(uint32_t)*connection_count);
+        connections_intermediate = (uint32_t*)malloc(sizeof(uint32_t) * connection_count);
         for (int i = 0; i < connection_count; i++) {
             connections_intermediate[i] = 0;
             uint32_t a = tmp_connectionentries[i].a;
@@ -230,7 +235,7 @@ namespace surena {
         //TODO
         return winning_player;
     }
-    
+
     Game* Caesar::clone()
     {
         //TODO
@@ -253,7 +258,7 @@ namespace surena {
         //TODO
         return "";
     }
-    
+
     void Caesar::debug_print()
     {
         //TODO
@@ -265,4 +270,4 @@ namespace surena {
         return 0;
     }
 
-}
+} // namespace surena

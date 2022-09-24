@@ -23,51 +23,49 @@ namespace surena {
                 uint64_t playout_count,
                 uint64_t reward_count,
                 uint64_t move_id,
-                uint8_t player_to_move
-            );
+                uint8_t player_to_move);
             ~SearchTreeNode();
         };
 
-        private:
+      private:
 
-            Game* gamestate;
-            fast_prng rng;
-            SearchTreeNode* root;
+        Game* gamestate;
+        fast_prng rng;
+        SearchTreeNode* root;
 
-        public:
+      public:
 
-            SinglethreadedMCTS();
+        SinglethreadedMCTS();
 
-            SinglethreadedMCTS& operator=(SinglethreadedMCTS&& copy) = delete;
+        SinglethreadedMCTS& operator=(SinglethreadedMCTS&& copy) = delete;
 
-            SinglethreadedMCTS& operator=(SinglethreadedMCTS& copy) = delete;
+        SinglethreadedMCTS& operator=(SinglethreadedMCTS& copy) = delete;
 
-            SinglethreadedMCTS(SinglethreadedMCTS&& copy) = delete;
+        SinglethreadedMCTS(SinglethreadedMCTS&& copy) = delete;
 
-            SinglethreadedMCTS(SinglethreadedMCTS& copy) = delete;
+        SinglethreadedMCTS(SinglethreadedMCTS& copy) = delete;
 
-            ~SinglethreadedMCTS() override;
+        ~SinglethreadedMCTS() override;
 
-            void search_start(uint64_t ms_timeout = 0) override;
-            void search_stop() override;
-            
-            uint64_t get_best_move() override;
+        void search_start(uint64_t ms_timeout = 0) override;
+        void search_stop() override;
 
-            void set_gamestate(Game* target_gamestate) override;
+        uint64_t get_best_move() override;
 
-            uint8_t player_to_move() override;
+        void set_gamestate(Game* target_gamestate) override;
 
-            std::vector<uint64_t> get_moves() override;
+        uint8_t player_to_move() override;
 
-            void apply_move(uint64_t move_id) override;
+        std::vector<uint64_t> get_moves() override;
 
-            uint8_t get_result() override;
+        void apply_move(uint64_t move_id) override;
 
-            uint64_t get_move_id(std::string move_string) override;
-            std::string get_move_string(uint64_t move_id) override;
-            
-            void debug_print() override;
+        uint8_t get_result() override;
 
+        uint64_t get_move_id(std::string move_string) override;
+        std::string get_move_string(uint64_t move_id) override;
+
+        void debug_print() override;
     };
 
-}
+} // namespace surena

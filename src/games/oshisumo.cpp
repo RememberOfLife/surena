@@ -10,9 +10,9 @@
 #include "surena/games/oshisumo.h"
 
 namespace {
-    
+
     // general purpose helpers for opts, data
-    
+
     typedef oshisumo_options opts_repr;
 
     struct data_repr {
@@ -205,7 +205,7 @@ namespace {
         memcpy(clone_target->data1, self->data1, sizeof(data_repr));
         return ERR_OK;
     }
-    
+
     error_code copy_from(game* self, game* other)
     {
         memcpy(self->data1, other->data1, sizeof(data_repr));
@@ -392,7 +392,7 @@ namespace {
         char acc_str_buf[6][2];
         for (int i = 0; i < 2; i++) {
             if (data.sm_acc_buf[i] == OSHISUMO_ANY) {
-                    sprintf(acc_str_buf[i], "(#)");
+                sprintf(acc_str_buf[i], "(#)");
             } else if (data.sm_acc_buf[i] != OSHISUMO_NONE) {
                 sprintf(acc_str_buf[i], "(%hhu)", data.sm_acc_buf[i]);
             }
@@ -465,14 +465,14 @@ namespace {
         data.player_tokens[p - 1] = t;
         return ERR_OK;
     }
-    
+
     error_code get_cell(game* self, int8_t* c)
     {
         data_repr& data = get_repr(self);
         *c = data.push_cell;
         return ERR_OK;
     }
-    
+
     error_code set_cell(game* self, int8_t c)
     {
         data_repr& data = get_repr(self);
@@ -487,7 +487,7 @@ namespace {
         return ERR_OK;
     }
 
-}
+} // namespace
 
 static const oshisumo_internal_methods oshisumo_gbe_internal_methods{
     .get_tokens = get_tokens,
@@ -519,7 +519,7 @@ const game_methods oshisumo_gbe{
         .print = true,
     },
     .internal_methods = (void*)&oshisumo_gbe_internal_methods,
-    
-    #include "surena/game_impl.h"
-    
+
+#include "surena/game_impl.h"
+
 };

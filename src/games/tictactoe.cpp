@@ -31,7 +31,7 @@ namespace {
     {
         return *((data_repr*)(self->data1));
     }
-    
+
     // forward declare everything to allow for inlining at least in this unit
     const char* get_last_error(game* self);
     GF_UNUSED(create_with_opts_str);
@@ -123,7 +123,7 @@ namespace {
         memcpy(clone_target->data1, self->data1, sizeof(data_repr));
         return ERR_OK;
     }
-    
+
     error_code copy_from(game* self, game* other)
     {
         memcpy(self->data1, other->data1, sizeof(data_repr));
@@ -168,7 +168,7 @@ namespace {
                 case '1':
                 case '2':
                 case '3': { // empty squares
-                    for (int place_empty = (*str)-'0'; place_empty > 0; place_empty--) {
+                    for (int place_empty = (*str) - '0'; place_empty > 0; place_empty--) {
                         if (x > 2) {
                             // out of bounds board
                             return ERR_INVALID_INPUT;
@@ -298,7 +298,7 @@ namespace {
                 str += sprintf(str, " O");
             } break;
         }
-        *ret_size = str-ostr;
+        *ret_size = str - ostr;
         return ERR_OK;
     }
 
@@ -391,8 +391,7 @@ namespace {
             get_cell(self, i, 0, &cell_player_i0);
             get_cell(self, i, 1, &cell_player_i1);
             get_cell(self, i, 2, &cell_player_i2);
-            if (cell_player_0i == cell_player_1i && cell_player_0i == cell_player_2i && cell_player_0i != 0
-                || cell_player_i0 == cell_player_i1 && cell_player_i0 == cell_player_i2 && cell_player_i0 != 0) {
+            if (cell_player_0i == cell_player_1i && cell_player_0i == cell_player_2i && cell_player_0i != 0 || cell_player_i0 == cell_player_i1 && cell_player_i0 == cell_player_i2 && cell_player_i0 != 0) {
                 win = true;
             }
         }
@@ -406,15 +405,14 @@ namespace {
         get_cell(self, 2, 2, &cell_player_22);
         get_cell(self, 0, 2, &cell_player_02);
         get_cell(self, 2, 0, &cell_player_20);
-        if ((cell_player_00 == cell_player_11 && cell_player_00 == cell_player_22
-            || cell_player_02 == cell_player_11 && cell_player_02 == cell_player_20) && cell_player_11 != 0) {
+        if ((cell_player_00 == cell_player_11 && cell_player_00 == cell_player_22 || cell_player_02 == cell_player_11 && cell_player_02 == cell_player_20) && cell_player_11 != 0) {
             win = true;
         }
         if (win) {
             // current player has won, mark result as current player and set current player to 0
-            data.state &= ~(0b11<<20); // reset result to 0, otherwise result may be 4 after an internal state update
+            data.state &= ~(0b11 << 20); // reset result to 0, otherwise result may be 4 after an internal state update
             data.state |= current_player << 20;
-            data.state &= ~(0b11<<18);
+            data.state &= ~(0b11 << 18);
             return ERR_OK;
         }
         // detect draw
@@ -427,7 +425,7 @@ namespace {
         }
         if (draw) {
             // set current player to 0, result is 0 already
-            data.state &= ~(0b11<<18);
+            data.state &= ~(0b11 << 18);
             return ERR_OK;
         }
         // switch player
@@ -469,7 +467,7 @@ namespace {
         players_to_move(self, &ptm_count, &ptm);
         while (ptm_count > 0) {
             get_concrete_moves(self, ptm, &moves_count, moves);
-            make_move(self, ptm ,moves[rng.rand()%moves_count]);
+            make_move(self, ptm, moves[rng.rand() % moves_count]);
             players_to_move(self, &ptm_count, &ptm);
         }
         return ERR_OK;
@@ -486,8 +484,8 @@ namespace {
             return ERR_INVALID_INPUT;
         }
         move_code move_id = 0;
-        int x = (str[0]-'a');
-        int y = (str[1]-'0');
+        int x = (str[0] - 'a');
+        int y = (str[1] - '0');
         if (x < 0 || x > 2 || y < 0 || y > 2) {
             *ret_move = MOVE_NONE;
             return ERR_INVALID_INPUT;
@@ -526,7 +524,7 @@ namespace {
                     case 1: {
                         str_buf += sprintf(str_buf, "X");
                     } break;
-                    case 2:{ 
+                    case 2: {
                         str_buf += sprintf(str_buf, "O");
                     } break;
                     default: {
@@ -541,43 +539,43 @@ namespace {
 
     //=====
     // game internal methods
-    
+
     error_code get_cell(game* self, int x, int y, player_id* p)
     {
         data_repr& data = get_repr(self);
         // shift over the correct 2 bits representing the player at that position
-        *p = ((data.state >> (y*6+x*2)) & 0b11);
+        *p = ((data.state >> (y * 6 + x * 2)) & 0b11);
         return ERR_OK;
     }
 
     error_code set_cell(game* self, int x, int y, player_id p)
     {
-        data_repr& data = get_repr(self);   
+        data_repr& data = get_repr(self);
         player_id pc;
         get_cell(self, x, y, &pc);
-        int offset = (y*6+x*2);
+        int offset = (y * 6 + x * 2);
         // new_state = current_value xor (current_value xor new_value)
         data.state ^= ((((uint32_t)pc) << offset) ^ (((uint32_t)p) << offset));
         return ERR_OK;
     }
-    
+
     error_code set_current_player(game* self, player_id p)
     {
-        data_repr& data = get_repr(self);   
-        data.state &= ~(0b11<<18); // reset current player to 0
-        data.state |= p<<18; // insert new current player
-        return ERR_OK;
-    }
-    
-    error_code set_result(game* self, player_id p)
-    {
-        data_repr& data = get_repr(self);        
-        data.state &= ~(0b11<<20); // reset result to 0
-        data.state |= p<<20; // insert new result
+        data_repr& data = get_repr(self);
+        data.state &= ~(0b11 << 18); // reset current player to 0
+        data.state |= p << 18; // insert new current player
         return ERR_OK;
     }
 
-}
+    error_code set_result(game* self, player_id p)
+    {
+        data_repr& data = get_repr(self);
+        data.state &= ~(0b11 << 20); // reset result to 0
+        data.state |= p << 20; // insert new result
+        return ERR_OK;
+    }
+
+} // namespace
 
 static const tictactoe_internal_methods tictactoe_gbe_internal_methods{
     .get_cell = get_cell,
@@ -608,9 +606,9 @@ const game_methods tictactoe_gbe{
         .print = true,
     },
     .internal_methods = (void*)&tictactoe_gbe_internal_methods,
-    
-    #include "surena/game_impl.h"
-    
+
+#include "surena/game_impl.h"
+
 };
 
 //TODO fix X/O enum

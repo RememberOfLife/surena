@@ -13,6 +13,7 @@ extern "C" {
 static const uint64_t SURENA_GAME_API_VERSION = 13;
 
 typedef uint32_t error_code;
+
 // general purpose error codes
 enum ERR {
     ERR_OK = 0,
@@ -30,6 +31,7 @@ enum ERR {
     ERR_CUSTOM_UNSPEC, // unspecified custom error, check get_last_error for a detailed string
     ERR_ENUM_DEFAULT_OFFSET, // not an error, start game method specific error enums at this offset
 };
+
 // returns NULL if the err is not a general error
 const char* get_general_error_string(error_code err);
 // instead of returning an error code, one can return rerrorf which automatically manages fmt string buffer allocation for the error string
@@ -157,7 +159,7 @@ typedef struct game_methods_s {
 
     // the game method specific internal method struct, NULL if not available
     // use the {base,variant,impl} name to make sure you know what this will be
-    // e.g. these would expose get_cell and set_cell on a tictactoe board to enable rw-access to the state 
+    // e.g. these would expose get_cell and set_cell on a tictactoe board to enable rw-access to the state
     const void* internal_methods;
 
     // returns the error string complementing the most recent occured error (i.e. only available if != ERR_OK)
@@ -301,7 +303,7 @@ typedef struct game_methods_s {
     // FEATURE: id
     // state id, should be as conflict free as possible
     // commutatively the same for equal board states
-    // optimally, any n bits of this should be functionally equivalent to a dedicated n-bit id 
+    // optimally, any n bits of this should be functionally equivalent to a dedicated n-bit id
     error_code (*id)(game* self, uint64_t* ret_id);
 
     // FEATURE: eval
