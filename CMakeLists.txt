@@ -44,6 +44,7 @@ set(SOURCES
     src/util/noise.c
     src/util/raw_stream.c
     src/util/semver.c
+    src/util/serialization.c
 
     src/engine.cpp
     src/game.c
@@ -56,7 +57,8 @@ add_executable(surena ${SOURCES})
 
 target_compile_options(surena PRIVATE
     #"-Wall"
-    "-Werror" # warnings as errors
+    # "-Wextra"
+    # "-Werror" # warnings as errors
     "-Wfatal-errors" # stop after first error
 )
 
