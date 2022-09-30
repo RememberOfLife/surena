@@ -10,11 +10,11 @@ extern "C" {
 #endif
 
 typedef struct raw_stream_s {
-    char* begin;
-    char* end;
+    uint8_t* begin;
+    uint8_t* end;
 } raw_stream;
 
-raw_stream rs_init(char* buf);
+raw_stream rs_init(void* buf);
 size_t rs_get_size(raw_stream* rs);
 
 void rs_w_bool(raw_stream* rs, bool v);
@@ -57,9 +57,9 @@ void rs_w_string(raw_stream* rs, char* str);
 size_t rs_r_string_len(raw_stream* rs); // does NOT alter the stream position; DOES account for the null character
 void rs_r_string(raw_stream* rs, char* str);
 
-void rs_w_raw(raw_stream* rs, char* buf, size_t len);
+void rs_w_raw(raw_stream* rs, void* buf, size_t len);
 size_t rs_r_raw_len(raw_stream* rs); // does NOT alter the stream position
-void rs_r_raw(raw_stream* rs, char* buf);
+void rs_r_raw(raw_stream* rs, void* buf);
 
 #ifdef __cplusplus
 }

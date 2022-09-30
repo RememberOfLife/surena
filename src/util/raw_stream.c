@@ -11,7 +11,7 @@ extern "C" {
 
 //TODO could use some templates to keep the redundancy down
 
-raw_stream rs_init(char* buf)
+raw_stream rs_init(void* buf)
 {
     return (raw_stream){
         .begin = buf,
@@ -26,7 +26,7 @@ size_t rs_get_size(raw_stream* rs)
 
 void rs_w_bool(raw_stream* rs, bool v)
 {
-    rs->end[0] = (char)v;
+    rs->end[0] = (uint8_t)v;
     rs->end++;
 }
 
@@ -39,7 +39,7 @@ bool rs_r_bool(raw_stream* rs)
 
 void rs_w_int8(raw_stream* rs, int8_t v)
 {
-    rs->end[0] = (char)v;
+    rs->end[0] = (uint8_t)v;
     rs->end++;
 }
 
@@ -52,8 +52,8 @@ int8_t rs_r_int8(raw_stream* rs)
 
 void rs_w_int16(raw_stream* rs, int16_t v)
 {
-    rs->end[0] = (char)((v >> 8) & 0xFF);
-    rs->end[1] = (char)((v >> 0) & 0xFF);
+    rs->end[0] = (uint8_t)((v >> 8) & 0xFF);
+    rs->end[1] = (uint8_t)((v >> 0) & 0xFF);
     rs->end += 2;
 }
 
@@ -68,10 +68,10 @@ int16_t rs_r_int16(raw_stream* rs)
 
 void rs_w_int32(raw_stream* rs, int32_t v)
 {
-    rs->end[0] = (char)((v >> 24) & 0xFF);
-    rs->end[1] = (char)((v >> 16) & 0xFF);
-    rs->end[2] = (char)((v >> 8) & 0xFF);
-    rs->end[3] = (char)((v >> 0) & 0xFF);
+    rs->end[0] = (uint8_t)((v >> 24) & 0xFF);
+    rs->end[1] = (uint8_t)((v >> 16) & 0xFF);
+    rs->end[2] = (uint8_t)((v >> 8) & 0xFF);
+    rs->end[3] = (uint8_t)((v >> 0) & 0xFF);
     rs->end += 4;
 }
 
@@ -88,14 +88,14 @@ int32_t rs_r_int32(raw_stream* rs)
 
 void rs_w_int64(raw_stream* rs, int64_t v)
 {
-    rs->end[0] = (char)((v >> 56) & 0xFF);
-    rs->end[1] = (char)((v >> 48) & 0xFF);
-    rs->end[2] = (char)((v >> 40) & 0xFF);
-    rs->end[3] = (char)((v >> 32) & 0xFF);
-    rs->end[4] = (char)((v >> 24) & 0xFF);
-    rs->end[5] = (char)((v >> 16) & 0xFF);
-    rs->end[6] = (char)((v >> 8) & 0xFF);
-    rs->end[7] = (char)((v >> 0) & 0xFF);
+    rs->end[0] = (uint8_t)((v >> 56) & 0xFF);
+    rs->end[1] = (uint8_t)((v >> 48) & 0xFF);
+    rs->end[2] = (uint8_t)((v >> 40) & 0xFF);
+    rs->end[3] = (uint8_t)((v >> 32) & 0xFF);
+    rs->end[4] = (uint8_t)((v >> 24) & 0xFF);
+    rs->end[5] = (uint8_t)((v >> 16) & 0xFF);
+    rs->end[6] = (uint8_t)((v >> 8) & 0xFF);
+    rs->end[7] = (uint8_t)((v >> 0) & 0xFF);
     rs->end += 8;
 }
 
@@ -116,7 +116,7 @@ int64_t rs_r_int64(raw_stream* rs)
 
 void rs_w_uint8(raw_stream* rs, uint8_t v)
 {
-    rs->end[0] = (char)v;
+    rs->end[0] = (uint8_t)v;
     rs->end++;
 }
 
@@ -129,8 +129,8 @@ uint8_t rs_r_uint8(raw_stream* rs)
 
 void rs_w_uint16(raw_stream* rs, uint16_t v)
 {
-    rs->end[0] = (char)((v >> 8) & 0xFF);
-    rs->end[1] = (char)((v >> 0) & 0xFF);
+    rs->end[0] = (uint8_t)((v >> 8) & 0xFF);
+    rs->end[1] = (uint8_t)((v >> 0) & 0xFF);
     rs->end += 2;
 }
 
@@ -145,10 +145,10 @@ uint16_t rs_r_uint16(raw_stream* rs)
 
 void rs_w_uint32(raw_stream* rs, uint32_t v)
 {
-    rs->end[0] = (char)((v >> 24) & 0xFF);
-    rs->end[1] = (char)((v >> 16) & 0xFF);
-    rs->end[2] = (char)((v >> 8) & 0xFF);
-    rs->end[3] = (char)((v >> 0) & 0xFF);
+    rs->end[0] = (uint8_t)((v >> 24) & 0xFF);
+    rs->end[1] = (uint8_t)((v >> 16) & 0xFF);
+    rs->end[2] = (uint8_t)((v >> 8) & 0xFF);
+    rs->end[3] = (uint8_t)((v >> 0) & 0xFF);
     rs->end += 4;
 }
 
@@ -165,14 +165,14 @@ uint32_t rs_r_uint32(raw_stream* rs)
 
 void rs_w_uint64(raw_stream* rs, uint64_t v)
 {
-    rs->end[0] = (char)((v >> 56) & 0xFF);
-    rs->end[1] = (char)((v >> 48) & 0xFF);
-    rs->end[2] = (char)((v >> 40) & 0xFF);
-    rs->end[3] = (char)((v >> 32) & 0xFF);
-    rs->end[4] = (char)((v >> 24) & 0xFF);
-    rs->end[5] = (char)((v >> 16) & 0xFF);
-    rs->end[6] = (char)((v >> 8) & 0xFF);
-    rs->end[7] = (char)((v >> 0) & 0xFF);
+    rs->end[0] = (uint8_t)((v >> 56) & 0xFF);
+    rs->end[1] = (uint8_t)((v >> 48) & 0xFF);
+    rs->end[2] = (uint8_t)((v >> 40) & 0xFF);
+    rs->end[3] = (uint8_t)((v >> 32) & 0xFF);
+    rs->end[4] = (uint8_t)((v >> 24) & 0xFF);
+    rs->end[5] = (uint8_t)((v >> 16) & 0xFF);
+    rs->end[6] = (uint8_t)((v >> 8) & 0xFF);
+    rs->end[7] = (uint8_t)((v >> 0) & 0xFF);
     rs->end += 8;
 }
 
@@ -260,17 +260,17 @@ void rs_w_string(raw_stream* rs, char* str)
 
 size_t rs_r_string_len(raw_stream* rs)
 {
-    return strlen(rs->end) + 1;
+    return strlen((char*)rs->end) + 1;
 }
 
 void rs_r_string(raw_stream* rs, char* str)
 {
-    size_t len = strlen(rs->end) + 1;
+    size_t len = strlen((char*)rs->end) + 1;
     memcpy(str, rs->end, len);
     rs->end += len;
 }
 
-void rs_w_raw(raw_stream* rs, char* buf, size_t len)
+void rs_w_raw(raw_stream* rs, void* buf, size_t len)
 {
     rs_w_size(rs, len);
     memcpy(rs->end, buf, len);
@@ -284,7 +284,7 @@ size_t rs_r_raw_len(raw_stream* rs)
     return len;
 }
 
-void rs_r_raw(raw_stream* rs, char* buf)
+void rs_r_raw(raw_stream* rs, void* buf)
 {
     size_t len = rs_r_size(rs);
     memcpy(buf, rs->end, len);

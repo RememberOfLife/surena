@@ -85,6 +85,7 @@ size_t layout_serializer(GSIT itype, const serialization_layout* layout, void* o
     while ((pl->type & SL_TYPE_TYPEMASK) != SL_TYPE_STOP) {
         const bool is_ptr = (pl->type & SL_TYPE_PTR);
         const bool is_array = (pl->type & SL_TYPE_ARRAY);
+        //TODO infer typesize from pl->type if (pseudo-)primitive
         assert(!((is_ptr == true || is_array == true) && pl->typesize == 0)); // detect missing typesize if required
         assert(!(((pl->type & SL_TYPE_TYPEMASK) == SL_TYPE_COMPLEX && pl->ext.layout == NULL))); // detect missing layout info if required
         assert(!(((pl->type & SL_TYPE_TYPEMASK) == SL_TYPE_CUSTOM && pl->ext.serializer == NULL))); // detect missing serializer function if required
