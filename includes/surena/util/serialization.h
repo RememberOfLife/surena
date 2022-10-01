@@ -41,7 +41,7 @@ typedef enum __attribute__((__packed__)) SL_TYPE_E {
     SL_TYPE_STRING, // char* member;
     SL_TYPE_BLOB, // blob member;
 
-    // extension types
+    // extension types, must supply typesize
     SL_TYPE_COMPLEX, // // use ext.layout to specify the type
     SL_TYPE_CUSTOM, // use ext.serializer to supply the serializer to use
 
@@ -61,17 +61,19 @@ typedef enum __attribute__((__packed__)) SL_TYPE_E {
 // general serializer invocation type
 typedef enum __attribute__((__packed__)) GSIT_E {
     GSIT_NONE,
-    GSIT_SIZE,
-    GSIT_SERIALIZE,
-    GSIT_DESERIALIZE,
-    GSIT_COPY,
-    GSIT_DESTROY,
+    GSIT_INITZERO, // supply obj_in as object to initalize to zero (similar to destroy)
+    GSIT_SIZE, // size from obj_in
+    GSIT_SERIALIZE, // serialize obj_in
+    GSIT_DESERIALIZE, // deserialize to obj_out
+    GSIT_COPY, // copy from obj_in to obj_out
+    GSIT_DESTROY, // destroy obj_in
     GSIT_COUNT,
     GSIT_SIZE_MAX = UINT8_MAX,
 } GSIT;
 
 typedef struct serialization_layout_s serialization_layout;
 
+// must provide guarantee that any zero initialized object will be destructible from any partial deserialized state *as left by this function*
 typedef size_t (*custom_serializer_t)(GSIT itype, void* obj_in, void* obj_out, void* buf, void* buf_end);
 
 struct serialization_layout_s {
@@ -96,6 +98,7 @@ static const size_t LS_ERR = SIZE_MAX;
 
 // returned size_t is only valid if itype SIZE/SERIALIZE/DESERIALIZE
 // if return value is LS_ERR then an error occured, can only happen during deserialization
+// deserialization errors are automatically cleaned up and do not leak memory (assuming all used custom functions do this as well)
 size_t layout_serializer(GSIT itype, const serialization_layout* layout, void* obj_in, void* obj_out, void* buf, void* buf_end);
 
 #ifdef __cplusplus

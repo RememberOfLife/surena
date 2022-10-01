@@ -64,11 +64,10 @@ size_t ptrdiff(const void* p_end, const void* p_start)
     return (const char*)p_end - (const char*)p_start;
 }
 
-//TODO on deserialization error, need to destroy the partial object backwards
 //TODO place (pseudo-)primitive types in separate functions
 //TODO replace surena/rawstream uses by something cheaper
 // recursive object serializer
-size_t layout_serializer(GSIT itype, const serialization_layout* layout, void* obj_in, void* obj_out, void* buf, void* buf_end)
+size_t layout_serializer_impl(GSIT itype, const serialization_layout* layout, void* obj_in, void* obj_out, void* buf, void* buf_end)
 {
     assert(layout != NULL);
     const bool in_ex = (itype != GSIT_DESERIALIZE);
@@ -85,8 +84,28 @@ size_t layout_serializer(GSIT itype, const serialization_layout* layout, void* o
     while ((pl->type & SL_TYPE_TYPEMASK) != SL_TYPE_STOP) {
         const bool is_ptr = (pl->type & SL_TYPE_PTR);
         const bool is_array = (pl->type & SL_TYPE_ARRAY);
-        //TODO infer typesize from pl->type if (pseudo-)primitive
-        assert(!((is_ptr == true || is_array == true) && pl->typesize == 0)); // detect missing typesize if required
+        size_t typesize = pl->typesize;
+        switch (pl->type & SL_TYPE_TYPEMASK) {
+            case SL_TYPE_BOOL: {
+                typesize = sizeof(bool);
+            } break;
+            case SL_TYPE_U32: {
+                typesize = sizeof(uint32_t);
+            } break;
+            case SL_TYPE_U64: {
+                typesize = sizeof(uint64_t);
+            } break;
+            case SL_TYPE_SIZE: {
+                typesize = sizeof(size_t);
+            } break;
+            case SL_TYPE_STRING: {
+                typesize = sizeof(char*);
+            } break;
+            case SL_TYPE_BLOB: {
+                typesize = sizeof(blob);
+            } break;
+        }
+        assert(!((is_ptr == true || is_array == true) && typesize == 0)); // detect missing typesize if required
         assert(!(((pl->type & SL_TYPE_TYPEMASK) == SL_TYPE_COMPLEX && pl->ext.layout == NULL))); // detect missing layout info if required
         assert(!(((pl->type & SL_TYPE_TYPEMASK) == SL_TYPE_CUSTOM && pl->ext.serializer == NULL))); // detect missing serializer function if required
         assert(!(is_ptr == false && is_array == true && pl->len.immediate == 0)); // detect missing immediate array length
@@ -146,7 +165,7 @@ size_t layout_serializer(GSIT itype, const serialization_layout* layout, void* o
                 in_p = *(void**)in_p;
             }
             if (out_ex == true) {
-                *(void**)out_p = (arr_len > 0 ? malloc(pl->typesize * arr_len) : NULL);
+                *(void**)out_p = (arr_len > 0 ? malloc(typesize * arr_len) : NULL);
                 out_p = *(void**)out_p;
             }
         }
@@ -161,6 +180,9 @@ size_t layout_serializer(GSIT itype, const serialization_layout* layout, void* o
                     switch (itype) {
                         default: {
                             assert(0);
+                        } break;
+                        case GSIT_INITZERO: {
+                            // pass
                         } break;
                         case GSIT_SIZE: {
                             rsize += 1;
@@ -194,6 +216,9 @@ size_t layout_serializer(GSIT itype, const serialization_layout* layout, void* o
                         default: {
                             assert(0);
                         } break;
+                        case GSIT_INITZERO: {
+                            // pass
+                        } break;
                         case GSIT_SIZE: {
                             rsize += 4;
                         } break;
@@ -225,6 +250,9 @@ size_t layout_serializer(GSIT itype, const serialization_layout* layout, void* o
                     switch (itype) {
                         default: {
                             assert(0);
+                        } break;
+                        case GSIT_INITZERO: {
+                            // pass
                         } break;
                         case GSIT_SIZE: {
                             rsize += 8;
@@ -258,6 +286,9 @@ size_t layout_serializer(GSIT itype, const serialization_layout* layout, void* o
                         default: {
                             assert(0);
                         } break;
+                        case GSIT_INITZERO: {
+                            // pass
+                        } break;
                         case GSIT_SIZE: {
                             rsize += 8;
                         } break;
@@ -289,6 +320,9 @@ size_t layout_serializer(GSIT itype, const serialization_layout* layout, void* o
                     switch (itype) {
                         default: {
                             assert(0);
+                        } break;
+                        case GSIT_INITZERO: {
+                            *cin_p = NULL;
                         } break;
                         case GSIT_SIZE: {
                             size_t string_size = (*cin_p == NULL ? 2 : strlen(*cin_p) + 1);
@@ -354,6 +388,12 @@ size_t layout_serializer(GSIT itype, const serialization_layout* layout, void* o
                         default: {
                             assert(0);
                         } break;
+                        case GSIT_INITZERO: {
+                            *cin_p = (blob){
+                                .len = 0,
+                                .data = NULL,
+                            };
+                        } break;
                         case GSIT_SIZE: {
                             rsize += 8 + cin_p->len;
                         } break;
@@ -394,7 +434,7 @@ size_t layout_serializer(GSIT itype, const serialization_layout* layout, void* o
                     }
                 } break;
                 case SL_TYPE_COMPLEX: {
-                    size_t csize = layout_serializer(itype, pl->ext.layout, in_p, out_p, cbuf, ebuf);
+                    size_t csize = layout_serializer_impl(itype, pl->ext.layout, in_p, out_p, cbuf, ebuf);
                     if (csize == LS_ERR) {
                         return LS_ERR;
                     }
@@ -415,10 +455,10 @@ size_t layout_serializer(GSIT itype, const serialization_layout* layout, void* o
                 } break;
             }
             if (in_ex == true) {
-                in_p = ptradd(in_p, pl->typesize);
+                in_p = ptradd(in_p, typesize);
             }
             if (out_ex == true) {
-                out_p = ptradd(out_p, pl->typesize);
+                out_p = ptradd(out_p, typesize);
             }
         }
         if (itype == GSIT_DESTROY && is_ptr == true) {
@@ -427,6 +467,19 @@ size_t layout_serializer(GSIT itype, const serialization_layout* layout, void* o
         pl++;
     }
     return rsize;
+}
+
+size_t layout_serializer(GSIT itype, const serialization_layout* layout, void* obj_in, void* obj_out, void* buf, void* buf_end)
+{
+    // deserializing, first zero init the obj, and on deserialization error, destroy it, so we don't leak memory
+    if (itype == GSIT_DESERIALIZE) {
+        layout_serializer_impl(GSIT_INITZERO, layout, obj_out, NULL, buf, buf_end);
+    }
+    size_t ret = layout_serializer_impl(itype, layout, obj_in, obj_out, buf, buf_end);
+    if (itype == GSIT_DESERIALIZE && ret == LS_ERR) {
+        layout_serializer_impl(GSIT_DESTROY, layout, obj_out, NULL, buf, buf_end);
+    }
+    return ret;
 }
 
 #ifdef __cplusplus
