@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "surena/util/fast_prng.hpp"
+#include "surena/util/fast_prng.h"
 #include "surena/util/noise.h"
 #include "surena/util/semver.h"
 #include "surena/game_gftypes.h"
@@ -520,7 +520,8 @@ namespace {
 
     error_code playout(game* self, uint64_t seed)
     {
-        fast_prng rng(seed);
+        fast_prng rng;
+        fprng_srand(&rng, seed);
         move_code moves[81];
         uint32_t moves_count;
         player_id ptm;
@@ -528,7 +529,7 @@ namespace {
         players_to_move(self, &ptm_count, &ptm);
         while (ptm_count > 0) {
             get_concrete_moves(self, ptm, &moves_count, moves);
-            make_move(self, ptm, moves[rng.rand() % moves_count]);
+            make_move(self, ptm, moves[fprng_rand(&rng) % moves_count]);
             players_to_move(self, &ptm_count, &ptm);
         }
         return ERR_OK;

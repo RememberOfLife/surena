@@ -9,7 +9,7 @@
 extern "C" {
 #endif
 
-//TODO could use some templates to keep the redundancy down
+//TODO simplify rawstream encoding process for byte based primitives (int/uint/float etc) by just using one, "encode bytes" func, on a union type!
 
 raw_stream rs_init(void* buf)
 {

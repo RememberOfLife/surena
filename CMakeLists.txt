@@ -41,7 +41,7 @@ set(SOURCES
     src/games/twixt_pp.cpp
 
     src/util/base64.c
-    src/util/fast_prng.cpp
+    src/util/fast_prng.c
     src/util/noise.c
     src/util/raw_stream.c
     src/util/semver.c

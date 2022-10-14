@@ -1,6 +1,6 @@
 /*
     compile from the project root with:
-    g++ -g -fPIC -shared src/test_plugin.cpp src/games/tictactoe.cpp src/util/fast_prng.cpp src/util/noise.cpp src/util/semver.c src/game.c -Iincludes -o build/test_plugin.so
+    g++ -g -fPIC -shared src/test_plugin.cpp src/games/tictactoe.cpp src/util/fast_prng.c src/util/noise.c src/util/semver.c src/game.c -Iincludes -o build/test_plugin.so
     this provides standard tictactoe as a test for the plugin loading system
 */
 

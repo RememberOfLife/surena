@@ -172,13 +172,13 @@ size_t layout_serializer_impl(GSIT itype, const serialization_layout* layout, vo
         for (size_t idx = 0; idx < arr_len; idx++) {
             switch (pl->type & SL_TYPE_TYPEMASK) {
                 default: {
-                    assert(0);
+                    assert(0); // cannot serialize unknown type
                 } break;
                 case SL_TYPE_BOOL: {
                     bool* cin_p = (bool*)in_p;
                     bool* cout_p = (bool*)out_p;
                     switch (itype) {
-                        default: {
+                        case GSIT_NONE: {
                             assert(0);
                         } break;
                         case GSIT_INITZERO: {
@@ -205,15 +205,20 @@ size_t layout_serializer_impl(GSIT itype, const serialization_layout* layout, vo
                         case GSIT_COPY: {
                             *cout_p = *cin_p;
                         } break;
-                        case GSIT_DESTROY:
-                            break;
+                        case GSIT_DESTROY: {
+                            // pass
+                        } break;
+                        case GSIT_COUNT:
+                        case GSIT_SIZE_MAX: {
+                            assert(0);
+                        } break;
                     }
                 } break;
                 case SL_TYPE_U32: {
                     uint32_t* cin_p = (uint32_t*)in_p;
                     uint32_t* cout_p = (uint32_t*)out_p;
                     switch (itype) {
-                        default: {
+                        case GSIT_NONE: {
                             assert(0);
                         } break;
                         case GSIT_INITZERO: {
@@ -240,15 +245,20 @@ size_t layout_serializer_impl(GSIT itype, const serialization_layout* layout, vo
                         case GSIT_COPY: {
                             *cout_p = *cin_p;
                         } break;
-                        case GSIT_DESTROY:
-                            break;
+                        case GSIT_DESTROY: {
+                            // pass
+                        } break;
+                        case GSIT_COUNT:
+                        case GSIT_SIZE_MAX: {
+                            assert(0);
+                        } break;
                     }
                 } break;
                 case SL_TYPE_U64: {
                     uint64_t* cin_p = (uint64_t*)in_p;
                     uint64_t* cout_p = (uint64_t*)out_p;
                     switch (itype) {
-                        default: {
+                        case GSIT_NONE: {
                             assert(0);
                         } break;
                         case GSIT_INITZERO: {
@@ -275,15 +285,20 @@ size_t layout_serializer_impl(GSIT itype, const serialization_layout* layout, vo
                         case GSIT_COPY: {
                             *cout_p = *cin_p;
                         } break;
-                        case GSIT_DESTROY:
-                            break;
+                        case GSIT_DESTROY: {
+                            // pass
+                        } break;
+                        case GSIT_COUNT:
+                        case GSIT_SIZE_MAX: {
+                            assert(0);
+                        } break;
                     }
                 } break;
                 case SL_TYPE_SIZE: {
                     size_t* cin_p = (size_t*)in_p;
                     size_t* cout_p = (size_t*)out_p;
                     switch (itype) {
-                        default: {
+                        case GSIT_NONE: {
                             assert(0);
                         } break;
                         case GSIT_INITZERO: {
@@ -310,15 +325,20 @@ size_t layout_serializer_impl(GSIT itype, const serialization_layout* layout, vo
                         case GSIT_COPY: {
                             *cout_p = *cin_p;
                         } break;
-                        case GSIT_DESTROY:
-                            break;
+                        case GSIT_DESTROY: {
+                            // pass
+                        } break;
+                        case GSIT_COUNT:
+                        case GSIT_SIZE_MAX: {
+                            assert(0);
+                        } break;
                     }
                 } break;
                 case SL_TYPE_STRING: {
                     char** cin_p = (char**)in_p;
                     char** cout_p = (char**)out_p;
                     switch (itype) {
-                        default: {
+                        case GSIT_NONE: {
                             assert(0);
                         } break;
                         case GSIT_INITZERO: {
@@ -379,13 +399,17 @@ size_t layout_serializer_impl(GSIT itype, const serialization_layout* layout, vo
                                 free(*cin_p);
                             }
                         } break;
+                        case GSIT_COUNT:
+                        case GSIT_SIZE_MAX: {
+                            assert(0);
+                        } break;
                     }
                 } break;
                 case SL_TYPE_BLOB: {
                     blob* cin_p = (blob*)in_p;
                     blob* cout_p = (blob*)out_p;
                     switch (itype) {
-                        default: {
+                        case GSIT_NONE: {
                             assert(0);
                         } break;
                         case GSIT_INITZERO: {
@@ -430,6 +454,10 @@ size_t layout_serializer_impl(GSIT itype, const serialization_layout* layout, vo
                         } break;
                         case GSIT_DESTROY: {
                             blob_destroy(cin_p);
+                        } break;
+                        case GSIT_COUNT:
+                        case GSIT_SIZE_MAX: {
+                            assert(0);
                         } break;
                     }
                 } break;

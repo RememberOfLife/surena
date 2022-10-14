@@ -50,7 +50,7 @@ error_code rerrorf(char** pbuf, error_code ec, const char* fmt, ...)
     va_start(args, fmt);
     size_t len = vsnprintf(NULL, 0, fmt, args) + 1;
     va_end(args);
-    *pbuf = malloc(len);
+    *pbuf = (char*)malloc(len);
     if (*pbuf == NULL) {
         return ERR_OUT_OF_MEMORY;
     }

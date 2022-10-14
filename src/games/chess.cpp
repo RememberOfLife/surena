@@ -844,6 +844,9 @@ namespace {
                 }
                 // gen move for this piece
                 switch (current_piece.type) {
+                    case CHESS_PIECE_TYPE_NONE: {
+                        // pass
+                    } break;
                     case CHESS_PIECE_TYPE_KING: {
                         for (int d = 0; d < 8; d++) {
                             int tx = x + directions_x[d];
@@ -956,8 +959,6 @@ namespace {
                             move_vec[gather_move_cnt++] = (x << 12) | (y << 8) | (tx << 4) | (ty);
                         }
                     } break;
-                    default:
-                        break;
                 }
             }
         }

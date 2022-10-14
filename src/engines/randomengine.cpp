@@ -313,9 +313,6 @@ namespace {
                 case EE_TYPE_ENGINE_MOVESCORE: {
                     assert(0);
                 } break;
-                default: {
-                    assert(0);
-                } break;
             }
             eevent_destroy(&e);
         }
