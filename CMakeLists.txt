@@ -23,6 +23,7 @@ find_package(Threads REQUIRED)
 set(INCLUDES
     includes
     src
+    "${CMAKE_BINARY_DIR}/build_generated"
 )
 
 set(SOURCES
@@ -54,6 +55,18 @@ set(SOURCES
 )
 
 add_executable(surena ${SOURCES})
+
+# export git commit hash and dirty flag to generated file in the build/build_generated/generated dir
+find_package(Git)
+set(dollar "$") # next file is processed using configure_file so we need to escape dollars to use variables
+configure_file(
+    cmake/generate_git_commit_hash.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/generate_git_commit_hash.cmake
+    ESCAPE_QUOTES
+)
+add_custom_target(add_generated_dir COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_BINARY_DIR}/build_generated/generated")
+add_custom_target(generate_git_commit_hash DEPENDS add_generated_dir COMMAND "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/generate_git_commit_hash.cmake")
+add_dependencies(surena generate_git_commit_hash)
 
 target_compile_options(surena PRIVATE
     #"-Wall"

@@ -12,6 +12,7 @@
 #include "surena/util/semver.h"
 #include "surena/game_plugin.h"
 #include "surena/game.h"
+#include "generated/git_commit_hash.h"
 
 namespace surena {
     const semver version = {0, 10, 0};
@@ -60,6 +61,8 @@ int main(int argc, char** argv)
         char* n_arg = (w_argc > 0) ? argv[argc - w_argc] : NULL; // next arg
         if (strcmp(w_arg, "--version") == 0) {
             printf("surena version %d.%d.%d\n", surena::version.major, surena::version.minor, surena::version.patch);
+            //TODO api versions?
+            printf("git commit hash: %s%s\n", GIT_COMMIT_HASH == NULL ? "<no commit info available>" : GIT_COMMIT_HASH, GIT_COMMIT_DIRTY ? " (dirty)" : "");
             exit(0);
         } else if (strcmp(w_arg, "--game") == 0) {
             w_argc--;
