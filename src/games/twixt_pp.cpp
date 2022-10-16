@@ -42,7 +42,7 @@ namespace {
     }
 
     // forward declare everything to allow for inlining at least in this unit
-    const char* get_last_error(game* self);
+    GF_UNUSED(get_last_error);
     error_code create_with_opts_str(game* self, const char* str);
     error_code create_with_opts_bin(game* self, void* options_struct);
     GF_UNUSED(create_deserialize);
@@ -88,11 +88,6 @@ namespace {
     error_code can_swap(game* self, bool* swap_available);
 
     // implementation
-
-    const char* get_last_error(game* self)
-    {
-        return (char*)self->data2; // in this scheme opts are saved together with the state in data1, and data2 is the last error string
-    }
 
     error_code create_with_opts_str(game* self, const char* str)
     {
@@ -240,8 +235,6 @@ namespace {
     {
         delete (data_repr*)self->data1;
         self->data1 = NULL;
-        free(self->data2);
-        self->data2 = NULL;
         return ERR_OK;
     }
 
@@ -1145,6 +1138,7 @@ const game_methods twixt_pp_gbe{
     .impl_name = "surena_default",
     .version = semver{0, 1, 0},
     .features = game_feature_flags{
+        .error_strings = false,
         .options = true,
         .options_bin = true,
         .options_bin_ref = true,

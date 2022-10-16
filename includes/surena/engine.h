@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_ENGINE_API_VERSION = 7;
+static const uint64_t SURENA_ENGINE_API_VERSION = 8;
 
 // general purpose timing function that counts up monotonically
 uint64_t surena_get_ms64();
@@ -356,6 +356,7 @@ void eevent_queue_push(eevent_queue* eq, engine_event* e);
 void eevent_queue_pop(eevent_queue* eq, engine_event* e, uint32_t t);
 
 typedef struct engine_feature_flags_s {
+    bool error_strings : 1;
     bool options : 1;
     bool options_bin : 1;
     bool score_all_moves : 1; // if not supported and requested in stop event, ignore
@@ -377,6 +378,7 @@ typedef struct engine_methods_s {
     // use the engine_name to make sure you know what this will be
     const void* internal_methods;
 
+    // FEATURE: error_strings
     // returns the error string complementing the most recent occured error
     // returns NULL if there is error string available for this error
     // the string is still owned by the frontend method backend, do not free it

@@ -70,52 +70,51 @@ int main(int argc, char** argv)
                 game_method = &chess_gbe;
             } else if (strcmp(n_arg, "havannah") == 0) {
                 game_method = &havannah_gbe;
-            } else if (strcmp(n_arg, "tictactoe") == 0) {
+            } else if (strcmp(n_arg, "tictactoe") == 0) { //TODO standard variants should always ALSO be available when specifying ".standard"
                 game_method = &tictactoe_gbe;
             } else if (strcmp(n_arg, "tictactoe.ultimate") == 0) {
                 game_method = &tictactoe_ultimate_gbe;
             } else if (strcmp(n_arg, "twixt.pp") == 0) {
                 game_method = &twixt_pp_gbe;
             } else {
-                printf("unknown game\n");
+                printf("[WARN] unknown game\n");
             }
         } else if (strcmp(w_arg, "--game-plugin") == 0) {
             w_argc--;
             if (n_arg) {
                 game_method = load_plugin_first_method(n_arg);
                 if (game_method == NULL) {
-                    printf("plugin did not provide at least one game, ignoring\n");
-                    printf("HINT: relative plugin paths must be prefixed with \"./\"\n");
+                    printf("[WARN] plugin did not provide at least one game, ignoring\n");
+                    printf("[INFO] relative plugin paths MUST be prefixed with \"./\"\n");
                 }
             } else {
-                printf("ignoring missing game plugin file name\n");
+                printf("[WARN] ignoring missing game plugin file name\n");
             }
         } else if (strcmp(w_arg, "--game-options") == 0) {
             w_argc--;
             if (n_arg) {
                 game_options = n_arg;
             } else {
-                printf("ignoring missing game options\n");
+                printf("[WARN] ignoring missing game options\n");
             }
         } else if (strcmp(w_arg, "--game-state") == 0) {
             w_argc--;
             if (n_arg) {
                 initial_state = n_arg;
             } else {
-                printf("ignoring missing initial state\n");
+                printf("[WARN] ignoring missing initial state\n");
             }
         } else {
-            printf("ignoring unknown argument: \"%s\"\n", w_arg);
+            printf("[WARN] ignoring unknown argument: \"%s\"\n", w_arg);
         }
     }
 
     if (game_method == NULL) {
-        printf("no game method specified\n");
+        printf("[ERROR] no game method specified\n");
         exit(1);
     }
     if (game_method->debug_print == NULL) {
-        printf("game method does not support debug print\n");
-        exit(1);
+        printf("[WARN] game method does not support debug print\n");
     }
 
     error_code ec;
@@ -124,30 +123,30 @@ int main(int argc, char** argv)
         .data1 = NULL,
         .data2 = NULL,
     };
-    printf("game method: %s.%s.%s %d.%d.%d\n", thegame.methods->game_name, thegame.methods->variant_name, thegame.methods->impl_name, thegame.methods->version.major, thegame.methods->version.minor, thegame.methods->version.patch);
+    printf("[INFO] game method: %s.%s.%s %d.%d.%d\n", thegame.methods->game_name, thegame.methods->variant_name, thegame.methods->impl_name, thegame.methods->version.major, thegame.methods->version.minor, thegame.methods->version.patch);
     if (thegame.methods->features.options) {
         ec = thegame.methods->create_with_opts_str(&thegame, game_options);
         if (ec != ERR_OK) {
-            printf("failed to create with options \"%s\": #%d %s\n", game_options, ec, thegame.methods->get_last_error(&thegame));
+            printf("[ERROR] failed to create with options \"%s\": #%d %s\n", game_options, ec, thegame.methods->get_last_error(&thegame));
             exit(1);
         }
         size_t options_str_size = thegame.sizer.options_str;
         char* options_str = (char*)malloc(options_str_size);
         thegame.methods->export_options_str(&thegame, &options_str_size, options_str);
-        printf("options: \"%s\"\n", options_str);
+        printf("[INFO] options: \"%s\"\n", options_str);
     } else if (game_options != NULL) {
-        printf("game does not support options, ignoring\n");
+        printf("[WARN] game does not support options, ignoring\n");
         ec = thegame.methods->create_default(&thegame);
     } else {
         ec = thegame.methods->create_default(&thegame);
     }
     if (ec != ERR_OK) {
-        printf("failed to create: #%d %s\n", ec, thegame.methods->get_last_error(&thegame));
+        printf("[ERROR] failed to create: #%d %s\n", ec, thegame.methods->get_last_error(&thegame));
         exit(1);
     }
     ec = thegame.methods->import_state(&thegame, initial_state);
     if (ec != ERR_OK) {
-        printf("failed to import state \"%s\": #%d %s\n", initial_state, ec, thegame.methods->get_last_error(&thegame));
+        printf("[ERROR] failed to import state \"%s\": #%d %s\n", initial_state, ec, thegame.methods->get_last_error(&thegame));
         exit(1);
     }
     size_t state_str_size = thegame.sizer.state_str;

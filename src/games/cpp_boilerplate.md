@@ -313,6 +313,7 @@ const game_methods tictactoe_gbe{
     .impl_name = "This",
     .version = semver{1, 0, 0},
     .features = game_feature_flags{
+        .error_strings = true,
         .options = true,
         .options_bin = true,
         .options_bin_ref = true,

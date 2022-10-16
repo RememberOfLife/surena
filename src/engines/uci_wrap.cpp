@@ -36,7 +36,6 @@ namespace {
     // forward declares
 
     // engine wrapper
-    const char* get_last_error(engine* self);
     error_code create_with_opts_str(engine* self, uint32_t engine_id, eevent_queue* outbox, eevent_queue** inbox, const char* str);
     error_code create_with_opts_bin(engine* self, uint32_t engine_id, eevent_queue* outbox, eevent_queue** inbox, void* options_struct);
     error_code create_default(engine* self, uint32_t engine_id, eevent_queue* outbox, eevent_queue** inbox);
@@ -49,11 +48,6 @@ namespace {
     //TODO process forward b/c there is no peek on the stdout of the uci engine
 
     // implementation
-
-    const char* get_last_error(engine* self)
-    {
-        return (char*)self->data2;
-    }
 
     error_code create_with_opts_str(engine* self, uint32_t engine_id, eevent_queue* outbox, eevent_queue** inbox, const char* str)
     {
@@ -94,7 +88,6 @@ namespace {
         eevent_queue_destroy(&data.inbox);
         delete data.loop_runner;
         free(self->data1);
-        free(self->data2);
         return ERR_OK;
     }
 
@@ -206,8 +199,9 @@ namespace {
 const engine_methods uci_wrap_ebe{
 
     .engine_name = "uci_wrap",
-    .version = semver{0, 1, 0},
+    .version = semver{0, 2, 0},
     .features = engine_feature_flags{
+        .error_strings = false,
         .options = true,
         .options_bin = true,
         .score_all_moves = false,
@@ -216,7 +210,7 @@ const engine_methods uci_wrap_ebe{
     },
     .internal_methods = NULL,
 
-    .get_last_error = get_last_error,
+    .get_last_error = NULL,
     .create_with_opts_str = create_with_opts_str,
     .create_with_opts_bin = create_with_opts_bin,
     .create_default = create_default,

@@ -33,7 +33,7 @@ namespace {
     }
 
     // forward declare everything to allow for inlining at least in this unit
-    const char* get_last_error(game* self);
+    GF_UNUSED(get_last_error);
     GF_UNUSED(create_with_opts_str);
     GF_UNUSED(create_with_opts_bin);
     GF_UNUSED(create_deserialize);
@@ -84,11 +84,6 @@ namespace {
 
     // implementation
 
-    const char* get_last_error(game* self)
-    {
-        return (char*)self->data2;
-    }
-
     error_code create_default(game* self)
     {
         self->data1 = malloc(sizeof(data_repr));
@@ -112,8 +107,6 @@ namespace {
     {
         free(self->data1);
         self->data1 = NULL;
-        free(self->data2);
-        self->data2 = NULL;
         return ERR_OK;
     }
 
@@ -785,6 +778,7 @@ const game_methods tictactoe_ultimate_gbe{
     .impl_name = "surena_default",
     .version = semver{0, 1, 0},
     .features = game_feature_flags{
+        .error_strings = false,
         .options = false,
         .options_bin = false,
         .options_bin_ref = false,

@@ -17,12 +17,14 @@ const char* general_error_strings[] = {
     [ERR_OUT_OF_MEMORY] = "out of memory",
     [ERR_FEATURE_UNSUPPORTED] = "feature unsupported",
     [ERR_STATE_UNINITIALIZED] = "state uninitialized",
+    [ERR_MISSING_HIDDEN_STATE] = "missing hidden state",
     [ERR_INVALID_INPUT] = "invalid input",
     [ERR_INVALID_OPTIONS] = "invalid options",
     [ERR_UNSTABLE_POSITION] = "unstable position",
     [ERR_SYNC_COUNTER_MISMATCH] = "sync ctr mismatch",
     [ERR_RETRY] = "retry",
-    [ERR_CUSTOM_UNSPEC] = "custom unspec",
+    [ERR_CUSTOM_ANY] = "custom any",
+    [ERR_ENUM_DEFAULT_OFFSET] = NULL,
 };
 
 const char* get_general_error_string(error_code err)
@@ -38,25 +40,23 @@ error_code rerrorf(char** pbuf, error_code ec, const char* fmt, ...)
     if (pbuf == NULL) {
         return ec;
     }
-    if (ec == ERR_OK) {
-        free(*pbuf);
-        *pbuf = NULL;
-        return ERR_OK;
-    }
     if (*pbuf != NULL) {
         free(*pbuf);
+        *pbuf = NULL;
     }
-    va_list args;
-    va_start(args, fmt);
-    size_t len = vsnprintf(NULL, 0, fmt, args) + 1;
-    va_end(args);
-    *pbuf = (char*)malloc(len);
-    if (*pbuf == NULL) {
-        return ERR_OUT_OF_MEMORY;
+    if (fmt != NULL) {
+        va_list args;
+        va_start(args, fmt);
+        size_t len = vsnprintf(NULL, 0, fmt, args) + 1;
+        va_end(args);
+        *pbuf = (char*)malloc(len);
+        if (*pbuf == NULL) {
+            return ERR_OUT_OF_MEMORY;
+        }
+        va_start(args, fmt);
+        vsnprintf(*pbuf, len, fmt, args);
+        va_end(args);
     }
-    va_start(args, fmt);
-    vsnprintf(*pbuf, len, fmt, args);
-    va_end(args);
     return ec;
 }
 

@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 13;
+static const uint64_t SURENA_GAME_API_VERSION = 14;
 
 typedef uint32_t error_code;
 
@@ -23,19 +23,20 @@ enum ERR {
     ERR_OUT_OF_MEMORY,
     ERR_FEATURE_UNSUPPORTED,
     ERR_STATE_UNINITIALIZED,
+    ERR_MISSING_HIDDEN_STATE,
     ERR_INVALID_INPUT,
     ERR_INVALID_OPTIONS,
     ERR_UNSTABLE_POSITION,
     ERR_SYNC_COUNTER_MISMATCH,
     ERR_RETRY, // retrying the same call again may yet still work
-    ERR_CUSTOM_UNSPEC, // unspecified custom error, check get_last_error for a detailed string
+    ERR_CUSTOM_ANY, // unspecified custom error, check get_last_error for a detailed string
     ERR_ENUM_DEFAULT_OFFSET, // not an error, start game method specific error enums at this offset
 };
 
 // returns NULL if the err is not a general error
 const char* get_general_error_string(error_code err);
 // instead of returning an error code, one can return rerrorf which automatically manages fmt string buffer allocation for the error string
-// call rerrorf with ec=ERR_OK to free (*pbuf)
+// call rerrorf with fmt=NULL to free (*pbuf)
 error_code rerrorf(char** pbuf, error_code ec, const char* fmt, ...);
 
 // anywhere a rng seed is use, SEED_NONE represents not using the rng
@@ -47,6 +48,8 @@ static const uint64_t SEED_NONE = 0;
 // a move that encodes an action is part of exactly that action set
 // every concrete move can be encoded as a move
 // every concrete move can be reduced to an action, i.e. a move
+// e.g. flipping a coin is an action (i.e. flip the coin) whereupon the PLAYER_RAND decides the outcome of the flip
+// e.g. laying down a hidden hand card facedown (i.e. keeping it hidden) is informed to other players through the action of playing *some card* from hand facedown, but the player doing it chooses one of the concrete moves specifying which card to play (as they can see their hand)
 //TODO better name for "concrete_move"? maybe action instance / informed move
 typedef uint64_t move_code;
 static const move_code MOVE_NONE = UINT64_MAX;
@@ -61,6 +64,9 @@ typedef uint32_t sync_counter;
 static const sync_counter SYNC_COUNTER_DEFAULT = 0;
 
 typedef struct game_feature_flags_s {
+
+    //TODO slight misnomer since get_last_error may return values for ERR_OK functions
+    bool error_strings : 1;
 
     // options are passed together with the creation of the game data
     bool options : 1;
@@ -93,8 +99,6 @@ typedef struct game_feature_flags_s {
 
     // bool big_moves : 1; //TODO want this?
 
-    // bool supports_binary_state_export : 1; //TODO want this? (also may include dynamic formats)
-
     bool move_ordering : 1;
 
     bool id : 1;
@@ -125,6 +129,7 @@ typedef struct buf_sizer_s {
 } buf_sizer;
 
 typedef struct sync_data_s {
+    // end pointers points to the last byte/elem not included in the segment
     void* data_start;
     void* data_end;
     uint8_t* player_start;
@@ -134,7 +139,7 @@ typedef struct sync_data_s {
 typedef struct game_s game; // forward declare the game for the game methods
 
 typedef struct game_methods_s {
-    // after any function was called on a game object, it must be destroyed before it can be safely release
+    // after any function was called on a game object, it must be destroyed before it can be safely released
 
     // the game methods functions work ONLY on the data supplied to it in the game
     // i.e. they are threadsafe across multiple games, but not within one game instance
@@ -144,24 +149,25 @@ typedef struct game_methods_s {
     // when in doubt return an error code representing an unusable state and force deconstruction
     // should report fails from malloc and similar calls
 
-    // functions pointers for functions marked with "FEATURE: ..." are valid if and only if the feature flag is set for the game method
+    // function pointers for functions marked with "FEATURE: ..." are valid if and only if the feature flag condition is met for the game method
     // functions with "NOTE: avoid crashes" should place extra care on proper input parsing
-    // where applicable: size refers to bytes, count refers to a number of elements of a particular type
+    // where applicable: size refers to bytes (incl. zero terminator for strings), count refers to a number of elements of a particular type
 
-    // the concatenation of game_name+variant_name+impl_name+version uniquely identifies this game method
+    // the concatenation of game_name+variant_name+impl_name+version uniquely identifies these game methods
     // minimum length of 1 character each, with allowed character set:
     // "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789" additionally '-' and '_' but not at the start or end
     const char* game_name;
     const char* variant_name;
     const char* impl_name;
     const semver version;
-    const game_feature_flags features; // these will never change depending on options
+    const game_feature_flags features; // these will never change depending on options (e.g. if randomness only really happens due to a specific option, the whole game methods are always marked as containing randomness)
 
     // the game method specific internal method struct, NULL if not available
-    // use the {base,variant,impl} name to make sure you know what this will be
+    // use the {base,variant,impl} name and version to make sure you know exactly what this will be
     // e.g. these would expose get_cell and set_cell on a tictactoe board to enable rw-access to the state
     const void* internal_methods;
 
+    // FEATURE: error_strings
     // returns the error string complementing the most recent occured error (i.e. only available if != ERR_OK)
     // returns NULL if there is no error string available for this error
     // the string is still owned by the game method backend, do not free it
@@ -206,12 +212,12 @@ typedef struct game_methods_s {
     error_code (*destroy)(game* self);
 
     // fills clone_target with a deep clone of the self game state
-    // undefined behaviour is self == clone_target
+    // undefined behaviour if self == clone_target
     error_code (*clone)(game* self, game* clone_target);
 
     // deep clone the game state of other into self
     // other is restricted to already created games using the same options, otherwise undefined behaviour
-    // undefined behaviour is self == other
+    // undefined behaviour if self == other
     error_code (*copy_from)(game* self, game* other);
 
     // returns true iff self and other are perceived equal state (by the game method)
@@ -234,7 +240,7 @@ typedef struct game_methods_s {
     error_code (*export_state)(game* self, size_t* ret_size, char* str);
 
     // FEATURE: serializable
-    // writes the game state to a game specific raw byte representation that is absolutely accurate to the state of the game
+    // writes the game state and options to a game specific raw byte representation that is absolutely accurate to the state of the game
     // returns the number of serialization bytes written, 0 if failure
     error_code (*serialize)(game* self, size_t* ret_size, char* buf);
     //TODO is it fine that this is not available for games where no state has been loaded yet?, probably not :/
@@ -325,7 +331,7 @@ typedef struct game_methods_s {
     error_code (*playout)(game* self, uint64_t seed);
 
     // FEATURE: random_moves || hidden_information || simultaneous_moves
-    // removes all but certain players hidden information from the internal state
+    // removes all but certain players hidden and public information from the internal state
     // if PLAYER_RAND is not in players, then the seed (and all internal hidden information) is redacted as well
     error_code (*redact_keep_state)(game* self, uint8_t count, player_id* players);
 

@@ -32,7 +32,6 @@ namespace {
     // forward declares
 
     // engine wrapper
-    const char* get_last_error(engine* self);
     error_code create_default(engine* self, uint32_t engine_id, eevent_queue* outbox, eevent_queue** inbox);
     error_code destroy(engine* self);
     error_code is_game_compatible(engine* self, game* compat_game);
@@ -40,11 +39,6 @@ namespace {
     void engine_loop(data_repr* data_p, uint32_t engine_id);
 
     // implementation
-
-    const char* get_last_error(engine* self)
-    {
-        return (char*)self->data2;
-    }
 
     error_code create_default(engine* self, uint32_t engine_id, eevent_queue* outbox, eevent_queue** inbox)
     {
@@ -75,7 +69,6 @@ namespace {
         eevent_queue_destroy(&data.inbox);
         delete data.runner;
         free(self->data1);
-        free(self->data2);
         return ERR_OK;
     }
 
@@ -326,8 +319,9 @@ namespace {
 const engine_methods randomengine_ebe{
 
     .engine_name = "Random",
-    .version = semver{1, 2, 0},
+    .version = semver{1, 3, 0},
     .features = engine_feature_flags{
+        .error_strings = false,
         .options = false,
         .options_bin = false,
         .score_all_moves = false,
@@ -336,7 +330,7 @@ const engine_methods randomengine_ebe{
     },
     .internal_methods = NULL,
 
-    .get_last_error = get_last_error,
+    .get_last_error = NULL,
     .create_with_opts_str = NULL,
     .create_with_opts_bin = NULL,
     .create_default = create_default,
