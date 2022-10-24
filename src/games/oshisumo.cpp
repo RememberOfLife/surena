@@ -36,10 +36,7 @@ namespace {
 
     // forward declare everything to allow for inlining at least in this unit
     GF_UNUSED(get_last_error);
-    error_code create_with_opts_str(game* self, const char* str);
-    error_code create_with_opts_bin(game* self, void* options_struct);
-    GF_UNUSED(create_deserialize);
-    error_code create_default(game* self);
+    error_code create(game* self, game_init init_info);
     error_code export_options_str(game* self, size_t* ret_size, char* str);
     GF_UNUSED(get_options_bin_ref);
     error_code destroy(game* self);
@@ -59,7 +56,9 @@ namespace {
     error_code is_action(game* self, move_code move, bool* ret_is_action);
     error_code make_move(game* self, player_id player, move_code move);
     error_code get_results(game* self, uint8_t* ret_count, player_id* players);
+    GF_UNUSED(export_legacy);
     GF_UNUSED(get_sync_counter);
+    error_code get_scores(game* self, size_t* ret_count, player_id* players, int32_t* scores);
     error_code id(game* self, uint64_t* ret_id);
     error_code eval(game* self, player_id player, float* ret_eval);
     GF_UNUSED(discretize);
@@ -82,7 +81,7 @@ namespace {
 
     //TODO //BUG use new buffer sizer api
 
-    error_code create_with_opts_str(game* self, const char* str)
+    error_code create(game* self, game_init init_info)
     {
         self->data1 = malloc(sizeof(data_repr));
         if (self->data1 == NULL) {
@@ -93,12 +92,27 @@ namespace {
         opts_repr& opts = get_opts(self);
         opts.size = 5;
         opts.tokens = 50;
-        if (str != NULL) {
-            int ec = sscanf(str, "%hhu-%hhu", &opts.size, &opts.tokens);
-            if (ec != 2) {
-                free(self->data1);
-                return ERR_INVALID_INPUT;
-            }
+        GAME_INIT_OPTS_TYPE options_type = (init_info.source_type == GAME_INIT_SOURCE_TYPE_STANDARD ? init_info.source.standard.opts_type : GAME_INIT_OPTS_TYPE_DEFAULT);
+        switch (options_type) {
+            case GAME_INIT_OPTS_TYPE_DEFAULT: {
+                // pass
+            } break;
+            case GAME_INIT_OPTS_TYPE_STR: {
+                if (init_info.source.standard.opts.str == NULL) {
+                    break;
+                }
+                int ec = sscanf(init_info.source.standard.opts.str, "%hhu-%hhu", &opts.size, &opts.tokens);
+                if (ec != 2) {
+                    free(self->data1);
+                    return ERR_INVALID_INPUT;
+                }
+            } break;
+            case GAME_INIT_OPTS_TYPE_BIN: {
+                if (init_info.source.standard.opts.bin == NULL) {
+                    break;
+                }
+                opts = *(opts_repr*)init_info.source.standard.opts.bin;
+            } break;
         }
 
         self->sizer = (buf_sizer){
@@ -111,60 +125,11 @@ namespace {
             .move_str = 10, //TODO size correctly
             .print_str = 100, //TODO size correctly
         };
-        return ERR_OK;
-    }
-
-    error_code create_with_opts_bin(game* self, void* options_struct)
-    {
-        self->data1 = malloc(sizeof(data_repr));
-        if (self->data1 == NULL) {
-            return ERR_OUT_OF_MEMORY;
+        const char* initial_state = NULL;
+        if (init_info.source_type == GAME_INIT_SOURCE_TYPE_STANDARD) {
+            initial_state = init_info.source.standard.initial_state;
         }
-        self->data2 = NULL;
-
-        opts_repr& opts = get_opts(self);
-        opts.size = 5;
-        opts.tokens = 50;
-        if (options_struct != NULL) {
-            opts = *(opts_repr*)options_struct;
-        }
-
-        self->sizer = (buf_sizer){
-            .options_str = 8,
-            .state_str = 14,
-            .player_count = 2,
-            .max_players_to_move = 2,
-            .max_moves = (uint32_t)(opts.tokens + 1),
-            .max_results = 1,
-            .move_str = 10, //TODO size correctly
-            .print_str = 100, //TODO size correctly
-        };
-        return ERR_OK;
-    }
-
-    error_code create_default(game* self)
-    {
-        self->data1 = malloc(sizeof(data_repr));
-        if (self->data1 == NULL) {
-            return ERR_OUT_OF_MEMORY;
-        }
-        self->data2 = NULL;
-
-        opts_repr& opts = get_opts(self);
-        opts.size = 5;
-        opts.tokens = 50;
-
-        self->sizer = (buf_sizer){
-            .options_str = 8,
-            .state_str = 14,
-            .player_count = 2,
-            .max_players_to_move = 2,
-            .max_moves = (uint32_t)(opts.tokens + 1),
-            .max_results = 1,
-            .move_str = 10, //TODO size correctly
-            .print_str = 100, //TODO size correctly
-        };
-        return ERR_OK;
+        return import_state(self, initial_state);
     }
 
     error_code export_options_str(game* self, size_t* ret_size, char* str)
@@ -191,7 +156,22 @@ namespace {
         }
         clone_target->methods = self->methods;
         opts_repr& opts = get_opts(self);
-        error_code ec = clone_target->methods->create_with_opts_bin(clone_target, &opts);
+        error_code ec = clone_target->methods->create(
+            clone_target,
+            (game_init){
+                .source_type = GAME_INIT_SOURCE_TYPE_STANDARD,
+                .source = {
+                    .standard = {
+                        .opts_type = GAME_INIT_OPTS_TYPE_BIN,
+                        .opts = {
+                            .bin = &opts,
+                        },
+                        .legacy_str = NULL,
+                        .initial_state = NULL,
+                    },
+                },
+            }
+        );
         if (ec != ERR_OK) {
             return ec;
         }
@@ -308,6 +288,12 @@ namespace {
     }
 
     error_code get_results(game* self, uint8_t* ret_count, player_id* players)
+    {
+        //TODO
+        return ERR_STATE_UNINITIALIZED;
+    }
+
+    error_code get_scores(game* self, size_t* ret_count, player_id* players, int32_t* scores)
     {
         //TODO
         return ERR_STATE_UNINITIALIZED;
@@ -502,11 +488,13 @@ const game_methods oshisumo_gbe{
         .options_bin = true,
         .options_bin_ref = false,
         .serializable = false,
+        .legacy = false,
         .random_moves = false,
         .hidden_information = false,
         .simultaneous_moves = true,
         .sync_counter = false,
         .move_ordering = false,
+        .scores = true,
         .id = true,
         .eval = true,
         .playout = true,

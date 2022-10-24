@@ -4,10 +4,7 @@
 
 // provide typedefs for all the game functions
 typedef const char* (*get_last_error_gf_t)(game* self);
-typedef error_code (*create_with_opts_str_gf_t)(game* self, const char* str);
-typedef error_code (*create_with_opts_bin_gf_t)(game* self, void* options_struct);
-typedef error_code (*create_deserialize_gf_t)(game* self, char* buf);
-typedef error_code (*create_default_gf_t)(game* self);
+typedef error_code (*create_gf_t)(game* self, game_init init_info);
 typedef error_code (*export_options_str_gf_t)(game* self, size_t* ret_size, char* str);
 typedef error_code (*get_options_bin_ref_gf_t)(game* self, void** ret_bin_ref);
 typedef error_code (*destroy_gf_t)(game* self);
@@ -27,7 +24,9 @@ typedef error_code (*move_to_action_gf_t)(game* self, move_code move, move_code*
 typedef error_code (*is_action_gf_t)(game* self, move_code move, bool* ret_is_action);
 typedef error_code (*make_move_gf_t)(game* self, player_id player, move_code move);
 typedef error_code (*get_results_gf_t)(game* self, uint8_t* ret_count, player_id* players);
+typedef error_code (*export_legacy_gf_t)(game* self, size_t* ret_size, char* str_buf);
 typedef error_code (*get_sync_counter_gf_t)(game* self, sync_counter* ret_sync);
+typedef error_code (*get_scores_gf_t)(game* self, size_t* ret_count, player_id* players, int32_t* scores);
 typedef error_code (*id_gf_t)(game* self, uint64_t* ret_id);
 typedef error_code (*eval_gf_t)(game* self, player_id player, float* ret_eval);
 typedef error_code (*discretize_gf_t)(game* self, uint64_t seed);

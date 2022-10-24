@@ -15,7 +15,7 @@
 #include "generated/git_commit_hash.h"
 
 namespace surena {
-    const semver version = {0, 10, 0};
+    const semver version = {0, 11, 0};
 } // namespace surena
 
 // args https://github.com/p-ranav/argparse
@@ -51,6 +51,7 @@ int main(int argc, char** argv)
 {
     const game_methods* game_method = NULL;
     const char* game_options = NULL;
+    const char* game_legacy = NULL;
     const char* initial_state = NULL;
 
     //TODO important, support options as both "--opt=VAL" and "--opt VAL", i.e. if current arg contains '=' then split into next arg
@@ -97,6 +98,13 @@ int main(int argc, char** argv)
             } else {
                 printf("[WARN] ignoring missing game options\n");
             }
+        } else if (strcmp(w_arg, "--game-legacy") == 0) {
+            w_argc--;
+            if (n_arg) {
+                game_legacy = n_arg;
+            } else {
+                printf("[WARN] ignoring missing game legacy\n");
+            }
         } else if (strcmp(w_arg, "--game-state") == 0) {
             w_argc--;
             if (n_arg) {
@@ -124,30 +132,44 @@ int main(int argc, char** argv)
         .data2 = NULL,
     };
     printf("[INFO] game method: %s.%s.%s %d.%d.%d\n", thegame.methods->game_name, thegame.methods->variant_name, thegame.methods->impl_name, thegame.methods->version.major, thegame.methods->version.minor, thegame.methods->version.patch);
+    if (game_options != NULL && thegame.methods->features.options == false) {
+        printf("[WARN] game does not support options, ignoring\n");
+    }
+    game_init game_init_info = (game_init){
+        .source_type = GAME_INIT_SOURCE_TYPE_STANDARD,
+        .source = {
+            .standard = {
+                .opts_type = (thegame.methods->features.options ? GAME_INIT_OPTS_TYPE_STR : GAME_INIT_OPTS_TYPE_DEFAULT),
+                .opts = {.str = game_options},
+                .legacy_str = NULL,
+                .initial_state = initial_state,
+            },
+        },
+    };
+    ec = thegame.methods->create(&thegame, game_init_info);
+    if (ec != ERR_OK) {
+        printf("[ERROR] failed to create: #%d %s\n", ec, thegame.methods->get_last_error(&thegame));
+        printf("%*soptions: %s\n", 8, "", game_options);
+        printf("%*slegacy: %s\n", 8, "", game_legacy);
+        printf("%*sinitial state: %s\n", 8, "", initial_state);
+        exit(1);
+    }
     if (thegame.methods->features.options) {
-        ec = thegame.methods->create_with_opts_str(&thegame, game_options);
-        if (ec != ERR_OK) {
-            printf("[ERROR] failed to create with options \"%s\": #%d %s\n", game_options, ec, thegame.methods->get_last_error(&thegame));
-            exit(1);
-        }
         size_t options_str_size = thegame.sizer.options_str;
         char* options_str = (char*)malloc(options_str_size);
         thegame.methods->export_options_str(&thegame, &options_str_size, options_str);
         printf("[INFO] options: \"%s\"\n", options_str);
-    } else if (game_options != NULL) {
-        printf("[WARN] game does not support options, ignoring\n");
-        ec = thegame.methods->create_default(&thegame);
-    } else {
-        ec = thegame.methods->create_default(&thegame);
     }
     if (ec != ERR_OK) {
         printf("[ERROR] failed to create: #%d %s\n", ec, thegame.methods->get_last_error(&thegame));
         exit(1);
     }
-    ec = thegame.methods->import_state(&thegame, initial_state);
-    if (ec != ERR_OK) {
-        printf("[ERROR] failed to import state \"%s\": #%d %s\n", initial_state, ec, thegame.methods->get_last_error(&thegame));
-        exit(1);
+    if (initial_state != NULL) {
+        ec = thegame.methods->import_state(&thegame, initial_state);
+        if (ec != ERR_OK) {
+            printf("[ERROR] failed to import state \"%s\": #%d %s\n", initial_state, ec, thegame.methods->get_last_error(&thegame));
+            exit(1);
+        }
     }
     size_t state_str_size = thegame.sizer.state_str;
     char* state_str = (char*)malloc(state_str_size);

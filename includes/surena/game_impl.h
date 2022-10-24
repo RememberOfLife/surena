@@ -1,10 +1,7 @@
 // set all the game methods to their implementation, or NULL if they were marked unused my GF_UNUSED
 // clang-format off
 .get_last_error = (get_last_error_gf_t)get_last_error,
-.create_with_opts_str = (create_with_opts_str_gf_t)create_with_opts_str,
-.create_with_opts_bin = (create_with_opts_bin_gf_t)create_with_opts_bin,
-.create_deserialize = (create_deserialize_gf_t)create_deserialize,
-.create_default = (create_default_gf_t)create_default,
+.create = (create_gf_t)create,
 .export_options_str = (export_options_str_gf_t)export_options_str,
 .get_options_bin_ref = (get_options_bin_ref_gf_t)get_options_bin_ref,
 .destroy = (destroy_gf_t)destroy,
@@ -24,7 +21,9 @@
 .is_action = (is_action_gf_t)is_action,
 .make_move = (make_move_gf_t)make_move,
 .get_results = (get_results_gf_t)get_results,
+.export_legacy = (export_legacy_gf_t)export_legacy,
 .get_sync_counter = (get_sync_counter_gf_t)get_sync_counter,
+.get_scores = (get_scores_gf_t)get_scores,
 .id = (id_gf_t)id,
 .eval = (eval_gf_t)eval,
 .discretize = (discretize_gf_t)discretize,

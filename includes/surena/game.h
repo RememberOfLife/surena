@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 14;
+static const uint64_t SURENA_GAME_API_VERSION = 15;
 
 typedef uint32_t error_code;
 
@@ -77,6 +77,8 @@ typedef struct game_feature_flags_s {
 
     bool serializable : 1; // this is a binary serialization of the game, must be absolutely accurate representation of the game state
 
+    bool legacy : 1;
+
     // bool perfect_information : 1; // needed?
 
     // if a board has a seed then if any random moves happen there will only ever be one move available (the rigged one)
@@ -101,6 +103,8 @@ typedef struct game_feature_flags_s {
 
     bool move_ordering : 1;
 
+    bool scores : 1;
+
     bool id : 1;
 
     bool eval : 1;
@@ -124,6 +128,7 @@ typedef struct buf_sizer_s {
     uint32_t max_moves; // maximum number of moves returned by get_concrete_move(s_ordered/_probabilities)
     uint32_t max_actions; // maximum number of actions returned by get_actions, feature
     uint8_t max_results; // maximum number of players that can simultaneously win
+    size_t legacy_str; // byte size, feature
     size_t move_str; // byte size
     size_t print_str; // byte size, feature
 } buf_sizer;
@@ -135,6 +140,41 @@ typedef struct sync_data_s {
     uint8_t* player_start;
     uint8_t* player_end;
 } sync_data;
+
+typedef enum GAME_INIT_OPTS_TYPE_E {
+    GAME_INIT_OPTS_TYPE_DEFAULT = 0, // default options, or none if not available
+    GAME_INIT_OPTS_TYPE_STR, // FEATURE: options
+    GAME_INIT_OPTS_TYPE_BIN, // FEATURE: options_bin
+} GAME_INIT_OPTS_TYPE;
+
+typedef enum GAME_INIT_SOURCE_TYPE_E {
+    GAME_INIT_SOURCE_TYPE_DEFAULT = 0, // create a default game with the default options and default initial state
+    GAME_INIT_SOURCE_TYPE_STANDARD, // create a game from some options, legacy and initial state
+    GAME_INIT_SOURCE_TYPE_SERIALIZED, // (re)create a game from a serialization buffer
+} GAME_INIT_SOURCE_TYPE;
+
+typedef struct game_init_s {
+    GAME_INIT_SOURCE_TYPE source_type;
+
+    union {
+        struct {
+            GAME_INIT_OPTS_TYPE opts_type;
+
+            union {
+                const char* str;
+                void* bin;
+            } opts; // FEATURE: options ; both may be NULL to use default
+
+            const char* legacy_str; // FEATURE: legacy ; may be NULL to use none
+            const char* initial_state; // may be null to use default
+        } standard; // use options, legacy, initial_state
+
+        struct {
+            void* buf_begin;
+            void* buf_end;
+        } serialized; // use the given byte buffer to create the game data, NULL buffers are invalid
+    } source;
+} game_init;
 
 typedef struct game_s game; // forward declare the game for the game methods
 
@@ -173,29 +213,12 @@ typedef struct game_methods_s {
     // the string is still owned by the game method backend, do not free it
     const char* (*get_last_error)(game* self);
 
-    // FEATURE: options
-    // use the given options to create the game data
-    // if str is NULL then the default options are loaded
-    // see create_default for more
-    error_code (*create_with_opts_str)(game* self, const char* str);
-
-    // FEATURE: options_bin
-    // use the given options to create the game data
-    // if str is NULL then the default options are loaded
-    // see create_default for more
-    error_code (*create_with_opts_bin)(game* self, void* options_struct);
-
-    // FEATURE: serializable
-    // use the given byte buffer to create the game data
-    // calling this with a NULL buf is invalid
-    // see create_default for more
-    error_code (*create_deserialize)(game* self, char* buf);
-
     // construct and initialize a new game specific data object into self
-    // if any options exist, the defaults are used
     // a game can only be created once, must be matched with a call to destroy
     // !! even if create fails, the game has to be destroyed before releasing or creating again
-    error_code (*create_default)(game* self);
+    // the init_info provides details on what source is used, if any, and details about that source
+    // after creation, if successful, the game is always left in a valid and ready to use state
+    error_code (*create)(game* self, game_init init_info); //TODO should init_info be a pointer?
 
     // FEATURE: options
     // write this games options to a universal options string
@@ -301,10 +324,25 @@ typedef struct game_methods_s {
     // returns the number of ids written
     error_code (*get_results)(game* self, uint8_t* ret_count, player_id* players);
 
+    // FEATURE: legacy
+    // only available on a finished game
+    // AND if all required hidden information is available, otherwise returns ERR_MISSING_HIDDEN_STATE
+    // use buf_sizer.legacy_str to get the necessary size for the str_buf
+    // NOTE: this does not include the used options, save them separately for reuse together with this in a future game
+    error_code (*export_legacy)(game* self, size_t* ret_size, char* str_buf);
+
     // FEATURE: sync_counter
     // writes the game internal sync counter
     // if supported the game manages this by itself, taking control over when to increment or not
     error_code (*get_sync_counter)(game* self, sync_counter* ret_sync);
+
+    // FEATURE: scores
+    // available after creation for the entire lifetime of the game
+    // writes the scores of players, as accumulated during this game only, to scores, and the respective players to players
+    // use buf_sizer.player_count to size scores
+    //TODO is int32 enough? need more complex? or float?
+    //TODO offer some default score?
+    error_code (*get_scores)(game* self, size_t* ret_count, player_id* players, int32_t* scores);
 
     // FEATURE: id
     // state id, should be as conflict free as possible

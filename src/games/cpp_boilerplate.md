@@ -72,10 +72,7 @@ namespace {
     }
 
     const char* get_last_error(game* self);
-    error_code create_with_opts_str(game* self, const char* str);
-    error_code create_with_opts_bin(game* self, void* options_struct);
-    error_code create_deserialize(game* self, char* buf);
-    error_code create_default(game* self);
+    error_code create(game* self, game_init init_info);
     error_code export_options_str(game* self, size_t* ret_size, char* str);
     error_code get_options_bin_ref(game* self, void** ret_bin_ref);
     error_code destroy(game* self);
@@ -95,7 +92,9 @@ namespace {
     error_code is_action(game* self, move_code move, bool* ret_is_action);
     error_code make_move(game* self, player_id player, move_code move);
     error_code get_results(game* self, uint8_t* ret_count, player_id* players);
+    error_code export_legacy(game* self, size_t* ret_size, char* str_buf);
     error_code get_sync_counter(game* self, sync_counter* ret_sync);
+    error_code get_scores(game* self, size_t* ret_count, player_id* players, int32_t* scores);
     error_code id(game* self, uint64_t* ret_id);
     error_code eval(game* self, player_id player, float* ret_eval);
     error_code discretize(game* self, uint64_t seed);
@@ -117,22 +116,7 @@ namespace {
         return (char*)self->data2; // in this scheme opts are saved together with the state in data1, and data2 is the last error string
     }
 
-    error_code create_with_opts_str(game* self, const char* str)
-    {
-        //TODO
-    }
-
-    error_code create_with_opts_bin(game* self, void* options_struct)
-    {
-        //TODO
-    }
-
-    error_code create_deserialize(game* self, char* buf)
-    {
-        //TODO
-    }
-
-    error_code create_default(game* self)
+    error_code create(game* self, game_init init_info);
     {
         //TODO
     }
@@ -232,7 +216,17 @@ namespace {
         //TODO
     }
 
+    error_code export_legacy(game* self, size_t* ret_size, char* str_buf)
+    {
+        //TODO
+    }
+
     error_code get_sync_counter(game* self, sync_counter* ret_sync)
+    {
+        //TODO
+    }
+
+    error_code get_scores(game* self, size_t* ret_count, player_id* players, int32_t* scores)
     {
         //TODO
     }
@@ -317,11 +311,14 @@ const game_methods tictactoe_gbe{
         .options = true,
         .options_bin = true,
         .options_bin_ref = true,
+        .serializable = true,
+        .legacy = true,
         .random_moves = true,
         .hidden_information = true,
         .simultaneous_moves = true,
         .sync_counter = true,
         .move_ordering = true,
+        .scores = true,
         .id = true,
         .eval = true,
         .playout = true,

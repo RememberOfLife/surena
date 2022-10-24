@@ -43,10 +43,7 @@ namespace {
 
     // forward declare everything to allow for inlining at least in this unit
     GF_UNUSED(get_last_error);
-    error_code create_with_opts_str(game* self, const char* str);
-    error_code create_with_opts_bin(game* self, void* options_struct);
-    GF_UNUSED(create_deserialize);
-    error_code create_default(game* self);
+    error_code create(game* self, game_init init_info);
     error_code export_options_str(game* self, size_t* ret_size, char* str);
     error_code get_options_bin_ref(game* self, void** ret_bin_ref);
     error_code destroy(game* self);
@@ -66,7 +63,9 @@ namespace {
     GF_UNUSED(is_action);
     error_code make_move(game* self, player_id player, move_code move);
     error_code get_results(game* self, uint8_t* ret_count, player_id* players);
+    GF_UNUSED(export_legacy);
     GF_UNUSED(get_sync_counter);
+    GF_UNUSED(get_scores);
     GF_UNUSED(id); //TODO
     GF_UNUSED(eval); //TODO
     GF_UNUSED(discretize);
@@ -89,7 +88,7 @@ namespace {
 
     // implementation
 
-    error_code create_with_opts_str(game* self, const char* str)
+    error_code create(game* self, game_init init_info)
     {
         self->data1 = new (malloc(sizeof(data_repr))) data_repr();
         if (self->data1 == NULL) {
@@ -101,36 +100,51 @@ namespace {
         opts.wx = 24;
         opts.wy = 24;
         opts.pie_swap = true;
-        if (str != NULL) {
-            // this accepts formats in:
-            // "white/black+" and "square+"
-            // the '+' is optional and indicates swap rule being enabled (a "plus" for black)
-            uint8_t square_size = 0;
-            char square_swap = '\0';
-            int ec_square = sscanf(str, "%hhu%c", &square_size, &square_swap);
-            char double_swap = '\0';
-            int ec_double = sscanf(str, "%hhu/%hhu%c", &opts.wy, &opts.wx, &double_swap);
-            if (ec_double >= 2) {
-                opts.pie_swap = (double_swap == '+');
-                if (opts.pie_swap == false && double_swap != '\0') {
+        GAME_INIT_OPTS_TYPE options_type = (init_info.source_type == GAME_INIT_SOURCE_TYPE_STANDARD ? init_info.source.standard.opts_type : GAME_INIT_OPTS_TYPE_DEFAULT);
+        switch (options_type) {
+            case GAME_INIT_OPTS_TYPE_DEFAULT: {
+                // pass
+            } break;
+            case GAME_INIT_OPTS_TYPE_STR: {
+                if (init_info.source.standard.opts.str == NULL) {
+                    break;
+                }
+                // this accepts formats in:
+                // "white/black+" and "square+"
+                // the '+' is optional and indicates swap rule being enabled (a "plus" for black)
+                uint8_t square_size = 0;
+                char square_swap = '\0';
+                int ec_square = sscanf(init_info.source.standard.opts.str, "%hhu%c", &square_size, &square_swap);
+                char double_swap = '\0';
+                int ec_double = sscanf(init_info.source.standard.opts.str, "%hhu/%hhu%c", &opts.wy, &opts.wx, &double_swap);
+                if (ec_double >= 2) {
+                    opts.pie_swap = (double_swap == '+');
+                    if (opts.pie_swap == false && double_swap != '\0') {
+                        free(self->data1);
+                        self->data1 = NULL;
+                        return ERR_INVALID_INPUT;
+                    }
+                } else if (ec_square >= 1) {
+                    opts.wx = square_size;
+                    opts.wy = square_size;
+                    opts.pie_swap = (square_swap == '+');
+                    if (opts.pie_swap == false && square_swap != '\0') {
+                        free(self->data1);
+                        self->data1 = NULL;
+                        return ERR_INVALID_INPUT;
+                    }
+                } else {
                     free(self->data1);
                     self->data1 = NULL;
                     return ERR_INVALID_INPUT;
                 }
-            } else if (ec_square >= 1) {
-                opts.wx = square_size;
-                opts.wy = square_size;
-                opts.pie_swap = (square_swap == '+');
-                if (opts.pie_swap == false && square_swap != '\0') {
-                    free(self->data1);
-                    self->data1 = NULL;
-                    return ERR_INVALID_INPUT;
+            } break;
+            case GAME_INIT_OPTS_TYPE_BIN: {
+                if (init_info.source.standard.opts.bin == NULL) {
+                    break;
                 }
-            } else {
-                free(self->data1);
-                self->data1 = NULL;
-                return ERR_INVALID_INPUT;
-            }
+                opts = *(opts_repr*)init_info.source.standard.opts.bin;
+            } break;
         }
         if (opts.wx < 5 || opts.wx > 128 || opts.wy < 5 || opts.wy > 128) {
             free(self->data1);
@@ -148,67 +162,11 @@ namespace {
             .move_str = 6,
             .print_str = (size_t)(opts.wx * opts.wy + opts.wy + 1),
         };
-        return ERR_OK;
-    }
-
-    error_code create_with_opts_bin(game* self, void* options_struct)
-    {
-        self->data1 = new (malloc(sizeof(data_repr))) data_repr();
-        if (self->data1 == NULL) {
-            return ERR_OUT_OF_MEMORY;
+        const char* initial_state = NULL;
+        if (init_info.source_type == GAME_INIT_SOURCE_TYPE_STANDARD) {
+            initial_state = init_info.source.standard.initial_state;
         }
-        self->data2 = NULL;
-
-        opts_repr& opts = get_opts(self);
-        opts.wx = 24;
-        opts.wy = 24;
-        opts.pie_swap = true;
-        if (options_struct != NULL) {
-            opts = *(opts_repr*)options_struct;
-        }
-        if (opts.wx < 5 || opts.wx > 128 || opts.wy < 5 || opts.wy > 128) {
-            free(self->data1);
-            self->data1 = NULL;
-            return ERR_INVALID_INPUT;
-        }
-
-        self->sizer = (buf_sizer){
-            .options_str = 9,
-            .state_str = (size_t)(opts.wy * opts.wx * 5 + 1 + 4),
-            .player_count = 2,
-            .max_players_to_move = 1,
-            .max_moves = (uint32_t)(opts.wx * opts.wy - 3),
-            .max_results = 1,
-            .move_str = 6,
-            .print_str = (size_t)(opts.wx * opts.wy + opts.wy + 1),
-        };
-        return ERR_OK;
-    }
-
-    error_code create_default(game* self)
-    {
-        self->data1 = new (malloc(sizeof(data_repr))) data_repr();
-        if (self->data1 == NULL) {
-            return ERR_OUT_OF_MEMORY;
-        }
-        self->data2 = NULL;
-
-        opts_repr& opts = get_opts(self);
-        opts.wx = 24;
-        opts.wy = 24;
-        opts.pie_swap = true;
-
-        self->sizer = (buf_sizer){
-            .options_str = 9,
-            .state_str = (size_t)(opts.wy * opts.wx * 5 + 1 + 4),
-            .player_count = 2,
-            .max_players_to_move = 1,
-            .max_moves = (uint32_t)(opts.wx * opts.wy - 3),
-            .max_results = 1,
-            .move_str = 6,
-            .print_str = (size_t)(opts.wx * opts.wy + opts.wy + 1),
-        };
-        return ERR_OK;
+        return import_state(self, initial_state);
     }
 
     error_code export_options_str(game* self, size_t* ret_size, char* str)
@@ -245,7 +203,22 @@ namespace {
         }
         clone_target->methods = self->methods;
         opts_repr& opts = get_opts(self);
-        error_code ec = clone_target->methods->create_with_opts_bin(clone_target, &opts);
+        error_code ec = clone_target->methods->create(
+            clone_target,
+            (game_init){
+                .source_type = GAME_INIT_SOURCE_TYPE_STANDARD,
+                .source = {
+                    .standard = {
+                        .opts_type = GAME_INIT_OPTS_TYPE_BIN,
+                        .opts = {
+                            .bin = &opts,
+                        },
+                        .legacy_str = NULL,
+                        .initial_state = NULL,
+                    },
+                },
+            }
+        );
         if (ec != ERR_OK) {
             return ec;
         }
@@ -1143,11 +1116,13 @@ const game_methods twixt_pp_gbe{
         .options_bin = true,
         .options_bin_ref = true,
         .serializable = false,
+        .legacy = false,
         .random_moves = false,
         .hidden_information = false,
         .simultaneous_moves = false,
         .sync_counter = false,
         .move_ordering = false,
+        .scores = false,
         .id = false,
         .eval = false,
         .playout = true,

@@ -47,10 +47,7 @@ namespace {
 
     // forward declare everything to allow for inlining at least in this unit
     GF_UNUSED(get_last_error);
-    error_code create_with_opts_str(game* self, const char* str);
-    error_code create_with_opts_bin(game* self, void* options_struct);
-    GF_UNUSED(create_deserialize);
-    error_code create_default(game* self);
+    error_code create(game* self, game_init init_info);
     error_code export_options_str(game* self, size_t* ret_size, char* str);
     GF_UNUSED(get_options_bin_ref);
     error_code destroy(game* self);
@@ -70,7 +67,9 @@ namespace {
     GF_UNUSED(is_action);
     error_code make_move(game* self, player_id player, move_code move);
     error_code get_results(game* self, uint8_t* ret_count, player_id* players);
+    GF_UNUSED(export_legacy);
     GF_UNUSED(get_sync_counter);
+    GF_UNUSED(get_scores);
     GF_UNUSED(id);
     GF_UNUSED(eval);
     GF_UNUSED(discretize);
@@ -89,7 +88,7 @@ namespace {
 
     // implementation
 
-    error_code create_with_opts_str(game* self, const char* str)
+    error_code create(game* self, game_init init_info)
     {
         self->data1 = new (malloc(sizeof(data_repr))) data_repr();
         if (self->data1 == NULL) {
@@ -99,13 +98,28 @@ namespace {
 
         opts_repr& opts = get_opts(self);
         opts.size = 8;
-        if (str != NULL) {
-            int ec = sscanf(str, "%u", &opts.size);
-            if (ec != 1) {
-                free(self->data1);
-                self->data1 = NULL;
-                return ERR_INVALID_INPUT;
-            }
+        GAME_INIT_OPTS_TYPE options_type = (init_info.source_type == GAME_INIT_SOURCE_TYPE_STANDARD ? init_info.source.standard.opts_type : GAME_INIT_OPTS_TYPE_DEFAULT);
+        switch (options_type) {
+            case GAME_INIT_OPTS_TYPE_DEFAULT: {
+                // pass
+            } break;
+            case GAME_INIT_OPTS_TYPE_STR: {
+                if (init_info.source.standard.opts.str == NULL) {
+                    break;
+                }
+                int ec = sscanf(init_info.source.standard.opts.str, "%u", &opts.size);
+                if (ec != 1) {
+                    free(self->data1);
+                    self->data1 = NULL;
+                    return ERR_INVALID_INPUT;
+                }
+            } break;
+            case GAME_INIT_OPTS_TYPE_BIN: {
+                if (init_info.source.standard.opts.bin == NULL) {
+                    break;
+                }
+                opts = *(opts_repr*)init_info.source.standard.opts.bin;
+            } break;
         }
         opts.board_sizer = 2 * opts.size - 1;
 
@@ -119,60 +133,11 @@ namespace {
             .move_str = 4,
             .print_str = 1000,
         };
-        return ERR_OK;
-    }
-
-    error_code create_with_opts_bin(game* self, void* options_struct)
-    {
-        self->data1 = new (malloc(sizeof(data_repr))) data_repr();
-        if (self->data1 == NULL) {
-            return ERR_OUT_OF_MEMORY;
+        const char* initial_state = NULL;
+        if (init_info.source_type == GAME_INIT_SOURCE_TYPE_STANDARD) {
+            initial_state = init_info.source.standard.initial_state;
         }
-        self->data2 = NULL;
-
-        opts_repr& opts = get_opts(self);
-        opts.size = 8;
-        if (options_struct != NULL) {
-            opts = *(opts_repr*)options_struct;
-        }
-        opts.board_sizer = 2 * opts.size - 1;
-
-        self->sizer = (buf_sizer){
-            .options_str = 16,
-            .state_str = (size_t)(3 * opts.size * opts.size - (3 * opts.size - 1) + opts.board_sizer + 5),
-            .player_count = 2,
-            .max_players_to_move = 1,
-            .max_moves = (uint32_t)(3 * opts.size * opts.size - (3 * opts.size - 1)),
-            .max_results = 1,
-            .move_str = 4,
-            .print_str = 1000,
-        };
-        return ERR_OK;
-    }
-
-    error_code create_default(game* self)
-    {
-        self->data1 = new (malloc(sizeof(data_repr))) data_repr();
-        if (self->data1 == NULL) {
-            return ERR_OUT_OF_MEMORY;
-        }
-        self->data2 = NULL;
-
-        opts_repr& opts = get_opts(self);
-        opts.size = 8;
-        opts.board_sizer = 2 * opts.size - 1;
-
-        self->sizer = (buf_sizer){
-            .options_str = 16,
-            .state_str = (size_t)(3 * opts.size * opts.size - (3 * opts.size - 1) + opts.board_sizer + 5),
-            .player_count = 2,
-            .max_players_to_move = 1,
-            .max_moves = (uint32_t)(3 * opts.size * opts.size - (3 * opts.size - 1)),
-            .max_results = 1,
-            .move_str = 4,
-            .print_str = 1000,
-        };
-        return ERR_OK;
+        return import_state(self, initial_state);
     }
 
     error_code export_options_str(game* self, size_t* ret_size, char* str)
@@ -200,7 +165,22 @@ namespace {
         }
         clone_target->methods = self->methods;
         opts_repr& opts = get_opts(self);
-        error_code ec = clone_target->methods->create_with_opts_bin(clone_target, &opts);
+        error_code ec = clone_target->methods->create(
+            clone_target,
+            (game_init){
+                .source_type = GAME_INIT_SOURCE_TYPE_STANDARD,
+                .source = {
+                    .standard = {
+                        .opts_type = GAME_INIT_OPTS_TYPE_BIN,
+                        .opts = {
+                            .bin = &opts,
+                        },
+                        .legacy_str = NULL,
+                        .initial_state = NULL,
+                    },
+                },
+            }
+        );
         if (ec != ERR_OK) {
             return ec;
         }
@@ -924,11 +904,13 @@ const game_methods havannah_gbe{
         .options_bin = true,
         .options_bin_ref = false,
         .serializable = false,
+        .legacy = false,
         .random_moves = false,
         .hidden_information = false,
         .simultaneous_moves = false,
         .sync_counter = false,
         .move_ordering = false,
+        .scores = false,
         .id = false,
         .eval = false,
         .playout = true,

@@ -34,10 +34,7 @@ namespace {
 
     // forward declare everything to allow for inlining at least in this unit
     GF_UNUSED(get_last_error);
-    GF_UNUSED(create_with_opts_str);
-    GF_UNUSED(create_with_opts_bin);
-    GF_UNUSED(create_deserialize);
-    error_code create_default(game* self);
+    error_code create(game* self, game_init init_info);
     GF_UNUSED(export_options_str);
     GF_UNUSED(get_options_bin_ref);
     error_code destroy(game* self);
@@ -57,7 +54,9 @@ namespace {
     GF_UNUSED(is_action);
     error_code make_move(game* self, player_id player, move_code move);
     error_code get_results(game* self, uint8_t* ret_count, player_id* players);
+    GF_UNUSED(export_legacy);
     GF_UNUSED(get_sync_counter);
+    GF_UNUSED(get_scores);
     error_code id(game* self, uint64_t* ret_id);
     GF_UNUSED(eval);
     GF_UNUSED(discretize);
@@ -77,7 +76,7 @@ namespace {
 
     // implementation
 
-    error_code create_default(game* self)
+    error_code create(game* self, game_init init_info)
     {
         self->data1 = malloc(sizeof(data_repr));
         if (self->data1 == NULL) {
@@ -93,7 +92,11 @@ namespace {
             .move_str = 3,
             .print_str = 13,
         };
-        return ERR_OK;
+        const char* initial_state = NULL;
+        if (init_info.source_type == GAME_INIT_SOURCE_TYPE_STANDARD) {
+            initial_state = init_info.source.standard.initial_state;
+        }
+        return import_state(self, initial_state);
     }
 
     error_code destroy(game* self)
@@ -109,7 +112,7 @@ namespace {
             return ERR_INVALID_INPUT;
         }
         *clone_target = *self;
-        error_code ec = clone_target->methods->create_default(clone_target);
+        error_code ec = clone_target->methods->create(clone_target, (game_init){.source_type = GAME_INIT_SOURCE_TYPE_DEFAULT});
         if (ec != ERR_OK) {
             return ec;
         }
@@ -590,11 +593,13 @@ const game_methods tictactoe_gbe{
         .options_bin = false,
         .options_bin_ref = false,
         .serializable = false,
+        .legacy = false,
         .random_moves = false,
         .hidden_information = false,
         .simultaneous_moves = false,
         .sync_counter = false,
         .move_ordering = false,
+        .scores = false,
         .id = true,
         .eval = false,
         .playout = true,
