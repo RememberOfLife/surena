@@ -76,7 +76,7 @@ namespace {
     GF_UNUSED(import_sync_data);
     error_code get_move_code(game* self, player_id player, const char* str, move_code* ret_move);
     error_code get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
-    error_code debug_print(game* self, size_t* ret_size, char* str_buf);
+    error_code print(game* self, size_t* ret_size, char* str_buf);
 
     /* same for internals */
     error_code get_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER* p);
@@ -782,7 +782,7 @@ namespace {
     }
 
     //TODO somehow needs to display disambiguation information for position where realized connections of nodes are not clear
-    error_code debug_print(game* self, size_t* ret_size, char* str_buf)
+    error_code print(game* self, size_t* ret_size, char* str_buf)
     {
         if (str_buf == NULL) {
             return ERR_INVALID_INPUT;

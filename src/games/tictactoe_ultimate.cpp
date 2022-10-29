@@ -67,7 +67,7 @@ namespace {
     GF_UNUSED(import_sync_data);
     error_code get_move_code(game* self, player_id player, const char* str, move_code* ret_move);
     error_code get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
-    error_code debug_print(game* self, size_t* ret_size, char* str_buf);
+    error_code print(game* self, size_t* ret_size, char* str_buf);
 
     error_code check_result(game* self, uint32_t state, player_id* ret_p);
     error_code get_cell(game* self, uint32_t state, int x, int y, player_id* ret_p);
@@ -569,7 +569,7 @@ namespace {
         return ERR_OK;
     }
 
-    error_code debug_print(game* self, size_t* ret_size, char* str_buf)
+    error_code print(game* self, size_t* ret_size, char* str_buf)
     {
         if (str_buf == NULL) {
             return ERR_INVALID_INPUT;

@@ -37,7 +37,7 @@ typedef error_code (*release_sync_data_gf_t)(game* self, sync_data* sync_data_st
 typedef error_code (*import_sync_data_gf_t)(game* self, void* data_start, void* data_end);
 typedef error_code (*get_move_code_gf_t)(game* self, player_id player, const char* str, move_code* ret_move);
 typedef error_code (*get_move_str_gf_t)(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
-typedef error_code (*debug_print_gf_t)(game* self, size_t* ret_size, char* str_buf);
+typedef error_code (*print_gf_t)(game* self, size_t* ret_size, char* str_buf);
 
 // unused game function macro so we can correctly set unimplemented features to NULL
 #define GF_UNUSED(gfname) static void* gfname = NULL

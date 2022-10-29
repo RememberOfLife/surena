@@ -105,7 +105,7 @@ namespace {
     error_code import_sync_data(game* self, void* data_start, void* data_end);
     error_code get_move_code(game* self, player_id player, const char* str, move_code* ret_move);
     error_code get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
-    error_code debug_print(game* self, size_t* ret_size, char* str_buf);
+    error_code print(game* self, size_t* ret_size, char* str_buf);
 
     /* same for internals */
 
@@ -281,7 +281,7 @@ namespace {
         //TODO
     }
 
-    error_code debug_print(game* self, size_t* ret_size, char* str_buf)
+    error_code print(game* self, size_t* ret_size, char* str_buf)
     {
         //TODO
     }

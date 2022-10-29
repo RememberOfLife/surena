@@ -121,7 +121,7 @@ int main(int argc, char** argv)
         printf("[ERROR] no game method specified\n");
         exit(1);
     }
-    if (game_method->debug_print == NULL) {
+    if (game_method->features.print == false) {
         printf("[WARN] game method does not support debug print\n");
     }
 
@@ -148,7 +148,7 @@ int main(int argc, char** argv)
     };
     ec = thegame.methods->create(&thegame, game_init_info);
     if (ec != ERR_OK) {
-        printf("[ERROR] failed to create: #%d %s\n", ec, thegame.methods->get_last_error(&thegame));
+        printf("[ERROR] failed to create: #%d %s\n", ec, thegame.methods->features.error_strings ? thegame.methods->get_last_error(&thegame) : NULL);
         printf("%*soptions: %s\n", 8, "", game_options);
         printf("%*slegacy: %s\n", 8, "", game_legacy);
         printf("%*sinitial state: %s\n", 8, "", initial_state);
@@ -161,13 +161,13 @@ int main(int argc, char** argv)
         printf("[INFO] options: \"%s\"\n", options_str);
     }
     if (ec != ERR_OK) {
-        printf("[ERROR] failed to create: #%d %s\n", ec, thegame.methods->get_last_error(&thegame));
+        printf("[ERROR] failed to create: #%d %s\n", ec, thegame.methods->features.error_strings ? thegame.methods->get_last_error(&thegame) : NULL);
         exit(1);
     }
     if (initial_state != NULL) {
         ec = thegame.methods->import_state(&thegame, initial_state);
         if (ec != ERR_OK) {
-            printf("[ERROR] failed to import state \"%s\": #%d %s\n", initial_state, ec, thegame.methods->get_last_error(&thegame));
+            printf("[ERROR] failed to import state \"%s\": #%d %s\n", initial_state, ec, thegame.methods->features.error_strings ? thegame.methods->get_last_error(&thegame) : NULL);
             exit(1);
         }
     }
@@ -213,7 +213,7 @@ int main(int argc, char** argv)
             printf("\n");
         }
         if (thegame.methods->features.print) {
-            thegame.methods->debug_print(&thegame, &print_buf_size, print_buf);
+            thegame.methods->print(&thegame, &print_buf_size, print_buf);
             printf("%s", print_buf);
         }
         if (ptm_count == 0) {
@@ -260,7 +260,7 @@ int main(int argc, char** argv)
         if (ec == ERR_OK) {
             thegame.methods->make_move(&thegame, ptm, themove);
         } else {
-            printf("invalid move: %s\n", thegame.methods->get_last_error(&thegame));
+            printf("invalid move: %s\n", thegame.methods->features.error_strings ? thegame.methods->get_last_error(&thegame) : NULL);
         }
         thegame.methods->players_to_move(&thegame, &ptm_count, &ptm);
     }

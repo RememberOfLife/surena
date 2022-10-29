@@ -13,12 +13,6 @@
 extern "C" {
 #endif
 
-uint64_t surena_get_ms64()
-{
-    std::chrono::time_point<std::chrono::steady_clock> t = std::chrono::steady_clock::now();
-    return std::chrono::duration_cast<std::chrono::milliseconds>(t.time_since_epoch()).count();
-}
-
 void eevent_create(engine_event* e, uint32_t engine_id, eevent_type type)
 {
     *e = (engine_event){

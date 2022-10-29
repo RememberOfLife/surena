@@ -34,4 +34,4 @@
 .import_sync_data = (import_sync_data_gf_t)import_sync_data,
 .get_move_code = (get_move_code_gf_t)get_move_code,
 .get_move_str = (get_move_str_gf_t)get_move_str,
-.debug_print = (debug_print_gf_t)debug_print,
+.print = (print_gf_t)print,

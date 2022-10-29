@@ -11,10 +11,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_ENGINE_API_VERSION = 8;
-
-// general purpose timing function that counts up monotonically
-uint64_t surena_get_ms64();
+static const uint64_t SURENA_ENGINE_API_VERSION = 9;
 
 typedef uint32_t eevent_type;
 

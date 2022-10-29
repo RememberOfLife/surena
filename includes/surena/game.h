@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 15;
+static const uint64_t SURENA_GAME_API_VERSION = 16;
 
 typedef uint32_t error_code;
 
@@ -407,7 +407,7 @@ typedef struct game_methods_s {
     // FEATURE: print
     // debug print the game state into the str_buf
     // returns the number of characters written to string buffer on success, excluding null character
-    error_code (*debug_print)(game* self, size_t* ret_size, char* str_buf);
+    error_code (*print)(game* self, size_t* ret_size, char* str_buf);
 
 } game_methods;
 

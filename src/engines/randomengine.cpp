@@ -7,6 +7,7 @@
 #include <thread>
 
 #include "surena/util/noise.h"
+#include "surena/util/timestamp.h"
 #include "surena/engine.h"
 #include "surena/game.h"
 

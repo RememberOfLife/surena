@@ -46,6 +46,7 @@ set(SOURCES
     src/util/raw_stream.c
     src/util/semver.c
     src/util/serialization.c
+    src/util/timestamp.c
 
     src/engine.cpp
     src/game.c
