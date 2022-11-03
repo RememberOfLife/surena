@@ -5,12 +5,13 @@
 #include <stdint.h>
 
 #include "surena/util/semver.h"
+#include "surena/util/timestamp.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 16;
+static const uint64_t SURENA_GAME_API_VERSION = 17;
 
 typedef uint32_t error_code;
 
@@ -79,8 +80,6 @@ typedef struct game_feature_flags_s {
 
     bool legacy : 1;
 
-    // bool perfect_information : 1; // needed?
-
     // if a board has a seed then if any random moves happen there will only ever be one move available (the rigged one)
     // a board can be seeded at any time using discretize
     // when a non seeded board offers random moves then all possible moves are available (according to the gathered info)
@@ -89,10 +88,8 @@ typedef struct game_feature_flags_s {
     bool random_moves : 1;
     //TODO do random moves incur sync data events as well?
 
-    //TODO document hidden info workflow with moves,concrete_moves,action_moves
     bool hidden_information : 1;
 
-    //TODO document simultaneous move workflow for different kinds (no)sync,unordered,ordered,want_discard,reissue,never_discard
     bool simultaneous_moves : 1;
 
     // if the game does not support this feature, its owner must guarantee total move order
@@ -112,6 +109,8 @@ typedef struct game_feature_flags_s {
     bool playout : 1;
 
     bool print : 1;
+
+    // bool time : 1;
 
 } game_feature_flags;
 
@@ -175,6 +174,8 @@ typedef struct game_init_s {
         } serialized; // use the given byte buffer to create the game data, NULL buffers are invalid
     } source;
 } game_init;
+
+typedef struct timectlstage_s timectlstage; //TODO better name?
 
 typedef struct game_s game; // forward declare the game for the game methods
 
@@ -266,7 +267,6 @@ typedef struct game_methods_s {
     // writes the game state and options to a game specific raw byte representation that is absolutely accurate to the state of the game
     // returns the number of serialization bytes written, 0 if failure
     error_code (*serialize)(game* self, size_t* ret_size, char* buf);
-    //TODO is it fine that this is not available for games where no state has been loaded yet?, probably not :/
 
     // writes the player ids to move from this state
     // writes PLAYER_RAND if the current move branch is decided by randomness
@@ -409,6 +409,12 @@ typedef struct game_methods_s {
     // returns the number of characters written to string buffer on success, excluding null character
     error_code (*print)(game* self, size_t* ret_size, char* str_buf);
 
+    // FEATURE: time
+    // informs the game that the game.time timestamp has moved, this may change timectlstages, moves available, players to move and even end the game
+    // if sleep_duration is zero (//TODO want helper?) the game does not request a wakeup
+    // otherwise, if nothing happened in between, time_ellapsed should be called at the latest after this duration
+    // error_code (*time_ellapsed)(game* self, timestamp* sleep_duration);
+
 } game_methods;
 
 struct game_s {
@@ -416,6 +422,40 @@ struct game_s {
     buf_sizer sizer;
     void* data1; // owned by the game method
     void* data2; // owned by the game method
+
+    // FEATURE: time
+    // representation of the "current time" at function invocation, use to determine relative durations
+    // the only allowed changes are monotonic increases (incl. no change)
+    // timestamp time;
+
+    // FEATURE: time
+    // every participating player X has their stage at timectlstages[X], [0] is reserved
+    // stages can change entirely after every game function call
+    // if the game does not support / use timectl then this can be managed externally //TODO timectl helper api
+    // timectlstage* timectlstages;
+};
+
+typedef enum TIMECTLSTAGE_TYPE_E {
+    TIMECTLSTAGE_TYPE_NONE = 0,
+    TIMECTLSTAGE_TYPE_TIME, // standard static time limit
+    TIMECTLSTAGE_TYPE_BONUS, // add a persistent bonus AFTER every move
+    TIMECTLSTAGE_TYPE_DELAY, // transient delay at the start of a move BEFORE the clock starts counting down, unused delay time is lost
+    TIMECTLSTAGE_TYPE_BYO, // available time resets every move, timing out transfers to the next time control, can also be used for correspondence
+    TIMECTLSTAGE_TYPE_UPCOUNT, // time counts upwards
+    TIMECTLSTAGE_TYPE_COUNT,
+} TIMECTLSTAGE_TYPE;
+
+struct timectlstage_s {
+    timectlstage* next_stage; //TODO want ALL stages? even past ones?
+    TIMECTLSTAGE_TYPE type;
+    bool discard_time; // if true: sets the remaining time to 0 before applying this time control
+    bool chain; // for byo, if true: this and the previous time controls CHAIN up until a BYO will share a move counter for advancing to the end of the BYO chain
+    uint32_t stage_time; // ms time available in this stage
+    uint32_t stage_mod; // bonus/delay
+    uint32_t stage_moves; // if > 0: moves to next time control
+    uint32_t time; // ms left/accumulated for this player
+    uint32_t moves; // already played moves with this time control
+    const char* desc; // description
 };
 
 #ifdef __cplusplus

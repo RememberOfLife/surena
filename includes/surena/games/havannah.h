@@ -42,11 +42,12 @@ typedef struct havannah_graph_s {
     uint8_t connected_corners;
 } havannah_graph;
 
+static const move_code HAVANNAH_MOVE_SWAP = 1 << 16;
+
 //TODO cap size to min and max limits for this impl / error code?
 typedef struct havannah_options_s {
     int size;
-    int board_sizer; // 2 * size - 1 //TODO this shouldn't really be in the public options struct
-    //TODO option for pie rule
+    bool pie_swap; // this is a move, effectively swapping sides after the first turn
     //TODO option for letting one player play n many stones on their first turn instead of just 1
 } havannah_options;
 
@@ -56,6 +57,8 @@ typedef struct havannah_internal_methods_s {
     error_code (*set_cell)(game* self, int x, int y, HAVANNAH_PLAYER p, bool* wins);
 
     error_code (*get_size)(game* self, int* size);
+
+    error_code (*can_swap)(game* self, bool* swap_available);
 
 } havannah_internal_methods;
 

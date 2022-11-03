@@ -55,7 +55,7 @@ set(SOURCES
     src/main.cpp
 )
 
-add_executable(surena ${SOURCES})
+add_executable(surena "${SOURCES}" "${CMAKE_BINARY_DIR}/build_generated/generated/git_commit_hash.h")
 
 # export git commit hash and dirty flag to generated file in the build/build_generated/generated dir
 find_package(Git)
@@ -66,11 +66,11 @@ configure_file(
     ESCAPE_QUOTES
 )
 add_custom_target(add_generated_dir COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_BINARY_DIR}/build_generated/generated")
-add_custom_target(generate_git_commit_hash DEPENDS add_generated_dir COMMAND "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/generate_git_commit_hash.cmake")
+add_custom_target(generate_git_commit_hash DEPENDS add_generated_dir COMMAND "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/generate_git_commit_hash.cmake" BYPRODUCTS "${CMAKE_BINARY_DIR}/build_generated/generated/git_commit_hash.h")
 add_dependencies(surena generate_git_commit_hash)
 
 target_compile_options(surena PRIVATE
-    #"-Wall"
+    # "-Wall"
     # "-Wextra"
     # "-Werror" # warnings as errors
     "-Wfatal-errors" # stop after first error

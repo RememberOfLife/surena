@@ -48,7 +48,7 @@ enum TWIXT_PP_DIR : uint8_t {
     TWIXT_PP_DIR_BL = 1 << 0,
 };
 
-static const move_code TWIXT_PP_MOVE_SWAP = 1 << 17;
+static const move_code TWIXT_PP_MOVE_SWAP = 1 << 16;
 
 typedef struct twixt_pp_node_s {
     TWIXT_PP_PLAYER player : 2;

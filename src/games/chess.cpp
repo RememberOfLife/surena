@@ -114,7 +114,7 @@ namespace {
         if (clone_target == NULL) {
             return ERR_INVALID_INPUT;
         }
-        *clone_target = *self;
+        clone_target->methods = self->methods;
         error_code ec = clone_target->methods->create(clone_target, (game_init){.source_type = GAME_INIT_SOURCE_TYPE_DEFAULT});
         if (ec != ERR_OK) {
             return ec;

@@ -132,6 +132,8 @@ typedef struct ee_engine_option_s {
     } l; // limits: min,max / var, only engine outbound
 } ee_engine_option;
 
+//TODO replace by game timecontrol
+
 typedef uint8_t time_control_type;
 
 enum TIME_CONTROL_TYPE {

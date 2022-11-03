@@ -27,7 +27,7 @@ namespace {
         std::unordered_map<uint16_t, twixt_pp_graph> graph_map;
         uint16_t next_graph_id;
         std::vector<std::vector<twixt_pp_node>> gameboard; // white plays vertical and black horizontal per default, gameboard[iy][ix]
-        bool pie_swap; // if this is true while it is blacks turn, they swap move to mirror it as theirs, then set false
+        bool pie_swap; // if this is true while it is blacks turn, they may swap move to mirror it as theirs, then set false even if not used
         uint16_t swap_target;
     };
 

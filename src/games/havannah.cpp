@@ -22,6 +22,7 @@ namespace {
 
     struct data_repr {
         opts_repr opts;
+        int board_sizer; // 2 * size - 1
 
         int remaining_tiles;
         HAVANNAH_PLAYER current_player;
@@ -33,6 +34,8 @@ namespace {
         // such that num goes vertically on the left downwards
         // and letter goes ascending horizontally towards the right
         std::vector<std::vector<havannah_tile>> gameboard;
+        bool pie_swap; // if this is true while it is blacks turn, they may swap move to mirror it as theirs, then set false even if not used
+        uint16_t swap_target;
     };
 
     opts_repr& get_opts(game* self)
@@ -85,6 +88,7 @@ namespace {
     error_code get_cell(game* self, int x, int y, HAVANNAH_PLAYER* p);
     error_code set_cell(game* self, int x, int y, HAVANNAH_PLAYER p, bool* wins);
     error_code get_size(game* self, int* size);
+    error_code can_swap(game* self, bool* swap_available);
 
     // implementation
 
@@ -98,6 +102,7 @@ namespace {
 
         opts_repr& opts = get_opts(self);
         opts.size = 8;
+        opts.pie_swap = true;
         GAME_INIT_OPTS_TYPE options_type = (init_info.source_type == GAME_INIT_SOURCE_TYPE_STANDARD ? init_info.source.standard.opts_type : GAME_INIT_OPTS_TYPE_DEFAULT);
         switch (options_type) {
             case GAME_INIT_OPTS_TYPE_DEFAULT: {
@@ -107,8 +112,17 @@ namespace {
                 if (init_info.source.standard.opts.str == NULL) {
                     break;
                 }
-                int ec = sscanf(init_info.source.standard.opts.str, "%u", &opts.size);
-                if (ec != 1) {
+                // format is: "X" and "X+" where X is a number >=4 and <=10, the + enables the swap rule
+                char swap_char = '\0';
+                int ec = sscanf(init_info.source.standard.opts.str, "%u%c", &opts.size, &swap_char);
+                if (ec >= 1) {
+                    opts.pie_swap = (swap_char == '+');
+                    if (opts.pie_swap == false && swap_char != '\0') {
+                        free(self->data1);
+                        self->data1 = NULL;
+                        return ERR_INVALID_INPUT;
+                    }
+                } else {
                     free(self->data1);
                     self->data1 = NULL;
                     return ERR_INVALID_INPUT;
@@ -121,11 +135,12 @@ namespace {
                 opts = *(opts_repr*)init_info.source.standard.opts.bin;
             } break;
         }
-        opts.board_sizer = 2 * opts.size - 1;
+        data_repr& data = get_repr(self);
+        data.board_sizer = 2 * opts.size - 1;
 
         self->sizer = (buf_sizer){
             .options_str = 16,
-            .state_str = (size_t)(3 * opts.size * opts.size - (3 * opts.size - 1) + opts.board_sizer + 5),
+            .state_str = (size_t)(3 * opts.size * opts.size - (3 * opts.size - 1) + data.board_sizer + 5),
             .player_count = 2,
             .max_players_to_move = 1,
             .max_moves = (uint32_t)(3 * opts.size * opts.size - (3 * opts.size - 1)),
@@ -146,7 +161,7 @@ namespace {
             return ERR_INVALID_INPUT;
         }
         opts_repr& opts = get_opts(self);
-        *ret_size = sprintf(str, "%u", opts.size);
+        *ret_size = sprintf(str, "%u%c", opts.size, opts.pie_swap ? '+' : '\0');
         return ERR_OK;
     }
 
@@ -207,18 +222,19 @@ namespace {
     {
         opts_repr& opts = get_opts(self);
         data_repr& data = get_repr(self);
-        data.remaining_tiles = (opts.board_sizer * opts.board_sizer) - (opts.size * (opts.size - 1));
+        data.remaining_tiles = (data.board_sizer * data.board_sizer) - (opts.size * (opts.size - 1));
         data.current_player = HAVANNAH_PLAYER_WHITE;
         data.winning_player = HAVANNAH_PLAYER_INVALID;
         data.graph_map.clear();
         data.next_graph_id = 1;
         data.gameboard.clear();
-        data.gameboard.reserve(opts.board_sizer);
-        for (int iy = 0; iy < opts.board_sizer; iy++) {
+        data.gameboard.reserve(data.board_sizer);
+        data.pie_swap = opts.pie_swap;
+        for (int iy = 0; iy < data.board_sizer; iy++) {
             std::vector<havannah_tile> tile_row_vector{};
-            tile_row_vector.resize(opts.board_sizer, havannah_tile{HAVANNAH_PLAYER_INVALID, 0});
+            tile_row_vector.resize(data.board_sizer, havannah_tile{HAVANNAH_PLAYER_INVALID, 0});
             data.gameboard.push_back(std::move(tile_row_vector));
-            for (int ix = 0; ix < opts.board_sizer; ix++) {
+            for (int ix = 0; ix < data.board_sizer; ix++) {
                 if ((ix - iy < opts.size) && (iy - ix < opts.size)) { // magic formula for only enabling valid cells of the board
                     data.gameboard[iy][ix].color = HAVANNAH_PLAYER_NONE;
                 }
@@ -230,6 +246,8 @@ namespace {
         // load from diy havannah format, "board p_cur p_res"
         int y = 0;
         int x = 0;
+        int x_moves = 0;
+        int o_moves = 0;
         // get cell fillings
         bool advance_segment = false;
         while (!advance_segment) {
@@ -240,6 +258,10 @@ namespace {
                         return ERR_INVALID_INPUT;
                     }
                     set_cell(self, x++, y, HAVANNAH_PLAYER_WHITE, NULL);
+                    o_moves++;
+                    if (o_moves == 1 && x_moves == 0) {
+                        data.swap_target = ((x - 1) << 8) | y;
+                    }
                 } break;
                 case 'X': {
                     if (!((x - y < opts.size) && (y - x < opts.size))) {
@@ -247,6 +269,7 @@ namespace {
                         return ERR_INVALID_INPUT;
                     }
                     set_cell(self, x++, y, HAVANNAH_PLAYER_BLACK, NULL);
+                    x_moves++;
                 } break;
                 case '1':
                 case '2':
@@ -268,7 +291,7 @@ namespace {
                         }
                         dacc *= 10;
                         uint32_t ladd = (*str) - '0';
-                        if (ladd > opts.board_sizer) {
+                        if (ladd > data.board_sizer) {
                             return ERR_INVALID_INPUT;
                         }
                         dacc += ladd;
@@ -297,6 +320,10 @@ namespace {
             }
             str++;
         }
+        // disable swap status if unavailable by x/o moves
+        if (o_moves > 1 || x_moves > 0) {
+            data.pie_swap &= false;
+        }
         // current player
         switch (*str) {
             case '-': {
@@ -312,6 +339,10 @@ namespace {
                 // failure, ran out of str to use or got invalid character
                 return ERR_INVALID_INPUT;
             } break;
+        }
+        // swap is only available for strictly legal play
+        if (data.pie_swap && ((o_moves == 1 && data.current_player != HAVANNAH_PLAYER_BLACK) || (o_moves == 0 && data.current_player != HAVANNAH_PLAYER_WHITE))) {
+            data.pie_swap &= false;
         }
         str++;
         if (*str != ' ') {
@@ -347,9 +378,9 @@ namespace {
         data_repr& data = get_repr(self);
         const char* ostr = str;
         HAVANNAH_PLAYER cell_player;
-        for (int y = 0; y < opts.board_sizer; y++) {
+        for (int y = 0; y < data.board_sizer; y++) {
             int empty_cells = 0;
-            for (int x = 0; x < opts.board_sizer; x++) {
+            for (int x = 0; x < data.board_sizer; x++) {
                 if (!((x - y < opts.size) && (y - x < opts.size))) {
                     continue;
                 }
@@ -368,7 +399,7 @@ namespace {
             if (empty_cells > 0) {
                 str += sprintf(str, "%d", empty_cells);
             }
-            if (y < opts.board_sizer - 1) {
+            if (y < data.board_sizer - 1) {
                 str += sprintf(str, "/");
             }
         }
@@ -435,13 +466,16 @@ namespace {
         opts_repr& opts = get_opts(self);
         data_repr& data = get_repr(self);
         uint32_t move_cnt = 0;
-        for (int iy = 0; iy < opts.board_sizer; iy++) {
-            for (int ix = 0; ix < opts.board_sizer; ix++) {
+        for (int iy = 0; iy < data.board_sizer; iy++) {
+            for (int ix = 0; ix < data.board_sizer; ix++) {
                 if (data.gameboard[iy][ix].color == HAVANNAH_PLAYER_NONE) {
                     // add the free tile to the return vector
                     moves[move_cnt++] = (ix << 8) | iy;
                 }
             }
+        }
+        if (data.pie_swap == true && data.current_player == HAVANNAH_PLAYER_BLACK) {
+            moves[move_cnt++] = HAVANNAH_MOVE_SWAP;
         }
         *ret_count = move_cnt;
         return ERR_OK;
@@ -459,6 +493,12 @@ namespace {
             return ERR_INVALID_INPUT;
         }
         data_repr& data = get_repr(self);
+        if (move == HAVANNAH_MOVE_SWAP) {
+            if (data.pie_swap == true && data.current_player == HAVANNAH_PLAYER_BLACK) {
+                return ERR_OK;
+            }
+            return ERR_INVALID_INPUT;
+        }
         int ix = (move >> 8) & 0xFF;
         int iy = move & 0xFF;
         if (data.gameboard[iy][ix].color != HAVANNAH_PLAYER_NONE) {
@@ -471,8 +511,29 @@ namespace {
     {
         data_repr& data = get_repr(self);
 
+        if (move == HAVANNAH_MOVE_SWAP) {
+            // use swap target to give whites move to black
+            int sx = (data.swap_target >> 8) & 0xFF;
+            int sy = data.swap_target & 0xFF;
+
+            data.gameboard[sy][sx].color = HAVANNAH_PLAYER_BLACK;
+
+            data.pie_swap = false;
+            data.current_player = HAVANNAH_PLAYER_WHITE;
+            return ERR_OK;
+        }
+
         int tx = (move >> 8) & 0xFF;
         int ty = move & 0xFF;
+
+        if (data.pie_swap == true) {
+            if (data.current_player == HAVANNAH_PLAYER_WHITE) {
+                data.swap_target = (tx << 8) | ty;
+            }
+            if (data.current_player == HAVANNAH_PLAYER_BLACK) {
+                data.pie_swap = false;
+            }
+        }
 
         bool wins;
         // set cell updates graph structures in the backend, and informs us if this move is winning for the current player
@@ -545,6 +606,11 @@ namespace {
             *ret_move = MOVE_NONE;
             return ERR_INVALID_INPUT;
         }
+        opts_repr& opts = get_opts(self);
+        if (opts.pie_swap == true && strcmp(str, "swap") == 0) {
+            *ret_move = HAVANNAH_MOVE_SWAP;
+            return ERR_OK;
+        }
         int x = (str[0] - 'a');
         uint8_t y8;
         int ec = sscanf(str + 1, "%hhu", &y8);
@@ -571,6 +637,11 @@ namespace {
             *ret_size = sprintf(str_buf, "-");
             return ERR_OK;
         }
+        opts_repr& opts = get_opts(self);
+        if (opts.pie_swap == true && move == HAVANNAH_MOVE_SWAP) {
+            *ret_size = sprintf(str_buf, "swap");
+            return ERR_OK;
+        }
         int x = (move >> 8) & 0xFF;
         int y = move & 0xFF;
         *ret_size = sprintf(str_buf, "%c%i", 'a' + x, y);
@@ -588,8 +659,8 @@ namespace {
         switch (1) { //TODO proper switch in options
             case 0:
                 // square printing of the full gameboard matrix
-                for (int iy = 0; iy < opts.board_sizer; iy++) {
-                    for (int ix = 0; ix < opts.board_sizer; ix++) {
+                for (int iy = 0; iy < data.board_sizer; iy++) {
+                    for (int ix = 0; ix < data.board_sizer; ix++) {
                         str_buf += sprintf(str_buf, "%c", HAVANNAH_PLAYER_CHARS[data.gameboard[iy][ix].color]);
                     }
                     str_buf += sprintf(str_buf, "\n");
@@ -602,12 +673,12 @@ namespace {
                 x x x
                  x x
                 */
-                for (int iy = 0; iy < opts.board_sizer; iy++) {
+                for (int iy = 0; iy < data.board_sizer; iy++) {
                     int padding_count = (iy <= opts.size - 1) ? (opts.size - 1) - iy : iy - (opts.size - 1);
                     for (int ip = 0; ip < padding_count; ip++) {
                         str_buf += sprintf(str_buf, " ");
                     }
-                    for (int ix = 0; ix < opts.board_sizer; ix++) {
+                    for (int ix = 0; ix < data.board_sizer; ix++) {
                         if ((ix - iy < opts.size) && (iy - ix < opts.size)) {
                             str_buf += sprintf(str_buf, " %c", HAVANNAH_PLAYER_CHARS[data.gameboard[iy][ix].color]);
                         }
@@ -625,10 +696,10 @@ namespace {
                     x
                 */
                 // from: https://www.techiedelight.com/print-matrix-diagonally-positive-slope/#comment-3071
-                for (int sum = 0; sum <= 2 * (opts.board_sizer - 1); sum++) {
-                    int r_end = std::min(sum, opts.board_sizer - 1);
-                    int r = sum - std::min(sum, opts.board_sizer - 1);
-                    int paddingCount = (sum < opts.board_sizer) ? (opts.board_sizer - r_end) - 1 : r;
+                for (int sum = 0; sum <= 2 * (data.board_sizer - 1); sum++) {
+                    int r_end = std::min(sum, data.board_sizer - 1);
+                    int r = sum - std::min(sum, data.board_sizer - 1);
+                    int paddingCount = (sum < data.board_sizer) ? (data.board_sizer - r_end) - 1 : r;
                     for (int ip = 0; ip < paddingCount; ip++) {
                         str_buf += sprintf(str_buf, "    ");
                     }
@@ -656,7 +727,7 @@ namespace {
     {
         opts_repr& opts = get_opts(self);
         data_repr& data = get_repr(self);
-        if (x < 0 || y < 0 || x >= opts.board_sizer || y >= opts.board_sizer) {
+        if (x < 0 || y < 0 || x >= data.board_sizer || y >= data.board_sizer) {
             *p = HAVANNAH_PLAYER_INVALID;
         } else {
             *p = data.gameboard[y][x].color;
@@ -724,7 +795,7 @@ namespace {
         }
 
         // discover south-west neighbor
-        if (y < opts.board_sizer - 1 && (y - x < opts.size - 1)) {
+        if (y < data.board_sizer - 1 && (y - x < opts.size - 1)) {
             if (data.gameboard[y + 1][x].color == p) {
                 current_graph_id = data.gameboard[y + 1][x].parent_graph_id;
             } else {
@@ -745,7 +816,7 @@ namespace {
         }
 
         // discover south-east neighbor
-        if (y < opts.board_sizer - 1 && x < opts.board_sizer - 1) {
+        if (y < data.board_sizer - 1 && x < data.board_sizer - 1) {
             if (data.gameboard[y + 1][x + 1].color == p) {
                 current_graph_id = data.gameboard[y + 1][x + 1].parent_graph_id;
             } else {
@@ -766,7 +837,7 @@ namespace {
         }
 
         // discover east neighbor
-        if (x < opts.board_sizer - 1 && (x - y < opts.size - 1)) {
+        if (x < data.board_sizer - 1 && (x - y < opts.size - 1)) {
             if (data.gameboard[y][x + 1].color == p) {
                 current_graph_id = data.gameboard[y][x + 1].parent_graph_id;
             } else {
@@ -882,6 +953,13 @@ namespace {
         return ERR_OK;
     }
 
+    error_code can_swap(game* self, bool* swap_available)
+    {
+        data_repr& data = get_repr(self);
+        *swap_available = (data.pie_swap == true && data.current_player == HAVANNAH_PLAYER_BLACK);
+        return ERR_OK;
+    }
+
 } // namespace
 
 const char HAVANNAH_PLAYER_CHARS[4] = {'.', 'O', 'X', '-'}; // none, white, black, invalid
@@ -890,6 +968,7 @@ static const havannah_internal_methods havannah_gbe_internal_methods{
     .get_cell = get_cell,
     .set_cell = set_cell,
     .get_size = get_size,
+    .can_swap = can_swap,
 };
 
 const game_methods havannah_gbe{
@@ -897,7 +976,7 @@ const game_methods havannah_gbe{
     .game_name = "Havannah",
     .variant_name = "Standard",
     .impl_name = "surena_default",
-    .version = semver{0, 1, 0},
+    .version = semver{0, 2, 0},
     .features = game_feature_flags{
         .error_strings = false,
         .options = true,
