@@ -81,8 +81,23 @@ When player `P1` makes the move `ROLL_DIE`, in both open and closed games, the n
 This is the easiest form of hidden information.  
 In this example a deck of cards is shuffled at the beginning of the game and players draw from it both faceup and facedown (into their hand).
 
+//TODO need sync data events here too?, also explain sync data usage somewhere
+
 #### example 1 (shuffle a deck)
-//TODO
+Shuffling may work different ways, depending on the implementation, but is always representable by moves. Commonly the deck is either permuted in place (swap pairs of cards), or "drafted" from a start configuration to the shuffled deck (one by one).
+
+Assuming N cards in the deck and a "draft" shuffle wherein the cards of the shuffled deck are selected one by one from an unshuffled initial deck. `PLAYER_RAND` moves N times.
+
+**Open**  
+Each time the available moves *include* all the remaining undrafted cards from the initial deck.  
+*Additionally* at each choice point, there is also one more concrete move offered: `DRAFT_HIDDEN`.  
+Drafting the hidden card semantically represents the *action* of the concrete moves drafting specific cards. I.e. drafting *any one* card but the spectator informing the game does not know which one was drafted.  
+It is advisable to not make the digital shuffle implementation unneccessary complex, because if the game is replaying a "physical" game, then both shuffle methods should roughly match. Also, in an open game the shuffling process *may* be a mix between hidden drafts and known drafts. The game implementation *may* take advantage of this and track the possible state space for all players from there, but it does not have to, and could also just assume the deck as entirely unknown as soon as one hidden draft exists.
+
+**Closed**  
+Each time the only available move is the card pre-selected via the discretization seed. I.e. after making the only available move N times, the deck is "shuffled" according to the seed.  
+If for example the closed board is a "server" board, that does not want to distribute the actually drafted cards to "clients", it only distributes the `move_to_action` result of the concrete draft move. I.e. it only distributes `DRAFT_HIDDEN` moves, because the action class of all concrete draft moves is `DRAFT_HIDDEN`.
+//TODO ideally want always applyable algo, e.g. where server ALWAYS distributes move->action actions
 
 #### example 2 (draw card faceup from shuffled deck)
 //TODO
@@ -94,7 +109,7 @@ In this example a deck of cards is shuffled at the beginning of the game and pla
 //TODO want this?
 
 ### simultaneous moves
-A more complicated form of hidden information, but very still mostly straight forward.  
+A more complicated form of hidden information, but still mostly straight forward.  
 ABC //TODO (with/without moved indicator for opponent)
 //TODO types (no)sync,unordered,ordered,want_discard,reissue,never_discard
 

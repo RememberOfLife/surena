@@ -1,8 +1,10 @@
+#include <assert.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "surena/game.h"
 
@@ -58,6 +60,103 @@ error_code rerrorf(char** pbuf, error_code ec, const char* fmt, ...)
         va_end(args);
     }
     return ec;
+}
+
+//TODO check again that this works as intended
+size_t sl_game_init_info_serializer(GSIT itype, void* obj_in, void* obj_out, void* buf, void* buf_end)
+{
+    // flatten the unions, this encodes more data than required, but keeps complexity down
+
+    typedef struct flat_game_init_s {
+        uint32_t source_type;
+        uint32_t opts_type;
+        const char* opts;
+        const char* legacy;
+        const char* state;
+        blob serialized;
+    } flat_game_init;
+
+    const serialization_layout sl_flat_game_init[] = {
+        {SL_TYPE_U32, offsetof(flat_game_init, source_type)},
+        {SL_TYPE_U32, offsetof(flat_game_init, opts_type)},
+        {SL_TYPE_STRING, offsetof(flat_game_init, opts)},
+        {SL_TYPE_STRING, offsetof(flat_game_init, legacy)},
+        {SL_TYPE_STRING, offsetof(flat_game_init, state)},
+        {SL_TYPE_BLOB, offsetof(flat_game_init, serialized)},
+        {SL_TYPE_STOP},
+    };
+
+    flat_game_init fgi_in;
+    flat_game_init fgi_out;
+
+    game_init* cin_p = (game_init*)obj_in;
+    game_init* cout_p = (game_init*)obj_out;
+
+    // size, copy, serialize, destroy: obj_in -> flat in
+    if (itype == GSIT_SIZE || itype == GSIT_COPY || itype == GSIT_SERIALIZE || itype == GSIT_DESTROY) {
+        fgi_in.source_type = cin_p->source_type;
+        if (cin_p->source_type == GAME_INIT_SOURCE_TYPE_STANDARD) {
+            fgi_in.opts_type = cin_p->source.standard.opts_type;
+            if (cin_p->source.standard.opts_type == GAME_INIT_OPTS_TYPE_DEFAULT) {
+                fgi_in.opts = NULL;
+            } else if (cin_p->source.standard.opts_type == GAME_INIT_OPTS_TYPE_STR) {
+                fgi_in.opts = cin_p->source.standard.opts.str;
+            } else if (cin_p->source.standard.opts_type == GAME_INIT_OPTS_TYPE_BIN) {
+                return LS_ERR; //BUG is this ok?
+            }
+            fgi_in.legacy = cin_p->source.standard.legacy_str;
+            fgi_in.state = cin_p->source.standard.initial_state;
+        } else {
+            fgi_in.opts_type = GAME_INIT_OPTS_TYPE_DEFAULT;
+            fgi_in.opts = NULL;
+            fgi_in.legacy = NULL;
+            fgi_in.state = NULL;
+        }
+        if (cin_p->source_type == GAME_INIT_SOURCE_TYPE_SERIALIZED) {
+            fgi_in.serialized = (blob){
+                .data = cin_p->source.serialized.buf_begin,
+                .len = ptrdiff(cin_p->source.serialized.buf_end, cin_p->source.serialized.buf_begin),
+            };
+        } else {
+            fgi_in.serialized = (blob){
+                .data = NULL,
+                .len = 0,
+            };
+        }
+    }
+
+    //serialize
+    size_t rsize = layout_serializer(itype, sl_flat_game_init, &fgi_in, &fgi_out, buf, buf_end);
+    if (rsize == LS_ERR) {
+        return LS_ERR;
+    }
+
+    // initzero: flat_in -> obj_in
+    if (itype == GSIT_INITZERO) {
+        fgi_out = fgi_in;
+        obj_out = obj_in;
+    }
+
+    // deserialize, copy: flat_out -> obj_out
+    if (itype == GSIT_DESERIALIZE || itype == GSIT_COPY) {
+        cout_p->source_type = fgi_out.source_type;
+        if (fgi_out.source_type == GAME_INIT_SOURCE_TYPE_STANDARD) {
+            cout_p->source.standard.opts_type = fgi_out.opts_type;
+            if (fgi_out.opts_type == GAME_INIT_OPTS_TYPE_STR) {
+                cout_p->source.standard.opts.str = fgi_out.opts;
+            } else if (fgi_out.opts_type == GAME_INIT_OPTS_TYPE_BIN) {
+                return LS_ERR; //BUG is this ok?
+            }
+            cout_p->source.standard.legacy_str = fgi_out.legacy;
+            cout_p->source.standard.initial_state = fgi_out.state;
+        }
+        if (fgi_out.source_type == GAME_INIT_SOURCE_TYPE_SERIALIZED) {
+            cout_p->source.serialized.buf_begin = fgi_out.serialized.data;
+            cout_p->source.serialized.buf_end = ptradd(fgi_out.serialized.data, fgi_out.serialized.len);
+        }
+    }
+
+    return rsize;
 }
 
 #ifdef __cplusplus

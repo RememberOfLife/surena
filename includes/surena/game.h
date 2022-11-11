@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 17;
+static const uint64_t SURENA_GAME_API_VERSION = 18;
 
 typedef uint32_t error_code;
 
@@ -86,7 +86,6 @@ typedef struct game_feature_flags_s {
     // same result moves are treated as the same, i.e. 2 dice rolled at once will only offer 12 moves for their sum
     // probability distribution of the random moves is offered in get_concrete_move_probabilities
     bool random_moves : 1;
-    //TODO do random moves incur sync data events as well?
 
     bool hidden_information : 1;
 
@@ -174,6 +173,8 @@ typedef struct game_init_s {
         } serialized; // use the given byte buffer to create the game data, NULL buffers are invalid
     } source;
 } game_init;
+
+size_t sl_game_init_info_serializer(GSIT itype, void* obj_in, void* obj_out, void* buf, void* buf_end);
 
 typedef struct timectlstage_s timectlstage; //TODO better name?
 

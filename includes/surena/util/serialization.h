@@ -9,7 +9,11 @@ extern "C" {
 #endif
 
 /////
-// utils for event serialization
+// utils for serialization
+
+void* ptradd(void* p, size_t v);
+void* ptrsub(void* p, size_t v);
+size_t ptrdiff(const void* p_end, const void* p_start);
 
 typedef struct blob_s {
     size_t len;
@@ -74,7 +78,7 @@ typedef enum __attribute__((__packed__)) GSIT_E {
 typedef struct serialization_layout_s serialization_layout;
 
 // must provide guarantee that any zero initialized object will be destructible from any partial deserialized state *as left by this function*
-typedef size_t (*custom_serializer_t)(GSIT itype, void* obj_in, void* obj_out, void* buf, void* buf_end);
+typedef size_t custom_serializer_t(GSIT itype, void* obj_in, void* obj_out, void* buf, void* buf_end);
 
 struct serialization_layout_s {
     SL_TYPE type;
@@ -83,23 +87,32 @@ struct serialization_layout_s {
     union {
         const serialization_layout* layout;
         // size_t serializer(GSIT itype, void* obj_in, void* obj_out, void* buf, void* buf_end)
-        custom_serializer_t serializer;
+        custom_serializer_t* serializer;
     } ext;
 
-    size_t typesize;
+    size_t typesize; // req'd only if PTR || ARRAY
 
     union {
         size_t immediate;
         size_t offset;
-    } len;
+    } len; // req'd only if PTR || ARRAY
 };
 
 static const size_t LS_ERR = SIZE_MAX;
 
 // returned size_t is only valid if itype SIZE/SERIALIZE/DESERIALIZE
-// if return value is LS_ERR then an error occured, can only happen during deserialization
+// if return value is LS_ERR then an error occured, can not happen during init or destroy
 // deserialization errors are automatically cleaned up and do not leak memory (assuming all used custom functions do this as well)
 size_t layout_serializer(GSIT itype, const serialization_layout* layout, void* obj_in, void* obj_out, void* buf, void* buf_end);
+
+//TODO rather give lookup array?
+// primitive serializers
+custom_serializer_t ls_primitive_bool_serializer;
+custom_serializer_t ls_primitive_u32_serializer;
+custom_serializer_t ls_primitive_u64_serializer;
+custom_serializer_t ls_primitive_size_serializer;
+custom_serializer_t ls_primitive_string_serializer;
+custom_serializer_t ls_primitive_blob_serializer;
 
 #ifdef __cplusplus
 }
