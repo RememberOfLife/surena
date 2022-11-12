@@ -50,8 +50,8 @@ namespace {
     error_code clone(game* self, game* clone_target);
     error_code copy_from(game* self, game* other);
     error_code compare(game* self, game* other, bool* ret_equal);
-    error_code import_state(game* self, const char* str);
     error_code export_state(game* self, size_t* ret_size, char* str);
+    error_code import_state(game* self, const char* str);
     GF_UNUSED(serialize);
     error_code players_to_move(game* self, uint8_t* ret_count, player_id* players);
     error_code get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves);
@@ -236,6 +236,97 @@ namespace {
     {
         //TODO
         return ERR_STATE_CORRUPTED;
+    }
+
+    error_code export_state(game* self, size_t* ret_size, char* str)
+    {
+        if (str == NULL) {
+            return ERR_INVALID_INPUT;
+        }
+        opts_repr& opts = get_opts(self);
+        data_repr& data = get_repr(self);
+        const char* ostr = str;
+        TWIXT_PP_PLAYER cell_player;
+        for (int y = 0; y < opts.wy; y++) {
+            int empty_cells = 0;
+            for (int x = 0; x < opts.wx; x++) {
+                get_node(self, x, y, &cell_player);
+                if (cell_player == TWIXT_PP_PLAYER_INVALID) {
+                    continue;
+                }
+                if (cell_player == TWIXT_PP_PLAYER_NONE) {
+                    empty_cells++;
+                } else {
+                    // if the current cell isnt empty, print its representation, before that print empty cells, if any
+                    if (empty_cells > 0) {
+                        str += sprintf(str, "%d", empty_cells);
+                        empty_cells = 0;
+                    }
+                    str += sprintf(str, "%c", (cell_player == TWIXT_PP_PLAYER_WHITE ? 'O' : 'X'));
+                    // if the current node does not have all right/bottom dir connections available actually placed, add the connection pattern
+                    uint8_t dir_available = 0;
+                    TWIXT_PP_PLAYER avail_player;
+                    get_node(self, x + 2, y - 1, &avail_player);
+                    dir_available |= (cell_player == avail_player ? TWIXT_PP_DIR_RT : 0);
+                    get_node(self, x + 2, y + 1, &avail_player);
+                    dir_available |= (cell_player == avail_player ? TWIXT_PP_DIR_RB : 0);
+                    get_node(self, x + 1, y + 2, &avail_player);
+                    dir_available |= (cell_player == avail_player ? TWIXT_PP_DIR_BR : 0);
+                    get_node(self, x - 1, y + 2, &avail_player);
+                    dir_available |= (cell_player == avail_player ? TWIXT_PP_DIR_BL : 0);
+                    uint8_t realized_conns;
+                    get_node_connections(self, x, y, &realized_conns);
+                    if (dir_available & ~realized_conns) {
+                        // there exist available connections that are not realized, emit connection pattern
+                        str += sprintf(str, "%c%c%c%c", (realized_conns & TWIXT_PP_DIR_RT) ? ':' : '.', (realized_conns & TWIXT_PP_DIR_RB) ? ':' : '.', (realized_conns & TWIXT_PP_DIR_BR) ? ':' : '.', (realized_conns & TWIXT_PP_DIR_BL) ? ':' : '.');
+                    }
+                }
+            }
+            if (empty_cells > 0) {
+                str += sprintf(str, "%d", empty_cells);
+            }
+            if (y < opts.wy - 1) {
+                str += sprintf(str, "/");
+            }
+        }
+        // current player
+        player_id ptm;
+        uint8_t ptm_count;
+        players_to_move(self, &ptm_count, &ptm);
+        if (ptm_count == 0) {
+            ptm = TWIXT_PP_PLAYER_NONE;
+        }
+        switch (ptm) {
+            case TWIXT_PP_PLAYER_NONE: {
+                str += sprintf(str, " -");
+            } break;
+            case TWIXT_PP_PLAYER_WHITE: {
+                str += sprintf(str, " O");
+            } break;
+            case TWIXT_PP_PLAYER_BLACK: {
+                str += sprintf(str, " X");
+            } break;
+        }
+        // result player
+        player_id res;
+        uint8_t res_count;
+        get_results(self, &res_count, &res);
+        if (res_count == 0) {
+            res = TWIXT_PP_PLAYER_NONE;
+        }
+        switch (res) {
+            case TWIXT_PP_PLAYER_NONE: {
+                str += sprintf(str, " -");
+            } break;
+            case TWIXT_PP_PLAYER_WHITE: {
+                str += sprintf(str, " O");
+            } break;
+            case TWIXT_PP_PLAYER_BLACK: {
+                str += sprintf(str, " X");
+            } break;
+        }
+        *ret_size = str - ostr;
+        return ERR_OK;
     }
 
     error_code import_state(game* self, const char* str)
@@ -453,97 +544,6 @@ namespace {
                 return ERR_INVALID_INPUT;
             } break;
         }
-        return ERR_OK;
-    }
-
-    error_code export_state(game* self, size_t* ret_size, char* str)
-    {
-        if (str == NULL) {
-            return ERR_INVALID_INPUT;
-        }
-        opts_repr& opts = get_opts(self);
-        data_repr& data = get_repr(self);
-        const char* ostr = str;
-        TWIXT_PP_PLAYER cell_player;
-        for (int y = 0; y < opts.wy; y++) {
-            int empty_cells = 0;
-            for (int x = 0; x < opts.wx; x++) {
-                get_node(self, x, y, &cell_player);
-                if (cell_player == TWIXT_PP_PLAYER_INVALID) {
-                    continue;
-                }
-                if (cell_player == TWIXT_PP_PLAYER_NONE) {
-                    empty_cells++;
-                } else {
-                    // if the current cell isnt empty, print its representation, before that print empty cells, if any
-                    if (empty_cells > 0) {
-                        str += sprintf(str, "%d", empty_cells);
-                        empty_cells = 0;
-                    }
-                    str += sprintf(str, "%c", (cell_player == TWIXT_PP_PLAYER_WHITE ? 'O' : 'X'));
-                    // if the current node does not have all right/bottom dir connections available actually placed, add the connection pattern
-                    uint8_t dir_available = 0;
-                    TWIXT_PP_PLAYER avail_player;
-                    get_node(self, x + 2, y - 1, &avail_player);
-                    dir_available |= (cell_player == avail_player ? TWIXT_PP_DIR_RT : 0);
-                    get_node(self, x + 2, y + 1, &avail_player);
-                    dir_available |= (cell_player == avail_player ? TWIXT_PP_DIR_RB : 0);
-                    get_node(self, x + 1, y + 2, &avail_player);
-                    dir_available |= (cell_player == avail_player ? TWIXT_PP_DIR_BR : 0);
-                    get_node(self, x - 1, y + 2, &avail_player);
-                    dir_available |= (cell_player == avail_player ? TWIXT_PP_DIR_BL : 0);
-                    uint8_t realized_conns;
-                    get_node_connections(self, x, y, &realized_conns);
-                    if (dir_available & ~realized_conns) {
-                        // there exist available connections that are not realized, emit connection pattern
-                        str += sprintf(str, "%c%c%c%c", (realized_conns & TWIXT_PP_DIR_RT) ? ':' : '.', (realized_conns & TWIXT_PP_DIR_RB) ? ':' : '.', (realized_conns & TWIXT_PP_DIR_BR) ? ':' : '.', (realized_conns & TWIXT_PP_DIR_BL) ? ':' : '.');
-                    }
-                }
-            }
-            if (empty_cells > 0) {
-                str += sprintf(str, "%d", empty_cells);
-            }
-            if (y < opts.wy - 1) {
-                str += sprintf(str, "/");
-            }
-        }
-        // current player
-        player_id ptm;
-        uint8_t ptm_count;
-        players_to_move(self, &ptm_count, &ptm);
-        if (ptm_count == 0) {
-            ptm = TWIXT_PP_PLAYER_NONE;
-        }
-        switch (ptm) {
-            case TWIXT_PP_PLAYER_NONE: {
-                str += sprintf(str, " -");
-            } break;
-            case TWIXT_PP_PLAYER_WHITE: {
-                str += sprintf(str, " O");
-            } break;
-            case TWIXT_PP_PLAYER_BLACK: {
-                str += sprintf(str, " X");
-            } break;
-        }
-        // result player
-        player_id res;
-        uint8_t res_count;
-        get_results(self, &res_count, &res);
-        if (res_count == 0) {
-            res = TWIXT_PP_PLAYER_NONE;
-        }
-        switch (res) {
-            case TWIXT_PP_PLAYER_NONE: {
-                str += sprintf(str, " -");
-            } break;
-            case TWIXT_PP_PLAYER_WHITE: {
-                str += sprintf(str, " O");
-            } break;
-            case TWIXT_PP_PLAYER_BLACK: {
-                str += sprintf(str, " X");
-            } break;
-        }
-        *ret_size = str - ostr;
         return ERR_OK;
     }
 

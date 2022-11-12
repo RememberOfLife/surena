@@ -41,8 +41,8 @@ namespace {
     error_code clone(game* self, game* clone_target);
     error_code copy_from(game* self, game* other);
     error_code compare(game* self, game* other, bool* ret_equal);
-    error_code import_state(game* self, const char* str);
     error_code export_state(game* self, size_t* ret_size, char* str);
+    error_code import_state(game* self, const char* str);
     GF_UNUSED(serialize);
     error_code players_to_move(game* self, uint8_t* ret_count, player_id* players);
     error_code get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves);
@@ -136,6 +136,82 @@ namespace {
     error_code compare(game* self, game* other, bool* ret_equal)
     {
         *ret_equal = (memcmp(self->data1, other->data1, sizeof(data_repr)) == 0);
+        return ERR_OK;
+    }
+
+    error_code export_state(game* self, size_t* ret_size, char* str)
+    {
+        if (str == NULL) {
+            return ERR_INVALID_INPUT;
+        }
+        data_repr& data = get_repr(self);
+        const char* ostr = str;
+        player_id cell_player;
+        for (int y = 8; y >= 0; y--) {
+            int empty_squares = 0;
+            for (int x = 0; x < 9; x++) {
+                get_cell_local(self, x, y, &cell_player);
+                if (cell_player == PLAYER_NONE) {
+                    empty_squares++;
+                } else {
+                    // if the current square isnt empty, print its representation, before that print empty squares, if any
+                    if (empty_squares > 0) {
+                        str += sprintf(str, "%d", empty_squares);
+                        empty_squares = 0;
+                    }
+                    str += sprintf(str, "%c", (cell_player == 1 ? 'X' : 'O'));
+                }
+            }
+            if (empty_squares > 0) {
+                str += sprintf(str, "%d", empty_squares);
+            }
+            if (y > 0) {
+                str += sprintf(str, "/");
+            }
+        }
+        // global target
+        if (data.global_target_x >= 0 && data.global_target_y >= 0) {
+            str += sprintf(str, " %c%c", 'a' + data.global_target_x, '0' + data.global_target_y);
+        } else {
+            str += sprintf(str, " -");
+        }
+        // current player
+        player_id ptm;
+        uint8_t ptm_count;
+        players_to_move(self, &ptm_count, &ptm);
+        if (ptm_count == 0) {
+            ptm = PLAYER_NONE;
+        }
+        switch (ptm) {
+            case PLAYER_NONE: {
+                str += sprintf(str, " -");
+            } break;
+            case 1: {
+                str += sprintf(str, " X");
+            } break;
+            case 2: {
+                str += sprintf(str, " O");
+            } break;
+        }
+        // result player
+        player_id res;
+        uint8_t res_count;
+        get_results(self, &res_count, &res);
+        if (res_count == 0) {
+            res = PLAYER_NONE;
+        }
+        switch (res) {
+            case PLAYER_NONE: {
+                str += sprintf(str, " -");
+            } break;
+            case 1: {
+                str += sprintf(str, " X");
+            } break;
+            case 2: {
+                str += sprintf(str, " O");
+            } break;
+        }
+        *ret_size = str - ostr;
         return ERR_OK;
     }
 
@@ -270,82 +346,6 @@ namespace {
                 return ERR_INVALID_INPUT;
             } break;
         }
-        return ERR_OK;
-    }
-
-    error_code export_state(game* self, size_t* ret_size, char* str)
-    {
-        if (str == NULL) {
-            return ERR_INVALID_INPUT;
-        }
-        data_repr& data = get_repr(self);
-        const char* ostr = str;
-        player_id cell_player;
-        for (int y = 8; y >= 0; y--) {
-            int empty_squares = 0;
-            for (int x = 0; x < 9; x++) {
-                get_cell_local(self, x, y, &cell_player);
-                if (cell_player == PLAYER_NONE) {
-                    empty_squares++;
-                } else {
-                    // if the current square isnt empty, print its representation, before that print empty squares, if any
-                    if (empty_squares > 0) {
-                        str += sprintf(str, "%d", empty_squares);
-                        empty_squares = 0;
-                    }
-                    str += sprintf(str, "%c", (cell_player == 1 ? 'X' : 'O'));
-                }
-            }
-            if (empty_squares > 0) {
-                str += sprintf(str, "%d", empty_squares);
-            }
-            if (y > 0) {
-                str += sprintf(str, "/");
-            }
-        }
-        // global target
-        if (data.global_target_x >= 0 && data.global_target_y >= 0) {
-            str += sprintf(str, " %c%c", 'a' + data.global_target_x, '0' + data.global_target_y);
-        } else {
-            str += sprintf(str, " -");
-        }
-        // current player
-        player_id ptm;
-        uint8_t ptm_count;
-        players_to_move(self, &ptm_count, &ptm);
-        if (ptm_count == 0) {
-            ptm = PLAYER_NONE;
-        }
-        switch (ptm) {
-            case PLAYER_NONE: {
-                str += sprintf(str, " -");
-            } break;
-            case 1: {
-                str += sprintf(str, " X");
-            } break;
-            case 2: {
-                str += sprintf(str, " O");
-            } break;
-        }
-        // result player
-        player_id res;
-        uint8_t res_count;
-        get_results(self, &res_count, &res);
-        if (res_count == 0) {
-            res = PLAYER_NONE;
-        }
-        switch (res) {
-            case PLAYER_NONE: {
-                str += sprintf(str, " -");
-            } break;
-            case 1: {
-                str += sprintf(str, " X");
-            } break;
-            case 2: {
-                str += sprintf(str, " O");
-            } break;
-        }
-        *ret_size = str - ostr;
         return ERR_OK;
     }
 

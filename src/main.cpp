@@ -159,17 +159,7 @@ int main(int argc, char** argv)
         char* options_str = (char*)malloc(options_str_size);
         thegame.methods->export_options_str(&thegame, &options_str_size, options_str);
         printf("[INFO] options: \"%s\"\n", options_str);
-    }
-    if (ec != ERR_OK) {
-        printf("[ERROR] failed to create: #%d %s\n", ec, thegame.methods->features.error_strings ? thegame.methods->get_last_error(&thegame) : NULL);
-        exit(1);
-    }
-    if (initial_state != NULL) {
-        ec = thegame.methods->import_state(&thegame, initial_state);
-        if (ec != ERR_OK) {
-            printf("[ERROR] failed to import state \"%s\": #%d %s\n", initial_state, ec, thegame.methods->features.error_strings ? thegame.methods->get_last_error(&thegame) : NULL);
-            exit(1);
-        }
+        free(options_str);
     }
     size_t state_str_size = thegame.sizer.state_str;
     char* state_str = (char*)malloc(state_str_size);
@@ -273,6 +263,10 @@ int main(int argc, char** argv)
     printf("result player %d\n", res);
     thegame.methods->destroy(&thegame);
     printf("================================\n");
+
+    free(state_str);
+    free(print_buf);
+    free(move_str);
 
     printf("done\n");
     return 0;

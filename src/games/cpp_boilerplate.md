@@ -79,8 +79,8 @@ namespace {
     error_code clone(game* self, game* clone_target);
     error_code copy_from(game* self, game* other);
     error_code compare(game* self, game* other, bool* ret_equal);
-    error_code import_state(game* self, const char* str);
     error_code export_state(game* self, size_t* ret_size, char* str);
+    error_code import_state(game* self, const char* str);
     error_code serialize(game* self, size_t* ret_size, char* buf);
     error_code players_to_move(game* self, uint8_t* ret_count, player_id* players);
     error_code get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves);
@@ -151,12 +151,12 @@ namespace {
         //TODO
     }
 
-    error_code import_state(game* self, const char* str)
+    error_code export_state(game* self, size_t* ret_size, char* str)
     {
         //TODO
     }
 
-    error_code export_state(game* self, size_t* ret_size, char* str)
+    error_code import_state(game* self, const char* str)
     {
         //TODO
     }

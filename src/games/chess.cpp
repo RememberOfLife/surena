@@ -41,8 +41,8 @@ namespace {
     error_code clone(game* self, game* clone_target);
     error_code copy_from(game* self, game* other);
     error_code compare(game* self, game* other, bool* ret_equal);
-    error_code import_state(game* self, const char* str);
     error_code export_state(game* self, size_t* ret_size, char* str);
+    error_code import_state(game* self, const char* str);
     GF_UNUSED(serialize);
     error_code players_to_move(game* self, uint8_t* ret_count, player_id* players);
     error_code get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves);
@@ -132,6 +132,79 @@ namespace {
     error_code compare(game* self, game* other, bool* ret_equal)
     {
         *ret_equal = (memcmp(self->data1, other->data1, sizeof(data_repr)) == 0);
+        return ERR_OK;
+    }
+
+    error_code export_state(game* self, size_t* ret_size, char* str)
+    {
+        if (str == NULL) {
+            return ERR_INVALID_INPUT;
+        }
+        data_repr& data = get_repr(self);
+        const char* ostr = str;
+        // save board
+        int y = 7;
+        int x = 0;
+        for (int y = 7; y >= 0; y--) {
+            int empty_squares = 0;
+            for (int x = 0; x < 8; x++) {
+                if (data.board[y][x].player == CHESS_PLAYER_NONE) {
+                    // square is empty, count following empty squares and just print the number once
+                    empty_squares++;
+                } else {
+                    // if the current square isnt empty, print its representation, before that print empty squares, if applicable
+                    if (empty_squares > 0) {
+                        str += sprintf(str, "%d", empty_squares);
+                        empty_squares = 0;
+                    }
+                    str += sprintf(str, "%c", CHESS_PIECE_TYPE_CHARS[data.board[y][x].type] + (data.board[y][x].player == CHESS_PLAYER_BLACK ? 32 : 0));
+                }
+            }
+            if (empty_squares > 0) {
+                str += sprintf(str, "%d", empty_squares);
+            }
+            if (y > 0) {
+                str += sprintf(str, "/");
+            }
+        }
+        // save current player
+        switch (data.current_player) {
+            case CHESS_PLAYER_NONE: {
+                str += sprintf(str, " - ");
+            } break;
+            case CHESS_PLAYER_WHITE: {
+                str += sprintf(str, " w ");
+            } break;
+            case CHESS_PLAYER_BLACK: {
+                str += sprintf(str, " b ");
+            } break;
+        }
+        // save castling rights
+        if (!data.castling_white_king && !data.castling_white_queen && !data.castling_black_king && !data.castling_black_queen) {
+            str += sprintf(str, "-");
+        } else {
+            if (data.castling_white_king) {
+                str += sprintf(str, "K");
+            }
+            if (data.castling_white_queen) {
+                str += sprintf(str, "Q");
+            }
+            if (data.castling_black_king) {
+                str += sprintf(str, "k");
+            }
+            if (data.castling_black_queen) {
+                str += sprintf(str, "q");
+            }
+        }
+        // save enpassant target
+        if (data.enpassant_target == 0xFF) {
+            str += sprintf(str, " - ");
+        } else {
+            str += sprintf(str, " %c%c ", 'a' + ((data.enpassant_target >> 4) & 0x0F), '1' + (data.enpassant_target & 0x0F));
+        }
+        // save halfmove and fullmove clock
+        str += sprintf(str, "%d %d", data.halfmove_clock, data.fullmove_clock);
+        *ret_size = str - ostr;
         return ERR_OK;
     }
 
@@ -356,79 +429,6 @@ namespace {
             data.fullmove_clock += ladd;
             str++;
         }
-        return ERR_OK;
-    }
-
-    error_code export_state(game* self, size_t* ret_size, char* str)
-    {
-        if (str == NULL) {
-            return ERR_INVALID_INPUT;
-        }
-        data_repr& data = get_repr(self);
-        const char* ostr = str;
-        // save board
-        int y = 7;
-        int x = 0;
-        for (int y = 7; y >= 0; y--) {
-            int empty_squares = 0;
-            for (int x = 0; x < 8; x++) {
-                if (data.board[y][x].player == CHESS_PLAYER_NONE) {
-                    // square is empty, count following empty squares and just print the number once
-                    empty_squares++;
-                } else {
-                    // if the current square isnt empty, print its representation, before that print empty squares, if applicable
-                    if (empty_squares > 0) {
-                        str += sprintf(str, "%d", empty_squares);
-                        empty_squares = 0;
-                    }
-                    str += sprintf(str, "%c", CHESS_PIECE_TYPE_CHARS[data.board[y][x].type] + (data.board[y][x].player == CHESS_PLAYER_BLACK ? 32 : 0));
-                }
-            }
-            if (empty_squares > 0) {
-                str += sprintf(str, "%d", empty_squares);
-            }
-            if (y > 0) {
-                str += sprintf(str, "/");
-            }
-        }
-        // save current player
-        switch (data.current_player) {
-            case CHESS_PLAYER_NONE: {
-                str += sprintf(str, " - ");
-            } break;
-            case CHESS_PLAYER_WHITE: {
-                str += sprintf(str, " w ");
-            } break;
-            case CHESS_PLAYER_BLACK: {
-                str += sprintf(str, " b ");
-            } break;
-        }
-        // save castling rights
-        if (!data.castling_white_king && !data.castling_white_queen && !data.castling_black_king && !data.castling_black_queen) {
-            str += sprintf(str, "-");
-        } else {
-            if (data.castling_white_king) {
-                str += sprintf(str, "K");
-            }
-            if (data.castling_white_queen) {
-                str += sprintf(str, "Q");
-            }
-            if (data.castling_black_king) {
-                str += sprintf(str, "k");
-            }
-            if (data.castling_black_queen) {
-                str += sprintf(str, "q");
-            }
-        }
-        // save enpassant target
-        if (data.enpassant_target == 0xFF) {
-            str += sprintf(str, " - ");
-        } else {
-            str += sprintf(str, " %c%c ", 'a' + ((data.enpassant_target >> 4) & 0x0F), '1' + (data.enpassant_target & 0x0F));
-        }
-        // save halfmove and fullmove clock
-        str += sprintf(str, "%d %d", data.halfmove_clock, data.fullmove_clock);
-        *ret_size = str - ostr;
         return ERR_OK;
     }
 

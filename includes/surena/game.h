@@ -5,13 +5,14 @@
 #include <stdint.h>
 
 #include "surena/util/semver.h"
+#include "surena/util/serialization.h"
 #include "surena/util/timestamp.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 18;
+static const uint64_t SURENA_GAME_API_VERSION = 19;
 
 typedef uint32_t error_code;
 
@@ -174,7 +175,8 @@ typedef struct game_init_s {
     } source;
 } game_init;
 
-size_t sl_game_init_info_serializer(GSIT itype, void* obj_in, void* obj_out, void* buf, void* buf_end);
+// see serialization.h for usage details
+custom_serializer_t sl_game_init_info_serializer;
 
 typedef struct timectlstage_s timectlstage; //TODO better name?
 
@@ -220,6 +222,7 @@ typedef struct game_methods_s {
     // !! even if create fails, the game has to be destroyed before releasing or creating again
     // the init_info provides details on what source is used, if any, and details about that source
     // after creation, if successful, the game is always left in a valid and ready to use state
+    // the init_info is only read by the game, it is still owned externally
     error_code (*create)(game* self, game_init init_info); //TODO should init_info be a pointer?
 
     // FEATURE: options
@@ -249,20 +252,15 @@ typedef struct game_methods_s {
     // e.g. this includes move counters in chess, but not any exchangable backend data structures
     error_code (*compare)(game* self, game* other, bool* ret_equal);
 
+    // writes the game state to a universal state string
+    // returns the length of the state string written, 0 if failure, excluding null character
+    error_code (*export_state)(game* self, size_t* ret_size, char* str);
+
     // load the game state from the given string, beware this may be called on running games
     // if str is NULL then the initial position is loaded
     // errors while parsing are handled (NOTE: avoid crashes)
     // when this fails the underlying object is left in an empty state
     error_code (*import_state)(game* self, const char* str);
-
-    //=====
-    // all functions below here may crash if used on a game that is:
-    // (partially) uninitialized
-    //=====
-
-    // writes the game state to a universal state string
-    // returns the length of the state string written, 0 if failure, excluding null character
-    error_code (*export_state)(game* self, size_t* ret_size, char* str);
 
     // FEATURE: serializable
     // writes the game state and options to a game specific raw byte representation that is absolutely accurate to the state of the game
