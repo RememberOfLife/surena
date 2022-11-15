@@ -45,7 +45,6 @@ namespace {
     GF_UNUSED(get_last_error);
     error_code create(game* self, game_init init_info);
     error_code export_options_str(game* self, size_t* ret_size, char* str);
-    error_code get_options_bin_ref(game* self, void** ret_bin_ref);
     error_code destroy(game* self);
     error_code clone(game* self, game* clone_target);
     error_code copy_from(game* self, game* other);
@@ -100,51 +99,36 @@ namespace {
         opts.wx = 24;
         opts.wy = 24;
         opts.pie_swap = true;
-        GAME_INIT_OPTS_TYPE options_type = (init_info.source_type == GAME_INIT_SOURCE_TYPE_STANDARD ? init_info.source.standard.opts_type : GAME_INIT_OPTS_TYPE_DEFAULT);
-        switch (options_type) {
-            case GAME_INIT_OPTS_TYPE_DEFAULT: {
-                // pass
-            } break;
-            case GAME_INIT_OPTS_TYPE_STR: {
-                if (init_info.source.standard.opts.str == NULL) {
-                    break;
-                }
-                // this accepts formats in:
-                // "white/black+" and "square+"
-                // the '+' is optional and indicates swap rule being enabled (a "plus" for black)
-                uint8_t square_size = 0;
-                char square_swap = '\0';
-                int ec_square = sscanf(init_info.source.standard.opts.str, "%hhu%c", &square_size, &square_swap);
-                char double_swap = '\0';
-                int ec_double = sscanf(init_info.source.standard.opts.str, "%hhu/%hhu%c", &opts.wy, &opts.wx, &double_swap);
-                if (ec_double >= 2) {
-                    opts.pie_swap = (double_swap == '+');
-                    if (opts.pie_swap == false && double_swap != '\0') {
-                        free(self->data1);
-                        self->data1 = NULL;
-                        return ERR_INVALID_INPUT;
-                    }
-                } else if (ec_square >= 1) {
-                    opts.wx = square_size;
-                    opts.wy = square_size;
-                    opts.pie_swap = (square_swap == '+');
-                    if (opts.pie_swap == false && square_swap != '\0') {
-                        free(self->data1);
-                        self->data1 = NULL;
-                        return ERR_INVALID_INPUT;
-                    }
-                } else {
+        if (init_info.source_type == GAME_INIT_SOURCE_TYPE_STANDARD && init_info.source.standard.opts != NULL) {
+            // this accepts formats in:
+            // "white/black+" and "square+"
+            // the '+' is optional and indicates swap rule being enabled (a "plus" for black)
+            uint8_t square_size = 0;
+            char square_swap = '\0';
+            int ec_square = sscanf(init_info.source.standard.opts, "%hhu%c", &square_size, &square_swap);
+            char double_swap = '\0';
+            int ec_double = sscanf(init_info.source.standard.opts, "%hhu/%hhu%c", &opts.wy, &opts.wx, &double_swap);
+            if (ec_double >= 2) {
+                opts.pie_swap = (double_swap == '+');
+                if (opts.pie_swap == false && double_swap != '\0') {
                     free(self->data1);
                     self->data1 = NULL;
                     return ERR_INVALID_INPUT;
                 }
-            } break;
-            case GAME_INIT_OPTS_TYPE_BIN: {
-                if (init_info.source.standard.opts.bin == NULL) {
-                    break;
+            } else if (ec_square >= 1) {
+                opts.wx = square_size;
+                opts.wy = square_size;
+                opts.pie_swap = (square_swap == '+');
+                if (opts.pie_swap == false && square_swap != '\0') {
+                    free(self->data1);
+                    self->data1 = NULL;
+                    return ERR_INVALID_INPUT;
                 }
-                opts = *(opts_repr*)init_info.source.standard.opts.bin;
-            } break;
+            } else {
+                free(self->data1);
+                self->data1 = NULL;
+                return ERR_INVALID_INPUT;
+            }
         }
         if (opts.wx < 5 || opts.wx > 128 || opts.wy < 5 || opts.wy > 128) {
             free(self->data1);
@@ -164,7 +148,7 @@ namespace {
         };
         const char* initial_state = NULL;
         if (init_info.source_type == GAME_INIT_SOURCE_TYPE_STANDARD) {
-            initial_state = init_info.source.standard.initial_state;
+            initial_state = init_info.source.standard.state;
         }
         return import_state(self, initial_state);
     }
@@ -183,12 +167,6 @@ namespace {
         return ERR_OK;
     }
 
-    error_code get_options_bin_ref(game* self, void** ret_bin_ref)
-    {
-        *(opts_repr**)ret_bin_ref = &get_opts(self);
-        return ERR_OK;
-    }
-
     error_code destroy(game* self)
     {
         delete (data_repr*)self->data1;
@@ -201,6 +179,9 @@ namespace {
         if (clone_target == NULL) {
             return ERR_INVALID_INPUT;
         }
+        size_t size_fill;
+        char* opts_export = (char*)malloc(self->sizer.options_str);
+        self->methods->export_options_str(self, &size_fill, opts_export);
         clone_target->methods = self->methods;
         opts_repr& opts = get_opts(self);
         error_code ec = clone_target->methods->create(
@@ -209,16 +190,14 @@ namespace {
                 .source_type = GAME_INIT_SOURCE_TYPE_STANDARD,
                 .source = {
                     .standard = {
-                        .opts_type = GAME_INIT_OPTS_TYPE_BIN,
-                        .opts = {
-                            .bin = &opts,
-                        },
-                        .legacy_str = NULL,
-                        .initial_state = NULL,
+                        .opts = opts_export,
+                        .legacy = NULL,
+                        .state = NULL,
                     },
                 },
             }
         );
+        free(opts_export);
         if (ec != ERR_OK) {
             return ec;
         }
@@ -1113,8 +1092,6 @@ const game_methods twixt_pp_gbe{
     .features = game_feature_flags{
         .error_strings = false,
         .options = true,
-        .options_bin = true,
-        .options_bin_ref = true,
         .serializable = false,
         .legacy = false,
         .random_moves = false,

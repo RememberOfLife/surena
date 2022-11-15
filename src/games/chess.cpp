@@ -36,7 +36,6 @@ namespace {
     GF_UNUSED(get_last_error);
     error_code create(game* self, game_init init_info);
     GF_UNUSED(export_options_str);
-    GF_UNUSED(get_options_bin_ref);
     error_code destroy(game* self);
     error_code clone(game* self, game* clone_target);
     error_code copy_from(game* self, game* other);
@@ -97,7 +96,7 @@ namespace {
         };
         const char* initial_state = NULL;
         if (init_info.source_type == GAME_INIT_SOURCE_TYPE_STANDARD) {
-            initial_state = init_info.source.standard.initial_state;
+            initial_state = init_info.source.standard.state;
         }
         return import_state(self, initial_state);
     }
@@ -985,8 +984,6 @@ const game_methods chess_gbe{
     .features = game_feature_flags{
         .error_strings = false,
         .options = false,
-        .options_bin = false,
-        .options_bin_ref = false,
         .serializable = false,
         .legacy = false,
         .random_moves = false,

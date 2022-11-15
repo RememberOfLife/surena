@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "surena/util/serialization.h"
+
 #include "surena/game.h"
 
 #ifdef __cplusplus
@@ -62,6 +64,31 @@ error_code rerrorf(char** pbuf, error_code ec, const char* fmt, ...)
     return ec;
 }
 
+void game_init_create_standard(game_init* init_info, const char* opts, const char* legacy, const char* state)
+{
+    *init_info = (game_init){
+        .source_type = GAME_INIT_SOURCE_TYPE_STANDARD,
+        .source = {
+            .standard = {
+                .opts = (opts == NULL ? NULL : strdup(opts)),
+                .legacy = (legacy == NULL ? NULL : strdup(legacy)),
+                .state = (state == NULL ? NULL : strdup(state)),
+            },
+        },
+    };
+}
+
+void game_init_create_serialized(game_init* init_info, void* buf_begin, void* buf_end)
+{
+    init_info->source_type = GAME_INIT_SOURCE_TYPE_SERIALIZED;
+    size_t buf_size = ptrdiff(buf_end, buf_begin);
+    assert(buf_size > 0);
+    void* new_buf = malloc(buf_size);
+    init_info->source.serialized.buf_begin = new_buf;
+    init_info->source.serialized.buf_end = ptradd(new_buf, buf_size);
+    memcpy(new_buf, buf_begin, buf_size);
+}
+
 //TODO check again that this works as intended
 size_t sl_game_init_info_serializer(GSIT itype, void* obj_in, void* obj_out, void* buf, void* buf_end)
 {
@@ -69,7 +96,6 @@ size_t sl_game_init_info_serializer(GSIT itype, void* obj_in, void* obj_out, voi
 
     typedef struct flat_game_init_s {
         uint32_t source_type;
-        uint32_t opts_type;
         const char* opts;
         const char* legacy;
         const char* state;
@@ -78,7 +104,6 @@ size_t sl_game_init_info_serializer(GSIT itype, void* obj_in, void* obj_out, voi
 
     const serialization_layout sl_flat_game_init[] = {
         {SL_TYPE_U32, offsetof(flat_game_init, source_type)},
-        {SL_TYPE_U32, offsetof(flat_game_init, opts_type)},
         {SL_TYPE_STRING, offsetof(flat_game_init, opts)},
         {SL_TYPE_STRING, offsetof(flat_game_init, legacy)},
         {SL_TYPE_STRING, offsetof(flat_game_init, state)},
@@ -96,18 +121,10 @@ size_t sl_game_init_info_serializer(GSIT itype, void* obj_in, void* obj_out, voi
     if (itype == GSIT_SIZE || itype == GSIT_COPY || itype == GSIT_SERIALIZE || itype == GSIT_DESTROY) {
         fgi_in.source_type = cin_p->source_type;
         if (cin_p->source_type == GAME_INIT_SOURCE_TYPE_STANDARD) {
-            fgi_in.opts_type = cin_p->source.standard.opts_type;
-            if (cin_p->source.standard.opts_type == GAME_INIT_OPTS_TYPE_DEFAULT) {
-                fgi_in.opts = NULL;
-            } else if (cin_p->source.standard.opts_type == GAME_INIT_OPTS_TYPE_STR) {
-                fgi_in.opts = cin_p->source.standard.opts.str;
-            } else if (cin_p->source.standard.opts_type == GAME_INIT_OPTS_TYPE_BIN) {
-                return LS_ERR; //BUG is this ok?
-            }
-            fgi_in.legacy = cin_p->source.standard.legacy_str;
-            fgi_in.state = cin_p->source.standard.initial_state;
+            fgi_in.opts = cin_p->source.standard.opts;
+            fgi_in.legacy = cin_p->source.standard.legacy;
+            fgi_in.state = cin_p->source.standard.state;
         } else {
-            fgi_in.opts_type = GAME_INIT_OPTS_TYPE_DEFAULT;
             fgi_in.opts = NULL;
             fgi_in.legacy = NULL;
             fgi_in.state = NULL;
@@ -141,14 +158,9 @@ size_t sl_game_init_info_serializer(GSIT itype, void* obj_in, void* obj_out, voi
     if (itype == GSIT_DESERIALIZE || itype == GSIT_COPY) {
         cout_p->source_type = fgi_out.source_type;
         if (fgi_out.source_type == GAME_INIT_SOURCE_TYPE_STANDARD) {
-            cout_p->source.standard.opts_type = fgi_out.opts_type;
-            if (fgi_out.opts_type == GAME_INIT_OPTS_TYPE_STR) {
-                cout_p->source.standard.opts.str = fgi_out.opts;
-            } else if (fgi_out.opts_type == GAME_INIT_OPTS_TYPE_BIN) {
-                return LS_ERR; //BUG is this ok?
-            }
-            cout_p->source.standard.legacy_str = fgi_out.legacy;
-            cout_p->source.standard.initial_state = fgi_out.state;
+            cout_p->source.standard.opts = fgi_out.opts;
+            cout_p->source.standard.legacy = fgi_out.legacy;
+            cout_p->source.standard.state = fgi_out.state;
         }
         if (fgi_out.source_type == GAME_INIT_SOURCE_TYPE_SERIALIZED) {
             cout_p->source.serialized.buf_begin = fgi_out.serialized.data;

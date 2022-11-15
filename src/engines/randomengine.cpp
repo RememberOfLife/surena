@@ -33,7 +33,7 @@ namespace {
     // forward declares
 
     // engine wrapper
-    error_code create_default(engine* self, uint32_t engine_id, eevent_queue* outbox, eevent_queue** inbox);
+    error_code create(engine* self, uint32_t engine_id, eevent_queue* outbox, eevent_queue** inbox, const char* opts);
     error_code destroy(engine* self);
     error_code is_game_compatible(engine* self, game* compat_game);
     // engine loop
@@ -41,7 +41,7 @@ namespace {
 
     // implementation
 
-    error_code create_default(engine* self, uint32_t engine_id, eevent_queue* outbox, eevent_queue** inbox)
+    error_code create(engine* self, uint32_t engine_id, eevent_queue* outbox, eevent_queue** inbox, const char* opts)
     {
         self->data1 = malloc(sizeof(data_repr));
         if (self->data1 == NULL) {
@@ -324,7 +324,6 @@ const engine_methods randomengine_ebe{
     .features = engine_feature_flags{
         .error_strings = false,
         .options = false,
-        .options_bin = false,
         .score_all_moves = false,
         .running_bestmove = true,
         .draw_and_resign = false,
@@ -332,9 +331,7 @@ const engine_methods randomengine_ebe{
     .internal_methods = NULL,
 
     .get_last_error = NULL,
-    .create_with_opts_str = NULL,
-    .create_with_opts_bin = NULL,
-    .create_default = create_default,
+    .create = create,
     .destroy = destroy,
     .is_game_compatible = is_game_compatible,
 

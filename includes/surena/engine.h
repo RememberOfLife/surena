@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_ENGINE_API_VERSION = 9;
+static const uint64_t SURENA_ENGINE_API_VERSION = 10;
 
 typedef uint32_t eevent_type;
 
@@ -357,7 +357,6 @@ void eevent_queue_pop(eevent_queue* eq, engine_event* e, uint32_t t);
 typedef struct engine_feature_flags_s {
     bool error_strings : 1;
     bool options : 1;
-    bool options_bin : 1;
     bool score_all_moves : 1; // if not supported and requested in stop event, ignore
     bool running_bestmove : 1; // if not supported, log error if engine receives bestmove
     bool draw_and_resign : 1; // if not supported the handler must auto decline draw offers on behalf of the engine
@@ -383,13 +382,9 @@ typedef struct engine_methods_s {
     // the string is still owned by the frontend method backend, do not free it
     const char* (*get_last_error)(engine* self);
 
-    error_code (*create_with_opts_str)(engine* self, uint32_t engine_id, eevent_queue* outbox, eevent_queue** inbox, const char* str);
-
-    error_code (*create_with_opts_bin)(engine* self, uint32_t engine_id, eevent_queue* outbox, eevent_queue** inbox, void* options_struct);
-
     // sets outbox and inbox to the corresponding queues owned by the engine
     // use inbox to send things to the engine, check outbox for eevents from the engine
-    error_code (*create_default)(engine* self, uint32_t engine_id, eevent_queue* outbox, eevent_queue** inbox);
+    error_code (*create)(engine* self, uint32_t engine_id, eevent_queue* outbox, eevent_queue** inbox, const char* opts);
 
     error_code (*destroy)(engine* self);
 

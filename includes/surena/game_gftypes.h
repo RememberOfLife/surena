@@ -6,7 +6,6 @@
 typedef const char* (*get_last_error_gf_t)(game* self);
 typedef error_code (*create_gf_t)(game* self, game_init init_info);
 typedef error_code (*export_options_str_gf_t)(game* self, size_t* ret_size, char* str);
-typedef error_code (*get_options_bin_ref_gf_t)(game* self, void** ret_bin_ref);
 typedef error_code (*destroy_gf_t)(game* self);
 typedef error_code (*clone_gf_t)(game* self, game* clone_target);
 typedef error_code (*copy_from_gf_t)(game* self, game* other);

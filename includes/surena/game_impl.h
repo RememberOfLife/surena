@@ -3,7 +3,6 @@
 .get_last_error = (get_last_error_gf_t)get_last_error,
 .create = (create_gf_t)create,
 .export_options_str = (export_options_str_gf_t)export_options_str,
-.get_options_bin_ref = (get_options_bin_ref_gf_t)get_options_bin_ref,
 .destroy = (destroy_gf_t)destroy,
 .clone = (clone_gf_t)clone,
 .copy_from = (copy_from_gf_t)copy_from,

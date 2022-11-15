@@ -15,7 +15,7 @@
 #include "generated/git_commit_hash.h"
 
 namespace surena {
-    const semver version = {0, 11, 0};
+    const semver version = {0, 11, 1};
 } // namespace surena
 
 // args https://github.com/p-ranav/argparse
@@ -139,10 +139,9 @@ int main(int argc, char** argv)
         .source_type = GAME_INIT_SOURCE_TYPE_STANDARD,
         .source = {
             .standard = {
-                .opts_type = (thegame.methods->features.options ? GAME_INIT_OPTS_TYPE_STR : GAME_INIT_OPTS_TYPE_DEFAULT),
-                .opts = {.str = game_options},
-                .legacy_str = NULL,
-                .initial_state = initial_state,
+                .opts = game_options,
+                .legacy = NULL,
+                .state = initial_state,
             },
         },
     };

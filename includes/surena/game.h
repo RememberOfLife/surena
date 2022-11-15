@@ -12,7 +12,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 19;
+static const uint64_t SURENA_GAME_API_VERSION = 20;
 
 typedef uint32_t error_code;
 
@@ -72,10 +72,6 @@ typedef struct game_feature_flags_s {
 
     // options are passed together with the creation of the game data
     bool options : 1;
-    // supports creation with binary options input
-    bool options_bin : 1;
-    // supports the ability to read the options bin of a created game
-    bool options_bin_ref : 1;
 
     bool serializable : 1; // this is a binary serialization of the game, must be absolutely accurate representation of the game state
 
@@ -140,12 +136,6 @@ typedef struct sync_data_s {
     uint8_t* player_end;
 } sync_data;
 
-typedef enum GAME_INIT_OPTS_TYPE_E {
-    GAME_INIT_OPTS_TYPE_DEFAULT = 0, // default options, or none if not available
-    GAME_INIT_OPTS_TYPE_STR, // FEATURE: options
-    GAME_INIT_OPTS_TYPE_BIN, // FEATURE: options_bin
-} GAME_INIT_OPTS_TYPE;
-
 typedef enum GAME_INIT_SOURCE_TYPE_E {
     GAME_INIT_SOURCE_TYPE_DEFAULT = 0, // create a default game with the default options and default initial state
     GAME_INIT_SOURCE_TYPE_STANDARD, // create a game from some options, legacy and initial state
@@ -157,15 +147,9 @@ typedef struct game_init_s {
 
     union {
         struct {
-            GAME_INIT_OPTS_TYPE opts_type;
-
-            union {
-                const char* str;
-                void* bin;
-            } opts; // FEATURE: options ; both may be NULL to use default
-
-            const char* legacy_str; // FEATURE: legacy ; may be NULL to use none
-            const char* initial_state; // may be null to use default
+            const char* opts; // FEATURE: options ; may be NULL to use default
+            const char* legacy; // FEATURE: legacy ; may be NULL to use none
+            const char* state; // may be null to use default
         } standard; // use options, legacy, initial_state
 
         struct {
@@ -174,6 +158,10 @@ typedef struct game_init_s {
         } serialized; // use the given byte buffer to create the game data, NULL buffers are invalid
     } source;
 } game_init;
+
+void game_init_create_standard(game_init* init_info, const char* opts, const char* legacy, const char* state);
+
+void game_init_create_serialized(game_init* init_info, void* buf_begin, void* buf_end);
 
 // see serialization.h for usage details
 custom_serializer_t sl_game_init_info_serializer;
@@ -229,11 +217,6 @@ typedef struct game_methods_s {
     // write this games options to a universal options string
     // returns the length of the options string written, 0 if failure, excluding null character
     error_code (*export_options_str)(game* self, size_t* ret_size, char* str);
-
-    // FEATURE: options_bin_ref
-    // write a READ-ONLY pointer to the games internal options bin, it is valid until the game is destroyed
-    // modifying the underlying options is undefined behaviour (will crash)
-    error_code (*get_options_bin_ref)(game* self, void** ret_bin_ref);
 
     // deconstruct and release any (complex) game specific data, if it has been created already
     // same for options specific data, if it exists

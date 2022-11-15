@@ -52,7 +52,6 @@ namespace {
     GF_UNUSED(get_last_error);
     error_code create(game* self, game_init init_info);
     error_code export_options_str(game* self, size_t* ret_size, char* str);
-    GF_UNUSED(get_options_bin_ref);
     error_code destroy(game* self);
     error_code clone(game* self, game* clone_target);
     error_code copy_from(game* self, game* other);
@@ -103,37 +102,22 @@ namespace {
         opts_repr& opts = get_opts(self);
         opts.size = 8;
         opts.pie_swap = true;
-        GAME_INIT_OPTS_TYPE options_type = (init_info.source_type == GAME_INIT_SOURCE_TYPE_STANDARD ? init_info.source.standard.opts_type : GAME_INIT_OPTS_TYPE_DEFAULT);
-        switch (options_type) {
-            case GAME_INIT_OPTS_TYPE_DEFAULT: {
-                // pass
-            } break;
-            case GAME_INIT_OPTS_TYPE_STR: {
-                if (init_info.source.standard.opts.str == NULL) {
-                    break;
-                }
-                // format is: "X" and "X+" where X is a number >=4 and <=10, the + enables the swap rule
-                char swap_char = '\0';
-                int ec = sscanf(init_info.source.standard.opts.str, "%u%c", &opts.size, &swap_char);
-                if (ec >= 1) {
-                    opts.pie_swap = (swap_char == '+');
-                    if (opts.pie_swap == false && swap_char != '\0') {
-                        free(self->data1);
-                        self->data1 = NULL;
-                        return ERR_INVALID_INPUT;
-                    }
-                } else {
+        if (init_info.source_type == GAME_INIT_SOURCE_TYPE_STANDARD && init_info.source.standard.opts != NULL) {
+            // format is: "X" and "X+" where X is a number >=4 and <=10, the + enables the swap rule
+            char swap_char = '\0';
+            int ec = sscanf(init_info.source.standard.opts, "%u%c", &opts.size, &swap_char);
+            if (ec >= 1) {
+                opts.pie_swap = (swap_char == '+');
+                if (opts.pie_swap == false && swap_char != '\0') {
                     free(self->data1);
                     self->data1 = NULL;
                     return ERR_INVALID_INPUT;
                 }
-            } break;
-            case GAME_INIT_OPTS_TYPE_BIN: {
-                if (init_info.source.standard.opts.bin == NULL) {
-                    break;
-                }
-                opts = *(opts_repr*)init_info.source.standard.opts.bin;
-            } break;
+            } else {
+                free(self->data1);
+                self->data1 = NULL;
+                return ERR_INVALID_INPUT;
+            }
         }
         data_repr& data = get_repr(self);
         data.board_sizer = 2 * opts.size - 1;
@@ -150,7 +134,7 @@ namespace {
         };
         const char* initial_state = NULL;
         if (init_info.source_type == GAME_INIT_SOURCE_TYPE_STANDARD) {
-            initial_state = init_info.source.standard.initial_state;
+            initial_state = init_info.source.standard.state;
         }
         return import_state(self, initial_state);
     }
@@ -178,6 +162,9 @@ namespace {
         if (clone_target == NULL) {
             return ERR_INVALID_INPUT;
         }
+        size_t size_fill;
+        char* opts_export = (char*)malloc(self->sizer.options_str);
+        self->methods->export_options_str(self, &size_fill, opts_export);
         clone_target->methods = self->methods;
         opts_repr& opts = get_opts(self);
         error_code ec = clone_target->methods->create(
@@ -186,16 +173,14 @@ namespace {
                 .source_type = GAME_INIT_SOURCE_TYPE_STANDARD,
                 .source = {
                     .standard = {
-                        .opts_type = GAME_INIT_OPTS_TYPE_BIN,
-                        .opts = {
-                            .bin = &opts,
-                        },
-                        .legacy_str = NULL,
-                        .initial_state = NULL,
+                        .opts = opts_export,
+                        .legacy = NULL,
+                        .state = NULL,
                     },
                 },
             }
         );
+        free(opts_export);
         if (ec != ERR_OK) {
             return ec;
         }
@@ -980,8 +965,6 @@ const game_methods havannah_gbe{
     .features = game_feature_flags{
         .error_strings = false,
         .options = true,
-        .options_bin = true,
-        .options_bin_ref = false,
         .serializable = false,
         .legacy = false,
         .random_moves = false,

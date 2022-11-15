@@ -74,7 +74,6 @@ namespace {
     const char* get_last_error(game* self);
     error_code create(game* self, game_init init_info);
     error_code export_options_str(game* self, size_t* ret_size, char* str);
-    error_code get_options_bin_ref(game* self, void** ret_bin_ref);
     error_code destroy(game* self);
     error_code clone(game* self, game* clone_target);
     error_code copy_from(game* self, game* other);
@@ -122,11 +121,6 @@ namespace {
     }
 
     error_code export_options_str(game* self, size_t* ret_size, char* str)
-    {
-        //TODO
-    }
-
-    error_code get_options_bin_ref(game* self, void** ret_bin_ref)
     {
         //TODO
     }
@@ -309,8 +303,6 @@ const game_methods tictactoe_gbe{
     .features = game_feature_flags{
         .error_strings = true,
         .options = true,
-        .options_bin = true,
-        .options_bin_ref = true,
         .serializable = true,
         .legacy = true,
         .random_moves = true,
