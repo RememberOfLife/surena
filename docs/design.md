@@ -46,8 +46,11 @@ Goals served by the game methods:
 ## examples
 Examples for the more advanced features of the game methods api.
 
+//TODO provide links to the example games that implement these features..
+
 ### options
-//TODO
+Some games require information to be set up which can not change, easily or at all, after the set up. Among others this includes: board sizes, player counts, draft pools for components and (variant) rules.  
+On creation a game that supports the options feature may be passed an options string containing game specific information about the set up. To make the game exchangeable a created game that supports options must always be able to export the ones it is using to a string.
 
 ### public randomness
 Two modes of operation:
@@ -96,34 +99,54 @@ It is advisable to not make the digital shuffle implementation unneccessary comp
 
 **Closed**  
 Each time the only available move is the card pre-selected via the discretization seed. I.e. after making the only available move N times, the deck is "shuffled" according to the seed.  
-If for example the closed board is a "server" board, that does not want to distribute the actually drafted cards to "clients", it only distributes the `move_to_action` result of the concrete draft move. I.e. it only distributes `DRAFT_HIDDEN` moves, because the action class of all concrete draft moves is `DRAFT_HIDDEN`.
+If for example the closed board is a "server" board, that does not want to distribute the actually drafted cards to "clients", it only distributes the `move_to_action` result of the concrete draft move. I.e. it only distributes `DRAFT_HIDDEN` moves, because the action class of all concrete draft moves is `DRAFT_HIDDEN` the move for which does NOT show up in the `get_concrete_moves` list offered by the closed game.  
 //TODO ideally want always applyable algo, e.g. where server ALWAYS distributes move->action actions
 
-#### example 2 (draw card faceup from shuffled deck)
-//TODO
+**In general** pre-shuffling a deck in this rarely advantageous, and most of the time it is easier to just delay the resolution of the randomness to a point where it is public. I.e. do not pre-shuffle the deck but just keep a knowledge of what cards it contains and then on draw resolve the randomness of which card was actually drawn. (See example 2.)
 
-#### example 3 (draw card facedown from shuffled deck)
+#### example 2 (draw card faceup from "shuffled" deck)
+In this example we assume the easier case of drawing a card from a deck that was not actually shuffled card by card using moves, but is just represented by a list of all contained cards. On the draw action the result of the randomness if resolved.  
+On the players turn `get_concrete_moves` shows the draw action as `{..., DRAW_FACEUP, ...}`. When the `DRAW_FACEUP` move is made `PLAYER_RAND` is to move, to select the outcome of the draw.
+
+**Open**: `PLAYER_RAND` offers all cards as concrete moves, choose one by random or select one to replay from physical.  
+**Closed**: `PLAYER_RAND` offers the one card that is determined to be draw by using the discretization seed.
+
+//TODO want to example the pre-shuffled case as well? what would be the use case even?
+
+#### example 3 (draw card facedown from "shuffled" deck)
+This can also be rephrased to drawing the card from the *not* pre-shuffled deck into the players secret hand. Or even not revealing the card to any player and just placing it on the table for later reveal.  
+In this example we assume a *not* pre-shuffled deck, i.e. lazy resolution, and players drawing from it to their secret hand by way of a `DRAW_FACEDOWN` move on their turn.  
 //TODO
+this creates hidden info as well  
+player chooses action to draw facedown  
+open: player rand offers all the cards available (on client that is all* minus some that could be card counted away, but thats optional ;; on server it shows all that can actually be drawn)
+close: ??
 
 #### example 4 (flip coin in secret)
 //TODO want this?
 
+### revealing hidden information (e.g. play card from secret hand)
+A more complicated form of hidden information.  
+//TODO
+
+### transforming hidden information (e.g. play card from secret hand *facedown*)
+The most complicated form of hidden information.  
+//TODO
+
 ### simultaneous moves
-A more complicated form of hidden information, but still mostly straight forward.  
-ABC //TODO (with/without moved indicator for opponent)
+A relatively uncomplicated form of hidden information, but still with some important insights with regard to syncing information across players.  
+ABC //TODO (with/without moved indicator for opponent)  
 //TODO types (no)sync,unordered,ordered,want_discard,reissue,never_discard
 
 #### example 1 (gated)
 //TODO all SM players have to move before game continues, no interplay between moves
 
+**Basic Idea**: The game returns multiple players to move, and for each player their available moves. If a player makes a move up to a "barrier" at which all players need to resolve then they are removed from the players to move until all other players have done so as well. E.g. everyone plays a card simultaneously: everyone is to move, once a card is played they are no longer to move and the game buffers their move, once all have moved the game resolves the effect "as if everyone moved at once" now that it knows all the moves. Addendun: if e.g. all players play two cards at once: a player is only removed from the players to move once they have chosen both cards.
+
 #### example 2 (synced)
 //TODO sync ctr is needed b/c moves might interplay
 
-### revealing hidden information (e.g. play card from secret hand)
-//TODO
-
-### transforming hidden information (e.g. play card from secret hand *facedown*)
-//TODO
+**Basic Idea**: The game returns multiple players to move, and for each player their available moves. If a player makes a move in a synced SM scenario, they are likely still to move, as are the other players, but the available moves for the other players might have changed. This is what the sync counter is used for. I.e. simultaneous moves not interpreted as "all move at once", but as "everyone can start moving at any time, but only one can move at a time".
 
 ### scores
 //TODO

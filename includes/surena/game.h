@@ -19,7 +19,7 @@ typedef uint32_t error_code;
 // general purpose error codes
 enum ERR {
     ERR_OK = 0,
-    // ERR_NOK //TODO might want this to show that input was in fact valid, but the result ist just false, i.e. legal move and engine game support
+    // ERR_NOK //TODO might want this to show that input was in fact valid, but the result is just false, i.e. legal move and engine game support
     ERR_STATE_UNRECOVERABLE,
     ERR_STATE_CORRUPTED,
     ERR_OUT_OF_MEMORY,
@@ -67,7 +67,6 @@ static const sync_counter SYNC_COUNTER_DEFAULT = 0;
 
 typedef struct game_feature_flags_s {
 
-    //TODO slight misnomer since get_last_error may return values for ERR_OK functions
     bool error_strings : 1;
 
     // options are passed together with the creation of the game data
@@ -88,6 +87,8 @@ typedef struct game_feature_flags_s {
 
     bool simultaneous_moves : 1;
 
+    // FEATURE: simultaneous_moves
+    // this is only useful for games with simultaneous moves that want to allow commutative move accumulation
     // if the game does not support this feature, its owner must guarantee total move order
     // if a sync counter is provided by the game, it must be supplied together with the move and player in is_legal_move
     bool sync_counter : 1;
@@ -231,7 +232,7 @@ typedef struct game_methods_s {
     // undefined behaviour if self == other
     error_code (*copy_from)(game* self, game* other);
 
-    // returns true iff self and other are perceived equal state (by the game method)
+    // returns true iff self and other are in a behaviourally identical state (concerning the game methods)
     // e.g. this includes move counters in chess, but not any exchangable backend data structures
     error_code (*compare)(game* self, game* other, bool* ret_equal);
 
@@ -317,6 +318,7 @@ typedef struct game_methods_s {
     // writes the game internal sync counter
     // if supported the game manages this by itself, taking control over when to increment or not
     error_code (*get_sync_counter)(game* self, sync_counter* ret_sync);
+    //TODO this could be handled like timectrl current time, i.e. in the actual game struct?
 
     // FEATURE: scores
     // available after creation for the entire lifetime of the game

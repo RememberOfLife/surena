@@ -37,12 +37,3 @@ For more details regarding the various APIs available, see the [design](./docs/d
 * document workflow for non perfect information games
 * stop clang-format newline after structs unions etc.. if already within a struct, union, class, function!
 * fill more feature flags for the example games provided in this project
-
-### ideas
-* => team games provide player-team association
-  * what use have teams, now that results are not team based?
-* draw and resign should be handled outside of the game, but for team games the game should be able to provide some input on the voting mechanism
-* for simultaneous moves the engine has to merge extra moves into the tree even if there are already moves on a node
-  * possibly generate_all_moves_for_all_discretization method for the game class
-  * order moves by uint64_t value and then splice possible moves into the actual children
-* would there be use for some sort of utility library for handling common game objects
