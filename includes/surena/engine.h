@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_ENGINE_API_VERSION = 10;
+static const uint64_t SURENA_ENGINE_API_VERSION = 11;
 
 typedef uint32_t eevent_type;
 
@@ -67,7 +67,6 @@ typedef struct ee_game_state_s {
 typedef struct ee_game_move_s {
     player_id player;
     move_code move;
-    sync_counter sync;
 } ee_game_move;
 
 typedef struct ee_game_sync_s {
@@ -274,7 +273,7 @@ void eevent_create_load(engine_event* e, uint32_t engine_id, game* the_game);
 
 void eevent_create_state(engine_event* e, uint32_t engine_id, const char* state);
 
-void eevent_create_move(engine_event* e, uint32_t engine_id, player_id player, move_code move, sync_counter sync);
+void eevent_create_move(engine_event* e, uint32_t engine_id, player_id player, move_code move);
 
 void eevent_create_sync(engine_event* e, uint32_t engine_id, void* data_start, void* data_end);
 

@@ -12,24 +12,26 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 20;
+static const uint64_t SURENA_GAME_API_VERSION = 21;
 
 typedef uint32_t error_code;
 
 // general purpose error codes
 enum ERR {
     ERR_OK = 0,
-    // ERR_NOK //TODO might want this to show that input was in fact valid, but the result is just false, i.e. legal move and engine game support
+    // ERR_NOK, //TODO might want this to show that input was in fact valid, but the result is just false, i.e. legal move and engine game support
     ERR_STATE_UNRECOVERABLE,
     ERR_STATE_CORRUPTED,
     ERR_OUT_OF_MEMORY,
     ERR_FEATURE_UNSUPPORTED,
-    ERR_STATE_UNINITIALIZED,
     ERR_MISSING_HIDDEN_STATE,
     ERR_INVALID_INPUT,
+    ERR_INVALID_PLAYER,
+    ERR_INVALID_MOVE,
     ERR_INVALID_OPTIONS,
+    ERR_INVALID_LEGACY,
+    ERR_INVALID_STATE,
     ERR_UNSTABLE_POSITION,
-    ERR_SYNC_COUNTER_MISMATCH,
     ERR_RETRY, // retrying the same call again may yet still work
     ERR_CUSTOM_ANY, // unspecified custom error, check get_last_error for a detailed string
     ERR_ENUM_DEFAULT_OFFSET, // not an error, start game method specific error enums at this offset
@@ -62,9 +64,6 @@ typedef uint8_t player_id;
 static const player_id PLAYER_NONE = 0x00;
 static const player_id PLAYER_RAND = 0xFF;
 
-typedef uint32_t sync_counter;
-static const sync_counter SYNC_COUNTER_DEFAULT = 0;
-
 typedef struct game_feature_flags_s {
 
     bool error_strings : 1;
@@ -85,13 +84,10 @@ typedef struct game_feature_flags_s {
 
     bool hidden_information : 1;
 
+    // remember: the game owner must guarantee total move order on all moves!
     bool simultaneous_moves : 1;
 
-    // FEATURE: simultaneous_moves
-    // this is only useful for games with simultaneous moves that want to allow commutative move accumulation
-    // if the game does not support this feature, its owner must guarantee total move order
-    // if a sync counter is provided by the game, it must be supplied together with the move and player in is_legal_move
-    bool sync_counter : 1;
+    //TODO in the future, when really required, may reintroduce the sync ctr here
 
     // bool big_moves : 1; //TODO want this?
 
@@ -154,6 +150,7 @@ typedef struct game_init_s {
         } standard; // use options, legacy, initial_state
 
         struct {
+            // beware that the data given through serialized is UNTRUSTED and shoudl be thouroughly checked for consistency
             void* buf_begin;
             void* buf_end;
         } serialized; // use the given byte buffer to create the game data, NULL buffers are invalid
@@ -207,20 +204,18 @@ typedef struct game_methods_s {
     const char* (*get_last_error)(game* self);
 
     // construct and initialize a new game specific data object into self
-    // a game can only be created once, must be matched with a call to destroy
-    // !! even if create fails, the game has to be destroyed before releasing or creating again
+    // a game can only be created once
+    // every create MUST ALWAYS be matched with a call to destroy
+    // !!! even if create fails, the game has to be destroyed before releasing or creating again
+    // get_last_error will, if supported, be valid to check even if create fails
     // the init_info provides details on what source is used, if any, and details about that source
     // after creation, if successful, the game is always left in a valid and ready to use state
     // the init_info is only read by the game, it is still owned externally
     error_code (*create)(game* self, game_init init_info); //TODO should init_info be a pointer?
 
-    // FEATURE: options
-    // write this games options to a universal options string
-    // returns the length of the options string written, 0 if failure, excluding null character
-    error_code (*export_options_str)(game* self, size_t* ret_size, char* str);
-
     // deconstruct and release any (complex) game specific data, if it has been created already
     // same for options specific data, if it exists
+    // even if this fails, there will never be an error string available
     error_code (*destroy)(game* self);
 
     // fills clone_target with a deep clone of the self game state
@@ -235,6 +230,11 @@ typedef struct game_methods_s {
     // returns true iff self and other are in a behaviourally identical state (concerning the game methods)
     // e.g. this includes move counters in chess, but not any exchangable backend data structures
     error_code (*compare)(game* self, game* other, bool* ret_equal);
+
+    // FEATURE: options
+    // write this games options to a universal options string
+    // returns the length of the options string written, 0 if failure, excluding null character
+    error_code (*export_options)(game* self, size_t* ret_size, char* str);
 
     // writes the game state to a universal state string
     // returns the length of the state string written, 0 if failure, excluding null character
@@ -283,9 +283,8 @@ typedef struct game_methods_s {
     // returns whether or not this move would be legal to make on the current state
     // equivalent to the fallback check of: move in list of get_moves?
     // should be optimized by the game method if possible
-    // REAL commutative moves in a situation for simultaneous moves can be performed on dissimilar sync ctrs, at the games discretion
     // moves do not have to be valid
-    error_code (*is_legal_move)(game* self, player_id player, move_code move, sync_counter sync);
+    error_code (*is_legal_move)(game* self, player_id player, move_code move);
 
     // FEATURE: random_moves || hidden_information || simultaneous_moves
     // returns the action representing the information set transformation of the (concrete) LEGAL move (action instance)
@@ -313,12 +312,6 @@ typedef struct game_methods_s {
     // use buf_sizer.legacy_str to get the necessary size for the str_buf
     // NOTE: this does not include the used options, save them separately for reuse together with this in a future game
     error_code (*export_legacy)(game* self, size_t* ret_size, char* str_buf);
-
-    // FEATURE: sync_counter
-    // writes the game internal sync counter
-    // if supported the game manages this by itself, taking control over when to increment or not
-    error_code (*get_sync_counter)(game* self, sync_counter* ret_sync);
-    //TODO this could be handled like timectrl current time, i.e. in the actual game struct?
 
     // FEATURE: scores
     // available after creation for the entire lifetime of the game

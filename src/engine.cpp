@@ -67,7 +67,7 @@ void eevent_create_state(engine_event* e, uint32_t engine_id, const char* state)
     };
 }
 
-void eevent_create_move(engine_event* e, uint32_t engine_id, player_id player, move_code move, sync_counter sync)
+void eevent_create_move(engine_event* e, uint32_t engine_id, player_id player, move_code move)
 {
     *e = (engine_event){
         .type = EE_TYPE_GAME_MOVE,
@@ -75,7 +75,6 @@ void eevent_create_move(engine_event* e, uint32_t engine_id, player_id player, m
         .move = (ee_game_move){
             .player = player,
             .move = move,
-            .sync = sync,
         },
     };
 }

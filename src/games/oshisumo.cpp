@@ -37,11 +37,11 @@ namespace {
     // forward declare everything to allow for inlining at least in this unit
     GF_UNUSED(get_last_error);
     error_code create(game* self, game_init init_info);
-    error_code export_options_str(game* self, size_t* ret_size, char* str);
     error_code destroy(game* self);
     error_code clone(game* self, game* clone_target);
     error_code copy_from(game* self, game* other);
     error_code compare(game* self, game* other, bool* ret_equal);
+    error_code export_options(game* self, size_t* ret_size, char* str);
     error_code export_state(game* self, size_t* ret_size, char* str);
     error_code import_state(game* self, const char* str);
     GF_UNUSED(serialize);
@@ -50,7 +50,7 @@ namespace {
     GF_UNUSED(get_concrete_move_probabilities);
     GF_UNUSED(get_concrete_moves_ordered);
     error_code get_actions(game* self, player_id player, uint32_t* ret_count, move_code* moves);
-    error_code is_legal_move(game* self, player_id player, move_code move, sync_counter sync);
+    error_code is_legal_move(game* self, player_id player, move_code move);
     error_code move_to_action(game* self, move_code move, move_code* ret_action);
     error_code is_action(game* self, move_code move, bool* ret_is_action);
     error_code make_move(game* self, player_id player, move_code move);
@@ -116,16 +116,6 @@ namespace {
         return import_state(self, initial_state);
     }
 
-    error_code export_options_str(game* self, size_t* ret_size, char* str)
-    {
-        if (str == NULL) {
-            return ERR_INVALID_INPUT;
-        }
-        opts_repr& opts = get_opts(self);
-        *ret_size = sprintf(str, "%hhu-%hhu", opts.size, opts.tokens);
-        return ERR_OK;
-    }
-
     error_code destroy(game* self)
     {
         free(self->data1);
@@ -140,7 +130,7 @@ namespace {
         }
         size_t size_fill;
         char* opts_export = (char*)malloc(self->sizer.options_str);
-        self->methods->export_options_str(self, &size_fill, opts_export);
+        self->methods->export_options(self, &size_fill, opts_export);
         clone_target->methods = self->methods;
         opts_repr& opts = get_opts(self);
         error_code ec = clone_target->methods->create(
@@ -173,6 +163,16 @@ namespace {
     error_code compare(game* self, game* other, bool* ret_equal)
     {
         *ret_equal = (memcmp(self->data1, other->data1, sizeof(data_repr)) == 0);
+        return ERR_OK;
+    }
+
+    error_code export_options(game* self, size_t* ret_size, char* str)
+    {
+        if (str == NULL) {
+            return ERR_INVALID_INPUT;
+        }
+        opts_repr& opts = get_opts(self);
+        *ret_size = sprintf(str, "%hhu-%hhu", opts.size, opts.tokens);
         return ERR_OK;
     }
 
@@ -245,97 +245,97 @@ namespace {
     error_code get_actions(game* self, player_id player, uint32_t* ret_count, move_code* moves)
     {
         //TODO
-        return ERR_STATE_UNINITIALIZED;
+        return ERR_FEATURE_UNSUPPORTED;
     }
 
-    error_code is_legal_move(game* self, player_id player, move_code move, sync_counter sync)
+    error_code is_legal_move(game* self, player_id player, move_code move)
     {
         //TODO
-        return ERR_STATE_UNINITIALIZED;
+        return ERR_FEATURE_UNSUPPORTED;
     }
 
     error_code move_to_action(game* self, move_code move, move_code* ret_action)
     {
         //TODO
-        return ERR_STATE_UNINITIALIZED;
+        return ERR_FEATURE_UNSUPPORTED;
     }
 
     error_code is_action(game* self, move_code move, bool* ret_is_action)
     {
         //TODO
-        return ERR_STATE_UNINITIALIZED;
+        return ERR_FEATURE_UNSUPPORTED;
     }
 
     error_code make_move(game* self, player_id player, move_code move)
     {
         //TODO
-        return ERR_STATE_UNINITIALIZED;
+        return ERR_FEATURE_UNSUPPORTED;
     }
 
     error_code get_results(game* self, uint8_t* ret_count, player_id* players)
     {
         //TODO
-        return ERR_STATE_UNINITIALIZED;
+        return ERR_FEATURE_UNSUPPORTED;
     }
 
     error_code get_scores(game* self, size_t* ret_count, player_id* players, int32_t* scores)
     {
         //TODO
-        return ERR_STATE_UNINITIALIZED;
+        return ERR_FEATURE_UNSUPPORTED;
     }
 
     error_code id(game* self, uint64_t* ret_id)
     {
         //TODO
-        return ERR_STATE_UNINITIALIZED;
+        return ERR_FEATURE_UNSUPPORTED;
     }
 
     error_code eval(game* self, player_id player, float* ret_eval)
     {
         //TODO
-        return ERR_STATE_UNINITIALIZED;
+        return ERR_FEATURE_UNSUPPORTED;
     }
 
     error_code playout(game* self, uint64_t seed)
     {
         //TODO
-        return ERR_STATE_UNINITIALIZED;
+        return ERR_FEATURE_UNSUPPORTED;
     }
 
     error_code redact_keep_state(game* self, uint8_t count, player_id* players)
     {
         //TODO
-        return ERR_STATE_UNINITIALIZED;
+        return ERR_FEATURE_UNSUPPORTED;
     }
 
     error_code export_sync_data(game* self, sync_data** sync_data_start, sync_data** sync_data_end)
     {
         //TODO
-        return ERR_STATE_UNINITIALIZED;
+        return ERR_FEATURE_UNSUPPORTED;
     }
 
     error_code release_sync_data(game* self, sync_data* sync_data_start, sync_data* sync_data_end)
     {
         //TODO
-        return ERR_STATE_UNINITIALIZED;
+        return ERR_FEATURE_UNSUPPORTED;
     }
 
     error_code import_sync_data(game* self, void* data_start, void* data_end)
     {
         //TODO
-        return ERR_STATE_UNINITIALIZED;
+        return ERR_FEATURE_UNSUPPORTED;
     }
 
     error_code get_move_code(game* self, player_id player, const char* str, move_code* ret_move)
     {
         //TODO
-        return ERR_STATE_UNINITIALIZED;
+        return ERR_FEATURE_UNSUPPORTED;
     }
 
     error_code get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf)
     {
         //TODO
-        return ERR_STATE_UNINITIALIZED;
+        return ERR_FEATURE_UNSUPPORTED;
     }
 
     error_code print(game* self, size_t* ret_size, char* str_buf)
@@ -475,7 +475,6 @@ const game_methods oshisumo_gbe{
         .random_moves = false,
         .hidden_information = false,
         .simultaneous_moves = true,
-        .sync_counter = false,
         .move_ordering = false,
         .scores = true,
         .id = true,

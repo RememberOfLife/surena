@@ -51,11 +51,11 @@ namespace {
     // forward declare everything to allow for inlining at least in this unit
     GF_UNUSED(get_last_error);
     error_code create(game* self, game_init init_info);
-    error_code export_options_str(game* self, size_t* ret_size, char* str);
     error_code destroy(game* self);
     error_code clone(game* self, game* clone_target);
     error_code copy_from(game* self, game* other);
     error_code compare(game* self, game* other, bool* ret_equal);
+    error_code export_options(game* self, size_t* ret_size, char* str);
     error_code export_state(game* self, size_t* ret_size, char* str);
     error_code import_state(game* self, const char* str);
     GF_UNUSED(serialize);
@@ -64,7 +64,7 @@ namespace {
     GF_UNUSED(get_concrete_move_probabilities);
     GF_UNUSED(get_concrete_moves_ordered);
     GF_UNUSED(get_actions);
-    error_code is_legal_move(game* self, player_id player, move_code move, sync_counter sync);
+    error_code is_legal_move(game* self, player_id player, move_code move);
     GF_UNUSED(move_to_action);
     GF_UNUSED(is_action);
     error_code make_move(game* self, player_id player, move_code move);
@@ -139,16 +139,6 @@ namespace {
         return import_state(self, initial_state);
     }
 
-    error_code export_options_str(game* self, size_t* ret_size, char* str)
-    {
-        if (str == NULL) {
-            return ERR_INVALID_INPUT;
-        }
-        opts_repr& opts = get_opts(self);
-        *ret_size = sprintf(str, "%u%c", opts.size, opts.pie_swap ? '+' : '\0');
-        return ERR_OK;
-    }
-
     error_code destroy(game* self)
     {
         delete (data_repr*)self->data1;
@@ -164,7 +154,7 @@ namespace {
         }
         size_t size_fill;
         char* opts_export = (char*)malloc(self->sizer.options_str);
-        self->methods->export_options_str(self, &size_fill, opts_export);
+        self->methods->export_options(self, &size_fill, opts_export);
         clone_target->methods = self->methods;
         opts_repr& opts = get_opts(self);
         error_code ec = clone_target->methods->create(
@@ -201,6 +191,16 @@ namespace {
         // return ERR_OK;
         //TODO
         return ERR_STATE_CORRUPTED;
+    }
+
+    error_code export_options(game* self, size_t* ret_size, char* str)
+    {
+        if (str == NULL) {
+            return ERR_INVALID_INPUT;
+        }
+        opts_repr& opts = get_opts(self);
+        *ret_size = sprintf(str, "%u%c", opts.size, opts.pie_swap ? '+' : '\0');
+        return ERR_OK;
     }
 
     error_code export_state(game* self, size_t* ret_size, char* str)
@@ -466,7 +466,7 @@ namespace {
         return ERR_OK;
     }
 
-    error_code is_legal_move(game* self, player_id player, move_code move, sync_counter sync)
+    error_code is_legal_move(game* self, player_id player, move_code move)
     {
         if (move == MOVE_NONE) {
             return ERR_INVALID_INPUT;
@@ -970,7 +970,6 @@ const game_methods havannah_gbe{
         .random_moves = false,
         .hidden_information = false,
         .simultaneous_moves = false,
-        .sync_counter = false,
         .move_ordering = false,
         .scores = false,
         .id = false,

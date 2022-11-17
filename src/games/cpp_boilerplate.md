@@ -73,11 +73,11 @@ namespace {
 
     const char* get_last_error(game* self);
     error_code create(game* self, game_init init_info);
-    error_code export_options_str(game* self, size_t* ret_size, char* str);
     error_code destroy(game* self);
     error_code clone(game* self, game* clone_target);
     error_code copy_from(game* self, game* other);
     error_code compare(game* self, game* other, bool* ret_equal);
+    error_code export_options(game* self, size_t* ret_size, char* str);
     error_code export_state(game* self, size_t* ret_size, char* str);
     error_code import_state(game* self, const char* str);
     error_code serialize(game* self, size_t* ret_size, char* buf);
@@ -86,7 +86,7 @@ namespace {
     error_code get_concrete_move_probabilities(game* self, player_id player, uint32_t* ret_count, float* move_probabilities);
     error_code get_concrete_moves_ordered(game* self, player_id player, uint32_t* ret_count, move_code* moves);
     error_code get_actions(game* self, player_id player, uint32_t* ret_count, move_code* moves);
-    error_code is_legal_move(game* self, player_id player, move_code move, sync_counter sync);
+    error_code is_legal_move(game* self, player_id player, move_code move);
     error_code move_to_action(game* self, move_code move, move_code* ret_action);
     error_code is_action(game* self, move_code move, bool* ret_is_action);
     error_code make_move(game* self, player_id player, move_code move);
@@ -120,11 +120,6 @@ namespace {
         //TODO
     }
 
-    error_code export_options_str(game* self, size_t* ret_size, char* str)
-    {
-        //TODO
-    }
-
     error_code destroy(game* self)
     {
         //TODO
@@ -141,6 +136,11 @@ namespace {
     }
 
     error_code compare(game* self, game* other, bool* ret_equal)
+    {
+        //TODO
+    }
+
+    error_code export_options(game* self, size_t* ret_size, char* str)
     {
         //TODO
     }
@@ -185,7 +185,7 @@ namespace {
         //TODO
     }
 
-    error_code is_legal_move(game* self, player_id player, move_code move, sync_counter sync)
+    error_code is_legal_move(game* self, player_id player, move_code move)
     {
         //TODO
     }
@@ -308,7 +308,6 @@ const game_methods tictactoe_gbe{
         .random_moves = true,
         .hidden_information = true,
         .simultaneous_moves = true,
-        .sync_counter = true,
         .move_ordering = true,
         .scores = true,
         .id = true,

@@ -144,7 +144,7 @@ ABC //TODO (with/without moved indicator for opponent)
 **Basic Idea**: The game returns multiple players to move, and for each player their available moves. If a player makes a move up to a "barrier" at which all players need to resolve then they are removed from the players to move until all other players have done so as well. E.g. everyone plays a card simultaneously: everyone is to move, once a card is played they are no longer to move and the game buffers their move, once all have moved the game resolves the effect "as if everyone moved at once" now that it knows all the moves. Addendun: if e.g. all players play two cards at once: a player is only removed from the players to move once they have chosen both cards.
 
 #### example 2 (synced)
-//TODO sync ctr is needed b/c moves might interplay
+//TODO interplay not allowed for now b/c total move order
 
 **Basic Idea**: The game returns multiple players to move, and for each player their available moves. If a player makes a move in a synced SM scenario, they are likely still to move, as are the other players, but the available moves for the other players might have changed. This is what the sync counter is used for. I.e. simultaneous moves not interpreted as "all move at once", but as "everyone can start moving at any time, but only one can move at a time".
 

@@ -182,7 +182,7 @@ namespace {
                         eevent_queue_push(data.outbox, &e);
                         break;
                     }
-                    if (ERR_OK != data.the_game.methods->is_legal_move(&data.the_game, e.move.player, e.move.move, e.move.sync)) {
+                    if (ERR_OK != data.the_game.methods->is_legal_move(&data.the_game, e.move.player, e.move.move)) {
                         eevent_create_log(&e, engine_id, ERR_INVALID_INPUT, "illegal move");
                         eevent_queue_push(data.outbox, &e);
                         break;

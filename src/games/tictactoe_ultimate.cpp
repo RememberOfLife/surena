@@ -35,11 +35,11 @@ namespace {
     // forward declare everything to allow for inlining at least in this unit
     GF_UNUSED(get_last_error);
     error_code create(game* self, game_init init_info);
-    GF_UNUSED(export_options_str);
     error_code destroy(game* self);
     error_code clone(game* self, game* clone_target);
     error_code copy_from(game* self, game* other);
     error_code compare(game* self, game* other, bool* ret_equal);
+    GF_UNUSED(export_options);
     error_code export_state(game* self, size_t* ret_size, char* str);
     error_code import_state(game* self, const char* str);
     GF_UNUSED(serialize);
@@ -48,7 +48,7 @@ namespace {
     GF_UNUSED(get_concrete_move_probabilities);
     GF_UNUSED(get_concrete_moves_ordered);
     GF_UNUSED(get_actions);
-    error_code is_legal_move(game* self, player_id player, move_code move, sync_counter sync);
+    error_code is_legal_move(game* self, player_id player, move_code move);
     GF_UNUSED(move_to_action);
     GF_UNUSED(is_action);
     error_code make_move(game* self, player_id player, move_code move);
@@ -410,7 +410,7 @@ namespace {
         return ERR_OK;
     }
 
-    error_code is_legal_move(game* self, player_id player, move_code move, sync_counter sync)
+    error_code is_legal_move(game* self, player_id player, move_code move)
     {
         if (move == MOVE_NONE) {
             return ERR_INVALID_INPUT;
@@ -787,7 +787,6 @@ const game_methods tictactoe_ultimate_gbe{
         .random_moves = false,
         .hidden_information = false,
         .simultaneous_moves = false,
-        .sync_counter = false,
         .move_ordering = false,
         .scores = false,
         .id = true,
