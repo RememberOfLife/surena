@@ -107,6 +107,47 @@ size_t ls_primitive_bool_serializer(GSIT itype, void* obj_in, void* obj_out, voi
     return 0;
 }
 
+size_t ls_primitive_u8_serializer(GSIT itype, void* obj_in, void* obj_out, void* buf, void* buf_end)
+{
+    uint8_t* cin_p = (uint8_t*)obj_in;
+    uint8_t* cout_p = (uint8_t*)obj_out;
+    switch (itype) {
+        case GSIT_NONE: {
+            assert(0);
+        } break;
+        case GSIT_INITZERO: {
+            // pass
+        } break;
+        case GSIT_SIZE: {
+            return 1;
+        } break;
+        case GSIT_SERIALIZE: {
+            raw_stream rs = rs_init(buf);
+            rs_w_uint8(&rs, *cin_p);
+            return 1;
+        } break;
+        case GSIT_DESERIALIZE: {
+            if (ptrdiff(buf_end, buf) < 1) {
+                return LS_ERR;
+            }
+            raw_stream rs = rs_init(buf);
+            *cout_p = rs_r_uint8(&rs);
+            return 1;
+        } break;
+        case GSIT_COPY: {
+            *cout_p = *cin_p;
+        } break;
+        case GSIT_DESTROY: {
+            // pass
+        } break;
+        case GSIT_COUNT:
+        case GSIT_SIZE_MAX: {
+            assert(0);
+        } break;
+    }
+    return 0;
+}
+
 size_t ls_primitive_u32_serializer(GSIT itype, void* obj_in, void* obj_out, void* buf, void* buf_end)
 {
     uint32_t* cin_p = (uint32_t*)obj_in;
@@ -359,6 +400,7 @@ size_t ls_primitive_blob_serializer(GSIT itype, void* obj_in, void* obj_out, voi
 
 custom_serializer_t* ls_primitive_serializers[] = {
     [SL_TYPE_BOOL] = ls_primitive_bool_serializer,
+    [SL_TYPE_U8] = ls_primitive_u8_serializer,
     [SL_TYPE_U32] = ls_primitive_u32_serializer,
     [SL_TYPE_U64] = ls_primitive_u64_serializer,
     [SL_TYPE_SIZE] = ls_primitive_size_serializer,

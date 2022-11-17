@@ -36,6 +36,7 @@ typedef enum __attribute__((__packed__)) SL_TYPE_E {
     SL_TYPE_NULL = 0,
 
     SL_TYPE_BOOL,
+    SL_TYPE_U8,
     SL_TYPE_U32,
     SL_TYPE_U64,
     SL_TYPE_SIZE,
@@ -108,6 +109,7 @@ size_t layout_serializer(GSIT itype, const serialization_layout* layout, void* o
 //TODO rather give lookup array?
 // primitive serializers
 custom_serializer_t ls_primitive_bool_serializer;
+custom_serializer_t ls_primitive_u8_serializer;
 custom_serializer_t ls_primitive_u32_serializer;
 custom_serializer_t ls_primitive_u64_serializer;
 custom_serializer_t ls_primitive_size_serializer;
