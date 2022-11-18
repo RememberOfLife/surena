@@ -408,7 +408,6 @@ custom_serializer_t* ls_primitive_serializers[] = {
     [SL_TYPE_BLOB] = ls_primitive_blob_serializer,
 };
 
-//TODO place (pseudo-)primitive types in separate functions
 //TODO replace surena/rawstream uses by something cheaper
 // recursive object serializer
 size_t layout_serializer_impl(GSIT itype, const serialization_layout* layout, void* obj_in, void* obj_out, void* buf, void* buf_end)
@@ -515,17 +514,9 @@ size_t layout_serializer_impl(GSIT itype, const serialization_layout* layout, vo
         }
         for (size_t idx = 0; idx < arr_len; idx++) {
             SL_TYPE serialize_type = pl->type & SL_TYPE_TYPEMASK;
+            assert(serialize_type > SL_TYPE_NULL && serialize_type < SL_TYPE_STOP); // cannot serialize unknown type
             switch (serialize_type) {
                 default: {
-                    assert(0); // cannot serialize unknown type
-                } break;
-                case SL_TYPE_BOOL:
-                case SL_TYPE_U32:
-                case SL_TYPE_U64:
-                case SL_TYPE_SIZE:
-                case SL_TYPE_STRING:
-                case SL_TYPE_BLOB: {
-                    //TODO
                     // use primitive serializer func
                     size_t csize = ls_primitive_serializers[serialize_type](itype, in_p, out_p, cbuf, ebuf);
                     if (csize == LS_ERR) {

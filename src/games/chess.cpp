@@ -34,7 +34,7 @@ namespace {
 
     // forward declare everything to allow for inlining at least in this unit
     GF_UNUSED(get_last_error);
-    error_code create(game* self, game_init init_info);
+    error_code create(game* self, game_init* init_info);
     error_code destroy(game* self);
     error_code clone(game* self, game* clone_target);
     error_code copy_from(game* self, game* other);
@@ -78,7 +78,7 @@ namespace {
 
     // implementation
 
-    error_code create(game* self, game_init init_info)
+    error_code create(game* self, game_init* init_info)
     {
         self->data1 = malloc(sizeof(data_repr));
         if (self->data1 == NULL) {
@@ -95,8 +95,8 @@ namespace {
             .print_str = 256, // calc proper size
         };
         const char* initial_state = NULL;
-        if (init_info.source_type == GAME_INIT_SOURCE_TYPE_STANDARD) {
-            initial_state = init_info.source.standard.state;
+        if (init_info->source_type == GAME_INIT_SOURCE_TYPE_STANDARD) {
+            initial_state = init_info->source.standard.state;
         }
         return import_state(self, initial_state);
     }
@@ -114,7 +114,8 @@ namespace {
             return ERR_INVALID_INPUT;
         }
         clone_target->methods = self->methods;
-        error_code ec = clone_target->methods->create(clone_target, (game_init){.source_type = GAME_INIT_SOURCE_TYPE_DEFAULT});
+        game_init init_info = (game_init){.source_type = GAME_INIT_SOURCE_TYPE_DEFAULT};
+        error_code ec = clone_target->methods->create(clone_target, &init_info);
         if (ec != ERR_OK) {
             return ec;
         }

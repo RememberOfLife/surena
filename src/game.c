@@ -97,7 +97,7 @@ size_t sl_game_init_info_serializer(GSIT itype, void* obj_in, void* obj_out, voi
     // flatten the unions, this encodes more data than required, but keeps complexity down
 
     typedef struct flat_game_init_s {
-        uint32_t source_type;
+        uint8_t source_type;
         const char* opts;
         const char* legacy;
         const char* state;
@@ -105,7 +105,7 @@ size_t sl_game_init_info_serializer(GSIT itype, void* obj_in, void* obj_out, voi
     } flat_game_init;
 
     const serialization_layout sl_flat_game_init[] = {
-        {SL_TYPE_U32, offsetof(flat_game_init, source_type)},
+        {SL_TYPE_U8, offsetof(flat_game_init, source_type)},
         {SL_TYPE_STRING, offsetof(flat_game_init, opts)},
         {SL_TYPE_STRING, offsetof(flat_game_init, legacy)},
         {SL_TYPE_STRING, offsetof(flat_game_init, state)},

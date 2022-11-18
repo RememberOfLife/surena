@@ -72,7 +72,7 @@ namespace {
     }
 
     const char* get_last_error(game* self);
-    error_code create(game* self, game_init init_info);
+    error_code create(game* self, game_init* init_info);
     error_code destroy(game* self);
     error_code clone(game* self, game* clone_target);
     error_code copy_from(game* self, game* other);
@@ -115,7 +115,7 @@ namespace {
         return (char*)self->data2; // in this scheme opts are saved together with the state in data1, and data2 is the last error string
     }
 
-    error_code create(game* self, game_init init_info);
+    error_code create(game* self, game_init* init_info);
     {
         //TODO
     }

@@ -36,7 +36,7 @@ namespace {
 
     // forward declare everything to allow for inlining at least in this unit
     GF_UNUSED(get_last_error);
-    error_code create(game* self, game_init init_info);
+    error_code create(game* self, game_init* init_info);
     error_code destroy(game* self);
     error_code clone(game* self, game* clone_target);
     error_code copy_from(game* self, game* other);
@@ -80,7 +80,7 @@ namespace {
 
     //TODO //BUG use new buffer sizer api
 
-    error_code create(game* self, game_init init_info)
+    error_code create(game* self, game_init* init_info)
     {
         self->data1 = malloc(sizeof(data_repr));
         if (self->data1 == NULL) {
@@ -91,8 +91,8 @@ namespace {
         opts_repr& opts = get_opts(self);
         opts.size = 5;
         opts.tokens = 50;
-        if (init_info.source_type == GAME_INIT_SOURCE_TYPE_STANDARD && init_info.source.standard.opts != NULL) {
-            int ec = sscanf(init_info.source.standard.opts, "%hhu-%hhu", &opts.size, &opts.tokens);
+        if (init_info->source_type == GAME_INIT_SOURCE_TYPE_STANDARD && init_info->source.standard.opts != NULL) {
+            int ec = sscanf(init_info->source.standard.opts, "%hhu-%hhu", &opts.size, &opts.tokens);
             if (ec != 2) {
                 free(self->data1);
                 return ERR_INVALID_INPUT;
@@ -110,8 +110,8 @@ namespace {
             .print_str = 100, //TODO size correctly
         };
         const char* initial_state = NULL;
-        if (init_info.source_type == GAME_INIT_SOURCE_TYPE_STANDARD) {
-            initial_state = init_info.source.standard.state;
+        if (init_info->source_type == GAME_INIT_SOURCE_TYPE_STANDARD) {
+            initial_state = init_info->source.standard.state;
         }
         return import_state(self, initial_state);
     }
@@ -133,19 +133,17 @@ namespace {
         self->methods->export_options(self, &size_fill, opts_export);
         clone_target->methods = self->methods;
         opts_repr& opts = get_opts(self);
-        error_code ec = clone_target->methods->create(
-            clone_target,
-            (game_init){
-                .source_type = GAME_INIT_SOURCE_TYPE_STANDARD,
-                .source = {
-                    .standard = {
-                        .opts = opts_export,
-                        .legacy = NULL,
-                        .state = NULL,
-                    },
+        game_init init_info = (game_init){
+            .source_type = GAME_INIT_SOURCE_TYPE_STANDARD,
+            .source = {
+                .standard = {
+                    .opts = opts_export,
+                    .legacy = NULL,
+                    .state = NULL,
                 },
-            }
-        );
+            },
+        };
+        error_code ec = clone_target->methods->create(clone_target, &init_info);
         free(opts_export);
         if (ec != ERR_OK) {
             return ec;

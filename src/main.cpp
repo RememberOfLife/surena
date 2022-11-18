@@ -145,7 +145,7 @@ int main(int argc, char** argv)
             },
         },
     };
-    ec = thegame.methods->create(&thegame, game_init_info);
+    ec = thegame.methods->create(&thegame, &game_init_info);
     if (ec != ERR_OK) {
         printf("[ERROR] failed to create: #%d %s\n", ec, thegame.methods->features.error_strings ? thegame.methods->get_last_error(&thegame) : NULL);
         printf("%*soptions: %s\n", 8, "", game_options);

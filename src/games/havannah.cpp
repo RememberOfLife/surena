@@ -50,7 +50,7 @@ namespace {
 
     // forward declare everything to allow for inlining at least in this unit
     GF_UNUSED(get_last_error);
-    error_code create(game* self, game_init init_info);
+    error_code create(game* self, game_init* init_info);
     error_code destroy(game* self);
     error_code clone(game* self, game* clone_target);
     error_code copy_from(game* self, game* other);
@@ -91,7 +91,7 @@ namespace {
 
     // implementation
 
-    error_code create(game* self, game_init init_info)
+    error_code create(game* self, game_init* init_info)
     {
         self->data1 = new (malloc(sizeof(data_repr))) data_repr();
         if (self->data1 == NULL) {
@@ -102,10 +102,10 @@ namespace {
         opts_repr& opts = get_opts(self);
         opts.size = 8;
         opts.pie_swap = true;
-        if (init_info.source_type == GAME_INIT_SOURCE_TYPE_STANDARD && init_info.source.standard.opts != NULL) {
+        if (init_info->source_type == GAME_INIT_SOURCE_TYPE_STANDARD && init_info->source.standard.opts != NULL) {
             // format is: "X" and "X+" where X is a number >=4 and <=10, the + enables the swap rule
             char swap_char = '\0';
-            int ec = sscanf(init_info.source.standard.opts, "%u%c", &opts.size, &swap_char);
+            int ec = sscanf(init_info->source.standard.opts, "%u%c", &opts.size, &swap_char);
             if (ec >= 1) {
                 opts.pie_swap = (swap_char == '+');
                 if (opts.pie_swap == false && swap_char != '\0') {
@@ -133,8 +133,8 @@ namespace {
             .print_str = 1000,
         };
         const char* initial_state = NULL;
-        if (init_info.source_type == GAME_INIT_SOURCE_TYPE_STANDARD) {
-            initial_state = init_info.source.standard.state;
+        if (init_info->source_type == GAME_INIT_SOURCE_TYPE_STANDARD) {
+            initial_state = init_info->source.standard.state;
         }
         return import_state(self, initial_state);
     }
@@ -157,19 +157,17 @@ namespace {
         self->methods->export_options(self, &size_fill, opts_export);
         clone_target->methods = self->methods;
         opts_repr& opts = get_opts(self);
-        error_code ec = clone_target->methods->create(
-            clone_target,
-            (game_init){
-                .source_type = GAME_INIT_SOURCE_TYPE_STANDARD,
-                .source = {
-                    .standard = {
-                        .opts = opts_export,
-                        .legacy = NULL,
-                        .state = NULL,
-                    },
+        game_init init_info = (game_init){
+            .source_type = GAME_INIT_SOURCE_TYPE_STANDARD,
+            .source = {
+                .standard = {
+                    .opts = opts_export,
+                    .legacy = NULL,
+                    .state = NULL,
                 },
-            }
-        );
+            },
+        };
+        error_code ec = clone_target->methods->create(clone_target, &init_info);
         free(opts_export);
         if (ec != ERR_OK) {
             return ec;

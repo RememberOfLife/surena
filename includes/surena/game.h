@@ -12,7 +12,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 21;
+static const uint64_t SURENA_GAME_API_VERSION = 22;
 
 typedef uint32_t error_code;
 
@@ -133,10 +133,12 @@ typedef struct sync_data_s {
     uint8_t* player_end;
 } sync_data;
 
-typedef enum GAME_INIT_SOURCE_TYPE_E {
+typedef enum __attribute__((__packed__)) GAME_INIT_SOURCE_TYPE_E {
     GAME_INIT_SOURCE_TYPE_DEFAULT = 0, // create a default game with the default options and default initial state
     GAME_INIT_SOURCE_TYPE_STANDARD, // create a game from some options, legacy and initial state
     GAME_INIT_SOURCE_TYPE_SERIALIZED, // (re)create a game from a serialization buffer
+    GAME_INIT_SOURCE_TYPE_COUNT,
+    GAME_INIT_SOURCE_TYPE_SIZE_MAX = UINT8_MAX,
 } GAME_INIT_SOURCE_TYPE;
 
 typedef struct game_init_s {
@@ -210,8 +212,8 @@ typedef struct game_methods_s {
     // get_last_error will, if supported, be valid to check even if create fails
     // the init_info provides details on what source is used, if any, and details about that source
     // after creation, if successful, the game is always left in a valid and ready to use state
-    // the init_info is only read by the game, it is still owned externally
-    error_code (*create)(game* self, game_init init_info); //TODO should init_info be a pointer?
+    // the init_info is only read by the game, it is still owned externally, and no references are created during create
+    error_code (*create)(game* self, game_init* init_info);
 
     // deconstruct and release any (complex) game specific data, if it has been created already
     // same for options specific data, if it exists
@@ -387,7 +389,8 @@ typedef struct game_methods_s {
     error_code (*print)(game* self, size_t* ret_size, char* str_buf);
 
     // FEATURE: time
-    // informs the game that the game.time timestamp has moved, this may change timectlstages, moves available, players to move and even end the game
+    // informs the game that the game.time timestamp has moved
+    // the game may modify timectlstages, moves available, players to move and even end the game; so any caches of those are now potentially invalid
     // if sleep_duration is zero (//TODO want helper?) the game does not request a wakeup
     // otherwise, if nothing happened in between, time_ellapsed should be called at the latest after this duration
     // error_code (*time_ellapsed)(game* self, timestamp* sleep_duration);
