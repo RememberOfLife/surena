@@ -121,6 +121,7 @@ this creates hidden info as well
 player chooses action to draw facedown  
 open: player rand offers all the cards available (on client that is all* minus some that could be card counted away, but thats optional ;; on server it shows all that can actually be drawn)
 close: ??
+?? how is the chosen info distributed to the player in belongs to? sync data?
 
 #### example 4 (flip coin in secret)
 //TODO want this?
@@ -128,6 +129,9 @@ close: ??
 ### revealing hidden information (e.g. play card from secret hand)
 A more complicated form of hidden information.  
 //TODO
+how the move is done changes how this behaviour would work:
+- player chooses action to play card from hand (e.g. by idx in their hand) -> somehow need to sync back to the other boards WHAT card had been played
+- player makes move that includes info about the card they are playing -> just send the move to other boards
 
 ### transforming hidden information (e.g. play card from secret hand *facedown*)
 The most complicated form of hidden information.  

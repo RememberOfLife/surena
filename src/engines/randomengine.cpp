@@ -6,8 +6,9 @@
 #include <cstring>
 #include <thread>
 
-#include "surena/util/noise.h"
-#include "surena/util/timestamp.h"
+#include "rosalia/noise.h"
+#include "rosalia/timestamp.h"
+
 #include "surena/engine.h"
 #include "surena/game.h"
 
@@ -103,13 +104,13 @@ namespace {
         uint32_t search_time = 0;
         uint32_t search_time_last = 0;
         while (!quit) {
-            uint64_t wait_start = surena_get_ms64();
+            uint64_t wait_start = timestamp_get_ms64();
             uint32_t wait_time = 512; // default wait time for new events
             if (use_timeout && timeout < wait_time) {
                 wait_time = timeout;
             }
             eevent_queue_pop(&data.inbox, &e, wait_time);
-            wait_time = surena_get_ms64() - wait_start;
+            wait_time = timestamp_get_ms64() - wait_start;
             search_time += wait_time;
             if (data.searching && search_time_last + 256 < search_time) {
                 // periodic search time send

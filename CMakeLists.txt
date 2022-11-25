@@ -21,12 +21,22 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
 set(INCLUDES
+    lib/rosalia/includes
+
     includes
     src
     "${CMAKE_BINARY_DIR}/build_generated"
 )
 
 set(SOURCES
+    lib/rosalia/src/impl/base64.c
+    lib/rosalia/src/impl/noise.c
+    lib/rosalia/src/impl/rand.c
+    lib/rosalia/src/impl/raw_stream.c
+    lib/rosalia/src/impl/semver.c
+    lib/rosalia/src/impl/serialization.c
+    lib/rosalia/src/impl/timestamp.c
+
     src/engines/randomengine.cpp
     # src/engines/singlethreadedmcts.cpp
     src/engines/uci_wrap.cpp
@@ -39,14 +49,6 @@ set(SOURCES
     src/games/tictactoe_ultimate.cpp
     src/games/tictactoe.cpp
     src/games/twixt_pp.cpp
-
-    src/util/base64.c
-    src/util/fast_prng.c
-    src/util/noise.c
-    src/util/raw_stream.c
-    src/util/semver.c
-    src/util/serialization.c
-    src/util/timestamp.c
 
     src/engine.cpp
     src/game.c

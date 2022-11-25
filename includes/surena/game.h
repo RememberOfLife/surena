@@ -4,9 +4,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "surena/util/semver.h"
-#include "surena/util/serialization.h"
-#include "surena/util/timestamp.h"
+#include "rosalia/semver.h"
+#include "rosalia/serialization.h"
+#include "rosalia/timestamp.h"
 
 #ifdef __cplusplus
 extern "C" {

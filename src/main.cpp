@@ -3,13 +3,14 @@
 #include <cstring>
 #include <dlfcn.h>
 
+#include "rosalia/semver.h"
+
 #include "surena/games/chess.h"
 #include "surena/games/havannah.h"
 #include "surena/games/oshisumo.h"
 #include "surena/games/tictactoe_ultimate.h"
 #include "surena/games/tictactoe.h"
 #include "surena/games/twixt_pp.h"
-#include "surena/util/semver.h"
 #include "surena/game_plugin.h"
 #include "surena/game.h"
 #include "generated/git_commit_hash.h"

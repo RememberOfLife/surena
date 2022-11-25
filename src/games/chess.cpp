@@ -3,8 +3,9 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "surena/util/noise.h"
-#include "surena/util/semver.h"
+#include "rosalia/noise.h"
+#include "rosalia/semver.h"
+
 #include "surena/game_gftypes.h"
 #include "surena/game.h"
 

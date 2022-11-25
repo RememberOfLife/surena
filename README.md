@@ -4,6 +4,9 @@ General purpose board game backend and some AI to go with it.
 * Some [supported](#support) games out of the box
 * Use game [plugins](#plugins) to play arbitrary games
 
+Don't forget to clone submodules too by using:  
+`git clone --recurse-submodules `
+
 ## usage
 `surena [options]`  
 available options:

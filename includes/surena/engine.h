@@ -4,7 +4,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "surena/util/semver.h"
+#include "rosalia/semver.h"
+
 #include "surena/game.h"
 
 #ifdef __cplusplus

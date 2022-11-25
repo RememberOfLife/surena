@@ -3,7 +3,8 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "surena/util/semver.h"
+#include "rosalia/semver.h"
+
 #include "surena/game_gftypes.h"
 #include "surena/game.h"
 

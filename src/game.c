@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "surena/util/serialization.h"
+#include "rosalia/serialization.h"
 
 #include "surena/game.h"
 
