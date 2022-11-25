@@ -16,7 +16,7 @@
 #include "generated/git_commit_hash.h"
 
 namespace surena {
-    const semver version = {0, 11, 1};
+    const semver version = {0, 11, 2};
 } // namespace surena
 
 // args https://github.com/p-ranav/argparse

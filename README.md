@@ -5,7 +5,7 @@ General purpose board game backend and some AI to go with it.
 * Use game [plugins](#plugins) to play arbitrary games
 
 Don't forget to clone submodules too by using:  
-`git clone --recurse-submodules `
+`git clone --recurse-submodules https://github.com/RememberOfLife/surena.git`
 
 ## usage
 `surena [options]`  
