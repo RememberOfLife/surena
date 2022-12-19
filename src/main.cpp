@@ -16,7 +16,7 @@
 #include "generated/git_commit_hash.h"
 
 namespace surena {
-    const semver version = {0, 11, 2};
+    const semver version = {0, 11, 3};
 } // namespace surena
 
 // args https://github.com/p-ranav/argparse
@@ -29,6 +29,11 @@ const game_methods* load_plugin_first_method(const char* file)
     if (version == NULL || version() != SURENA_GAME_API_VERSION) {
         return NULL;
     }
+    void (*init)() = (void (*)())dlsym(dll_handle, "plugin_init_game");
+    if (init == NULL) {
+        return NULL;
+    }
+    init();
     plugin_get_game_methods_t get_games = (plugin_get_game_methods_t)dlsym(dll_handle, "plugin_get_game_methods");
     if (get_games == NULL) {
         return NULL;
