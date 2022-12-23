@@ -68,6 +68,106 @@ error_code rerrorf(char** pbuf, error_code ec, const char* fmt, ...)
     return ec;
 }
 
+//TODO this might be a candidate for a rosalia utility in serialization.h
+size_t sl_move_data_serializer(GSIT itype, void* obj_in, void* obj_out, void* buf, void* buf_end)
+{
+    // flatten the unions, this encodes more data than required, but keeps complexity down
+
+    typedef enum __attribute__((__packed__)) FLAT_MOVE_TYPE_E {
+        FLAT_MOVE_TYPE_SMALL = 0,
+        FLAT_MOVE_TYPE_BIG,
+        FLAT_MOVE_TYPE_COUNT,
+        FLAT_MOVE_TYPE_MAX = UINT8_MAX,
+    } FLAT_MOVE_TYPE;
+
+    typedef union flat_move_data_union_u {
+        uint64_t code;
+        blob big;
+    } flat_move_data_union;
+
+    typedef struct flat_move_data_s {
+        uint8_t tag;
+        flat_move_data_union u;
+    } flat_move_data;
+
+    const serialization_layout sl_flat_code[] = {
+        {SL_TYPE_U64, offsetof(flat_move_data_union, code)},
+        {SL_TYPE_STOP},
+    };
+    const serialization_layout sl_flat_big[] = {
+        {SL_TYPE_BLOB, offsetof(flat_move_data_union, big)},
+        {SL_TYPE_STOP},
+    };
+
+    const serialization_layout* sl_flat_move_data_map[] = {
+        [FLAT_MOVE_TYPE_SMALL] = sl_flat_code,
+        [FLAT_MOVE_TYPE_BIG] = sl_flat_big,
+    };
+
+    const serialization_layout sl_flat_move_data[] = {
+        {SL_TYPE_U8, offsetof(flat_move_data, tag)},
+        {
+            SL_TYPE_UNION_EXTERNALLY_TAGGED,
+            offsetof(flat_move_data, u),
+            .ext.un = {
+                .tag_size = sizeof(FLAT_MOVE_TYPE),
+                .tag_offset = offsetof(flat_move_data, tag),
+                .tag_max = FLAT_MOVE_TYPE_COUNT,
+                .tag_map = sl_flat_move_data_map,
+            },
+        },
+        {SL_TYPE_STOP},
+    };
+
+    flat_move_data fo_in;
+    flat_move_data fo_out;
+
+    move_data* cin_p = (move_data*)obj_in;
+    move_data* cout_p = (move_data*)obj_out;
+
+    // size, copy, serialize, destroy: obj_in -> flat in
+    if (itype == GSIT_SIZE || itype == GSIT_COPY || itype == GSIT_SERIALIZE || itype == GSIT_DESTROY) {
+        if (cin_p->data != NULL || (cin_p->data == NULL && cin_p->cl.len == 0)) {
+            fo_in.tag = FLAT_MOVE_TYPE_BIG;
+            fo_in.u.big.len = cin_p->cl.len;
+            fo_in.u.big.data = cin_p->data;
+        } else {
+            fo_in.tag = FLAT_MOVE_TYPE_SMALL;
+            fo_in.u.code = cin_p->cl.code;
+        }
+    }
+
+    //serialize
+    size_t rsize = layout_serializer(itype, sl_flat_move_data, &fo_in, &fo_out, buf, buf_end);
+    if (rsize == LS_ERR) {
+        return LS_ERR;
+    }
+
+    // initzero: flat_in -> obj_in
+    if (itype == GSIT_INITZERO) {
+        fo_out = fo_in;
+        obj_out = obj_in;
+    }
+
+    // deserialize, copy: flat_out -> obj_out
+    if (itype == GSIT_DESERIALIZE || itype == GSIT_COPY) {
+        if (fo_out.tag == FLAT_MOVE_TYPE_BIG) {
+            cout_p->cl.len = fo_out.u.big.len;
+            cout_p->data = fo_out.u.big.data;
+        } else {
+            cout_p->cl.code = fo_out.u.code;
+        }
+    }
+
+    return rsize;
+}
+
+const serialization_layout sl_move_data_sync[] = {
+    {SL_TYPE_CUSTOM, offsetof(move_data_sync, md), .ext.serializer = sl_move_data_serializer},
+    {SL_TYPE_U64, offsetof(move_data_sync, sync_ctr)},
+    {SL_TYPE_STOP},
+};
+
 void game_init_create_standard(game_init* init_info, const char* opts, const char* legacy, const char* state)
 {
     *init_info = (game_init){
@@ -110,6 +210,7 @@ const serialization_layout* sl_game_init_info_map[GAME_INIT_SOURCE_TYPE_COUNT] =
 };
 
 const serialization_layout sl_game_init_info[] = {
+    {SL_TYPE_U8, offsetof(game_init, source_type)},
     {
         SL_TYPE_UNION_EXTERNALLY_TAGGED,
         offsetof(game_init, source),
@@ -346,9 +447,7 @@ error_code game_make_move(game* self, player_id player, move_data_sync move)
     if (ec != ERR_OK) {
         return ec;
     }
-    bool action_dropped =
-        (self->methods->features.big_moves == true && blob_is_null(&action.md.big)) ||
-        (self->methods->features.big_moves == false && action.md.code == MOVE_NONE);
+    bool action_dropped = game_e_move_is_none(self, action.md);
     ec = self->methods->make_move(self, player, move);
     if (action_dropped == false) {
         self->sync_ctr++;
@@ -481,22 +580,19 @@ bool game_e_move_is_none(game* self, move_data move)
 {
     assert(self);
     assert(self->methods);
-    if (game_ff(self).big_moves == false) {
-        return move.code == MOVE_NONE;
-    } else {
-        return blob_is_null(&move.big);
-    }
+    return ((move.data == NULL && move.cl.len == 0) || move.cl.code == MOVE_NONE);
 }
 
 move_data game_e_move_copy(game* self, move_data move)
 {
     assert(self);
     assert(self->methods);
-    if (game_ff(self).big_moves == false) {
-        return move;
-    }
     move_data ret;
-    ls_primitive_blob_serializer(GSIT_COPY, &move.big, &ret.big, NULL, NULL);
+    size_t rs = ls_move_data_serializer(GSIT_COPY, &move, &ret, NULL, NULL);
+    if (rs == LS_ERR) {
+        ret.cl.len = 0;
+        ret.data = NULL;
+    }
     return ret;
 }
 

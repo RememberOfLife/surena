@@ -12,7 +12,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 24;
+static const uint64_t SURENA_GAME_API_VERSION = 25;
 
 typedef uint32_t error_code;
 
@@ -40,7 +40,8 @@ enum ERR {
 };
 
 // returns NULL if the err is not a general error
-const char* get_general_error_string(error_code err);
+const char*
+get_general_error_string(error_code err);
 // instead of returning an error code, one can return rerrorf which automatically manages fmt string buffer allocation for the error string
 // call rerrorf with fmt=NULL to free (*pbuf)
 error_code rerrorf(char** pbuf, error_code ec, const char* fmt, ...);
@@ -62,18 +63,24 @@ typedef uint64_t move_code;
 static const move_code MOVE_NONE = UINT64_MAX;
 
 typedef union move_data_u {
-    move_code code; // FEATURE: !big_moves ; use MOVE_NONE for empty
-    blob big; // FEATURE: big_moves ; use BLOB_IS_NULL(<yourblob>) for empty
-} move_data; // move realization, switch by big_move feature flag
+    union {
+        move_code code; // FEATURE: !big_moves ; use MOVE_NONE for empty
+        size_t len; // FEATURE: big_moves ; if data is NULL and this is 0 then the big move is empty
+    } cl;
+
+    uint8_t* data; // FEATURE: big_moves ; MUST always be NULL for non big moves or empty big moves
+} move_data; // unindexed move realization, switch by big_move feature flag
+
+custom_serializer_t ls_move_data_serializer;
 
 typedef struct move_data_sync_s {
     move_data md; // see unindexed move move_data
     uint64_t sync_ctr; // sync ctr from where this move is intended to be "made" (on the game) //TODO might rename to move_ctr
 } move_data_sync;
 
-static const uint64_t SYNC_CTR_DEFAULT = 0; // this is already a valid sync ctr value (usually first for a fresh game)
+extern const serialization_layout sl_move_data_sync[];
 
-//TODO make moves easily serializable, how??
+static const uint64_t SYNC_CTR_DEFAULT = 0; // this is already a valid sync ctr value (usually first for a fresh game)
 
 //TODO !maybe! force every move to also include a player + move_to_player in the game_methods
 
