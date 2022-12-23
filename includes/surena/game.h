@@ -12,7 +12,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 23;
+static const uint64_t SURENA_GAME_API_VERSION = 24;
 
 typedef uint32_t error_code;
 
@@ -33,6 +33,7 @@ enum ERR {
     ERR_INVALID_STATE,
     ERR_UNSTABLE_POSITION,
     ERR_SYNC_COUNTER_MISMATCH,
+    ERR_SYNC_COUNTER_IMPOSSIBLE_REORDER,
     ERR_RETRY, // retrying the same call again may yet still work
     ERR_CUSTOM_ANY, // unspecified custom error, check get_last_error for a detailed string
     ERR_ENUM_DEFAULT_OFFSET, // not an error, start game method specific error enums at this offset
@@ -72,6 +73,8 @@ typedef struct move_data_sync_s {
 
 static const uint64_t SYNC_CTR_DEFAULT = 0; // this is already a valid sync ctr value (usually first for a fresh game)
 
+//TODO make moves easily serializable, how??
+
 //TODO !maybe! force every move to also include a player + move_to_player in the game_methods
 
 typedef uint8_t player_id;
@@ -99,8 +102,12 @@ typedef struct game_feature_flags_s {
 
     bool hidden_information : 1;
 
+    //TODO extra flag for sync data?
+
     // remember: the game owner must guarantee total move order on all moves!
     bool simultaneous_moves : 1;
+
+    //TODO extra flag for sync_ctr?
 
     // in a game that uses this feature flag, ALL moves are big moves
     // big moves use move_data.big, otherwise use move_data.code
@@ -126,7 +133,7 @@ typedef struct sync_data_s {
     // end pointers points to the last byte/elem not included in the segment
     uint8_t player_c;
     uint8_t* players;
-    blob data;
+    blob b;
 } sync_data;
 
 typedef enum __attribute__((__packed__)) GAME_INIT_SOURCE_TYPE_E {
@@ -137,26 +144,29 @@ typedef enum __attribute__((__packed__)) GAME_INIT_SOURCE_TYPE_E {
     GAME_INIT_SOURCE_TYPE_SIZE_MAX = UINT8_MAX,
 } GAME_INIT_SOURCE_TYPE;
 
+typedef struct game_init_standard_s {
+    const char* opts; // FEATURE: options ; may be NULL to use default
+    const char* legacy; // FEATURE: legacy ; may be NULL to use none
+    const char* state; // may be null to use default
+} game_init_standard;
+
+typedef struct game_init_serialized_s {
+    // beware that the data given through serialized is UNTRUSTED and shoudl be thouroughly checked for consistency
+    blob b;
+} game_init_serialized;
+
 typedef struct game_init_s {
     GAME_INIT_SOURCE_TYPE source_type;
 
     union {
-        struct {
-            const char* opts; // FEATURE: options ; may be NULL to use default
-            const char* legacy; // FEATURE: legacy ; may be NULL to use none
-            const char* state; // may be null to use default
-        } standard; // use options, legacy, initial_state
-
-        struct {
-            // beware that the data given through serialized is UNTRUSTED and shoudl be thouroughly checked for consistency
-            blob data;
-        } serialized; // FEATURE: serialize ; use the given byte buffer to create the game data, NULL buffers are invalid
+        game_init_standard standard; // use options, legacy, initial_state
+        game_init_serialized serialized; // FEATURE: serialize ; use the given byte buffer to create the game data, NULL buffers are invalid
     } source;
 } game_init;
 
 void game_init_create_standard(game_init* init_info, const char* opts, const char* legacy, const char* state);
 
-void game_init_create_serialized(game_init* init_info, blob data);
+void game_init_create_serialized(game_init* init_info, blob b);
 
 extern const serialization_layout sl_game_init_info[];
 
@@ -241,7 +251,7 @@ typedef error_code import_state_gf_t(game* self, const char* str);
 // writes the game state and options to a game specific raw byte representation that is absolutely accurate to the state of the game and returns a read only pointer to it
 // player specifies the perspective player from which this is done (relevant for feature: hidden_information) (PLAYER_NONE is omniscient pov)
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
-typedef error_code serialize_gf_t(game* self, player_id player, const blob* ret_data);
+typedef error_code serialize_gf_t(game* self, player_id player, const blob** ret_blob);
 
 // writes the player ids to move from this state and returns a read only pointer to them
 // writes PLAYER_RAND if the current move branch is decided by randomness
@@ -334,7 +344,7 @@ typedef error_code id_gf_t(game* self, uint64_t* ret_id);
 // FEATURE: eval
 // evaluates the state comparatively against others
 // higher evaluations correspond to a (game method) perceived better position for the player
-// states with multiple players to move are inherently unstable, their evaluations are worthless (use ERR_UNSTABLE_POSITION to signal this)
+// states with multiple players to move can be unstable, if their evaluations are worthless use ERR_UNSTABLE_POSITION to signal this
 typedef error_code eval_gf_t(game* self, player_id player, float* ret_eval);
 
 // FEATURE: random_moves || hidden_information || simultaneous_moves
@@ -363,7 +373,7 @@ typedef error_code export_sync_data_gf_t(game* self, uint32_t* ret_count, const 
 
 // FEATURE: hidden_information || simultaneous_moves
 // import a sync data block received from another (more knowing) instance of this game (e.g. across the network)
-typedef error_code import_sync_data_gf_t(game* self, blob data);
+typedef error_code import_sync_data_gf_t(game* self, blob b);
 
 // returns the game method and state specific move data representing the move string at this position for this player
 // if the move string does not represent a valid move this returns MOVE_NONE (or for big moves len==0 data==NULL) (NOTE: avoid crashes)
@@ -380,6 +390,7 @@ typedef error_code get_move_str_gf_t(game* self, player_id player, move_data_syn
 // FEATURE: print
 // prints the game state into the str_buf and returns a read only pointer to it
 // returns the number of characters written to string buffer on success, excluding null character
+// player specifies the perspective player from which this is done (relevant for feature: hidden_information) (PLAYER_NONE is omniscient pov)
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
 typedef error_code print_gf_t(game* self, player_id player, size_t* ret_size, const char** ret_str);
 
@@ -537,6 +548,8 @@ get_move_data_gf_t game_get_move_data;
 get_move_str_gf_t game_get_move_str;
 print_gf_t game_print;
 // extra utility for game funcs
+bool game_e_move_is_none(game* self, move_data move);
+bool game_e_move_sync_is_none(game* self, move_data_sync move);
 move_data game_e_move_copy(game* self, move_data move);
 move_data_sync game_e_move_sync_copy(game* self, move_data_sync move);
 move_data_sync game_e_move_make_sync(game* self, move_data move);
