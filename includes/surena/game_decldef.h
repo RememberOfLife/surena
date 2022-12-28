@@ -20,6 +20,10 @@
 #error "surena game decldef requires a game version"
 #endif
 
+#ifndef SURENA_GDD_INTERNALS
+#error "surena game decldef requires internals"
+#endif
+
 #ifdef SURENA_GDD_FFB_ERROR_STRINGS
 #error "surena gdd internal feature flag bool already defined: SURENA_GDD_FFB_ERROR_STRINGS"
 #endif
@@ -357,14 +361,16 @@ const game_methods SURENA_GDD_BENAME
 #else
     .print = NULL,
 #endif
-    .internal_methods = (void*)(internals),
+    .internal_methods = (void*)(SURENA_GDD_INTERNALS),
 };
     // clang-format on
 
+#undef SURENA_GDD_BNAME
 #undef SURENA_GDD_GNAME
 #undef SURENA_GDD_VNAME
 #undef SURENA_GDD_INAME
 #undef SURENA_GDD_VERSION
+#undef SURENA_GDD_INTERNALS
 
 #undef SURENA_GDD_FF_ERROR_STRINGS
 #undef SURENA_GDD_FFB_ERROR_STRINGS

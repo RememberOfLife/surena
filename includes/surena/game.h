@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -44,7 +45,9 @@ const char*
 get_general_error_string(error_code err);
 // instead of returning an error code, one can return rerrorf which automatically manages fmt string buffer allocation for the error string
 // call rerrorf with fmt=NULL to free (*pbuf)
+error_code rerror(char** pbuf, error_code ec, const char* str, const char* str_end);
 error_code rerrorf(char** pbuf, error_code ec, const char* fmt, ...);
+error_code rerrorvf(char** pbuf, error_code ec, const char* fmt, va_list args);
 
 // anywhere a rng seed is use, SEED_NONE represents not using the rng
 static const uint64_t SEED_NONE = 0;
@@ -560,6 +563,8 @@ bool game_e_move_sync_is_none(game* self, move_data_sync move);
 move_data game_e_move_copy(game* self, move_data move);
 move_data_sync game_e_move_sync_copy(game* self, move_data_sync move);
 move_data_sync game_e_move_make_sync(game* self, move_data move);
+
+error_code grerrorf(game* self, error_code ec, const char* fmt, ...); // game internal rerrorf: if your error string is self->data2 use this as a shorthand
 
 #ifdef __cplusplus
 }

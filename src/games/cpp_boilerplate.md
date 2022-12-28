@@ -32,9 +32,18 @@ extern const game_methods thegame_gbe;
 #endif
 ```
 
-//TODO namespace isn't *really* necessary, but makes accessing surena internals easier
-//TODO find some way to remove the forward declaration boilerplate
-use `GF_UNUSED(game_function_name);` to mark a feature function as not supported, for both true features and feature flags
+//TODO namespace isn't necessary, use at your own leisure
+
+//USAGE:
+// before using `#include "surena/game_decldef.h` to declare and set the game use these macros to setup parameters
+// `SURENA_GDD_BNAME` for the name of the const game_methods struct
+// `SURENA_GDD_{GNAME,VNAME,INAME,VERSION}` for game,variant,impl,version
+// use `SURENA_GDD_FF_*` with the correct feature flag name to enable and declare this feature (order is irrelevant but readable)
+
+// in this scheme the error codes are saved in the game.data2, use grerrorf(self, .....) to use it easily
+
+// if you need legacy support a similar pattern to opts here works well
+
 thegame.cpp
 ```cpp
 #include <cstddef>
@@ -45,22 +54,45 @@ thegame.cpp
 
 #include "rosalia/semver.h"
 
-#include "surena/game_gftypes.h"
 #include "surena/game.h"
 
-#include "surena/games/thegame.h"
+#include "surena/games/thegame.h" // this is your game header
 
 namespace {
     
-    // general purpose helpers for opts, data
+    // general purpose helpers for opts, data, bufs
+
+    //TODO use as much as you want, this is just meant to be an allocation tracking helper for impls that rewrite on call, if you want caching and lengths use something else
+    struct export_buffers {
+        char* options;
+        char* state
+        uint8_t* serialize;
+        player_id* players_to_move;
+        move_data* concrete_moves;
+        // float* move_probabilities;
+        // move_data* ordered_moves;
+        // move_data* actions;
+        player_id* results;
+        char* legacy;
+        int32_t* scores;
+        // sync_data* sync_data;
+        char* move_str;
+        char* print;
+    };
     
     typedef thegame_options opts_repr;
 
     struct data_repr {
+        export_buffers bufs;
         opts_repr opts;
 
         uint32_t state;
     };
+
+    export_buffers& get_bufs(game* self)
+    {
+        return ((data_repr*)(self->data1))->bufs;
+    }
 
     opts_repr& get_opts(game* self)
     {
@@ -72,211 +104,204 @@ namespace {
         return *((data_repr*)(self->data1));
     }
 
-    const char* get_last_error(game* self);
-    error_code create(game* self, game_init* init_info);
-    error_code destroy(game* self);
-    error_code clone(game* self, game* clone_target);
-    error_code copy_from(game* self, game* other);
-    error_code compare(game* self, game* other, bool* ret_equal);
-    error_code export_options(game* self, size_t* ret_size, char* str);
-    error_code export_state(game* self, size_t* ret_size, char* str);
-    error_code import_state(game* self, const char* str);
-    error_code serialize(game* self, size_t* ret_size, char* buf);
-    error_code players_to_move(game* self, uint8_t* ret_count, player_id* players);
-    error_code get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves);
-    error_code get_concrete_move_probabilities(game* self, player_id player, uint32_t* ret_count, float* move_probabilities);
-    error_code get_concrete_moves_ordered(game* self, player_id player, uint32_t* ret_count, move_code* moves);
-    error_code get_actions(game* self, player_id player, uint32_t* ret_count, move_code* moves);
-    error_code is_legal_move(game* self, player_id player, move_code move);
-    error_code move_to_action(game* self, move_code move, move_code* ret_action);
-    error_code is_action(game* self, move_code move, bool* ret_is_action);
-    error_code make_move(game* self, player_id player, move_code move);
-    error_code get_results(game* self, uint8_t* ret_count, player_id* players);
-    error_code export_legacy(game* self, size_t* ret_size, char* str_buf);
-    error_code get_sync_counter(game* self, sync_counter* ret_sync);
-    error_code get_scores(game* self, size_t* ret_count, player_id* players, int32_t* scores);
-    error_code id(game* self, uint64_t* ret_id);
-    error_code eval(game* self, player_id player, float* ret_eval);
-    error_code discretize(game* self, uint64_t seed);
-    error_code playout(game* self, uint64_t seed);
-    error_code redact_keep_state(game* self, uint8_t count, player_id* players);
-    error_code export_sync_data(game* self, sync_data** sync_data_start, sync_data** sync_data_end);
-    error_code release_sync_data(game* self, sync_data* sync_data_start, sync_data* sync_data_end);
-    error_code import_sync_data(game* self, void* data_start, void* data_end);
-    error_code get_move_code(game* self, player_id player, const char* str, move_code* ret_move);
-    error_code get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf);
-    error_code print(game* self, size_t* ret_size, char* str_buf);
+    /* use these in your functions for easy access
+    export_buffers& bufs = get_bufs(self);
+    opts_repr& opts = get_opts(self);
+    data_repr& data = get_repr(self);
+    */
 
     /* same for internals */
 
+    // impl declarations
+    // static error_code internal_call(game* self, int x);
+
+    // need internal function pointer struct here
+    // static const thegame_internal_methods thegame_gbe_internal_methods{
+    //     .internal_call = internal_call,
+    // };
+
+    // declare and form game
+    #define SURENA_GDD_BNAME "thegame_standard_gbe"
+    #define SURENA_GDD_GNAME "TheGame"
+    #define SURENA_GDD_VNAME "Standard"
+    #define SURENA_GDD_INAME "surena_default"
+    #define SURENA_GDD_VERSION (semver){1, 0, 0}
+    #define SURENA_GDD_INTERNALS &thegame_gbe_internal_methods
+    #define SURENA_GDD_FF_ERROR_STRINGS
+    #define SURENA_GDD_FF_OPTIONS
+    #define SURENA_GDD_FF_SERIALIZABLE
+    #define SURENA_GDD_FF_ID
+    #define SURENA_GDD_FF_PRINT
+    #include "surena/game_decldef.h"
+
     // implementation
 
-    const char* get_last_error(game* self)
+    //TODO only copy over the required functions
+
+    static const char* get_last_error(game* self)
     {
-        return (char*)self->data2; // in this scheme opts are saved together with the state in data1, and data2 is the last error string
+        return (char*)self->data2;
     }
 
-    error_code create(game* self, game_init* init_info);
+    static error_code create(game* self, game_init* init_info)
     {
         //TODO
     }
 
-    error_code destroy(game* self)
+    static error_code destroy(game* self)
+    {
+        //TODO destroy data_repr
+        free(self->data2);
+        self->data2 = NULL;
+        return ERR_OK;
+    }
+
+    static error_code clone(game* self, game* clone_target)
     {
         //TODO
     }
 
-    error_code clone(game* self, game* clone_target)
-    {
-        //TODO
-    }
-    
-    error_code copy_from(game* self, game* other)
+    static error_code copy_from(game* self, game* other)
     {
         //TODO
     }
 
-    error_code compare(game* self, game* other, bool* ret_equal)
+    static error_code compare(game* self, game* other, bool* ret_equal)
     {
         //TODO
     }
 
-    error_code export_options(game* self, size_t* ret_size, char* str)
+    static error_code export_options(game* self, player_id player, size_t* ret_size, const char** ret_str)
     {
         //TODO
     }
 
-    error_code export_state(game* self, size_t* ret_size, char* str)
+    static error_code player_count(game* self, uint8_t* ret_count)
     {
         //TODO
     }
 
-    error_code import_state(game* self, const char* str)
+    static error_code export_state(game* self, player_id player, size_t* ret_size, const char** ret_str)
     {
         //TODO
     }
 
-    error_code serialize(game* self, size_t* ret_size, char* buf)
+    static error_code import_state(game* self, const char* str)
     {
         //TODO
     }
 
-    error_code players_to_move(game* self, uint8_t* ret_count, player_id* players)
+    static error_code serialize(game* self, player_id player, const blob** ret_blob)
     {
         //TODO
     }
 
-    error_code get_concrete_moves(game* self, player_id player, uint32_t* ret_count, move_code* moves)
+    static error_code players_to_move(game* self, uint8_t* ret_count, const player_id** ret_players)
     {
         //TODO
     }
 
-    error_code get_concrete_move_probabilities(game* self, player_id player, uint32_t* ret_count, float* move_probabilities)
+    static error_code get_concrete_moves(game* self, player_id player, uint32_t* ret_count, const move_data** ret_moves)
     {
         //TODO
     }
 
-    error_code get_concrete_moves_ordered(game* self, player_id player, uint32_t* ret_count, move_code* moves)
+    static error_code get_concrete_move_probabilities(game* self, player_id player, uint32_t* ret_count, const float** ret_move_probabilities)
     {
         //TODO
     }
 
-    error_code get_actions(game* self, player_id player, uint32_t* ret_count, move_code* moves)
+    static error_code get_concrete_moves_ordered(game* self, player_id player, uint32_t* ret_count, const move_data** ret_moves)
     {
         //TODO
     }
 
-    error_code is_legal_move(game* self, player_id player, move_code move)
+    static error_code get_actions(game* self, player_id player, uint32_t* ret_count, const move_data** ret_moves)
     {
         //TODO
     }
 
-    error_code move_to_action(game* self, move_code move, move_code* ret_action)
+    static error_code is_legal_move(game* self, player_id player, move_data_sync move)
     {
         //TODO
     }
 
-    error_code is_action(game* self, move_code move, bool* ret_is_action)
+    static error_code move_to_action(game* self, player_id player, move_data_sync move, move_data_sync* ret_action)
     {
         //TODO
     }
 
-    error_code make_move(game* self, player_id player, move_code move)
+    static error_code is_action(game* self, player_id player, move_data_sync move, bool* ret_is_action)
     {
         //TODO
     }
 
-    error_code get_results(game* self, uint8_t* ret_count, player_id* players)
+    static error_code make_move(game* self, player_id player, move_data_sync move)
     {
         //TODO
     }
 
-    error_code export_legacy(game* self, size_t* ret_size, char* str_buf)
+    static error_code get_results(game* self, uint8_t* ret_count, const player_id** ret_players)
     {
         //TODO
     }
 
-    error_code get_sync_counter(game* self, sync_counter* ret_sync)
+    static error_code export_legacy(game* self, player_id player, size_t* ret_size, const char** ret_str)
     {
         //TODO
     }
 
-    error_code get_scores(game* self, size_t* ret_count, player_id* players, int32_t* scores)
+    static error_code get_scores(game* self, size_t* ret_count, player_id* players, const int32_t** ret_scores)
     {
         //TODO
     }
 
-    error_code id(game* self, uint64_t* ret_id)
+    static error_code id(game* self, uint64_t* ret_id)
     {
         //TODO
     }
 
-    error_code eval(game* self, player_id player, float* ret_eval)
+    static error_code eval(game* self, player_id player, float* ret_eval)
     {
         //TODO
     }
 
-    error_code discretize(game* self, uint64_t seed)
+    static error_code discretize(game* self, uint64_t seed)
     {
         //TODO
     }
 
-    error_code playout(game* self, uint64_t seed)
+    static error_code playout(game* self, uint64_t seed)
     {
         //TODO
     }
 
-    error_code redact_keep_state(game* self, uint8_t count, player_id* players)
+    static error_code redact_keep_state(game* self, uint8_t count, const player_id* players)
     {
         //TODO
     }
 
-    error_code export_sync_data(game* self, sync_data** sync_data_start, sync_data** sync_data_end)
+    static error_code export_sync_data(game* self, uint32_t* ret_count, const sync_data** ret_sync_data)
     {
         //TODO
     }
 
-    error_code release_sync_data(game* self, sync_data* sync_data_start, sync_data* sync_data_end)
+    static error_code import_sync_data(game* self, blob b)
     {
         //TODO
     }
 
-    error_code import_sync_data(game* self, void* data_start, void* data_end)
+    static error_code get_move_data(game* self, player_id player, const char* str, move_data_sync* ret_move)
     {
         //TODO
     }
 
-    error_code get_move_code(game* self, player_id player, const char* str, move_code* ret_move)
+    static error_code get_move_str(game* self, player_id player, move_data_sync move, size_t* ret_size, const char** ret_str)
     {
         //TODO
     }
 
-    error_code get_move_str(game* self, player_id player, move_code move, size_t* ret_size, char* str_buf)
-    {
-        //TODO
-    }
-
-    error_code print(game* self, size_t* ret_size, char* str_buf)
+    static error_code print(game* self, player_id player, size_t* ret_size, const char** ret_str)
     {
         //TODO
     }
@@ -284,41 +309,11 @@ namespace {
     //=====
     // game internal methods
 
-    // error_code internal_call(game* self, int x)
+    // static error_code internal_call(game* self, int x)
     // {
     //     //TODO
     // }
 
 }
 
-// static const thegame_internal_methods thegame_gbe_internal_methods{
-//     .internal_call = internal_call,
-// };
-
-const game_methods tictactoe_gbe{
-
-    .game_name = "TheGame",
-    .variant_name = "TheOne",
-    .impl_name = "This",
-    .version = semver{1, 0, 0},
-    .features = game_feature_flags{
-        .error_strings = true,
-        .options = true,
-        .serializable = true,
-        .legacy = true,
-        .random_moves = true,
-        .hidden_information = true,
-        .simultaneous_moves = true,
-        .move_ordering = true,
-        .scores = true,
-        .id = true,
-        .eval = true,
-        .playout = true,
-        .print = true,
-    },
-    .internal_methods = NULL, // (void*)&thegame_gbe_internal_methods,
-    
-    #include "surena/game_impl.h"
-    
-};
 ```

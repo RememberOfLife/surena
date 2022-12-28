@@ -43,7 +43,25 @@ const char* get_general_error_string(error_code err)
     return NULL;
 }
 
+error_code rerror(char** pbuf, error_code ec, const char* str, const char* str_end)
+{
+    if (str_end == NULL) {
+        return rerrorf(pbuf, ec, "%s", str);
+    } else {
+        return rerrorf(pbuf, ec, "%.*s", str_end - str, str);
+    }
+}
+
 error_code rerrorf(char** pbuf, error_code ec, const char* fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    error_code ret = rerrorvf(pbuf, ec, fmt, args);
+    va_end(args);
+    return ret;
+}
+
+error_code rerrorvf(char** pbuf, error_code ec, const char* fmt, va_list args)
 {
     if (pbuf == NULL) {
         return ec;
@@ -53,17 +71,12 @@ error_code rerrorf(char** pbuf, error_code ec, const char* fmt, ...)
         *pbuf = NULL;
     }
     if (fmt != NULL) {
-        va_list args;
-        va_start(args, fmt);
         size_t len = vsnprintf(NULL, 0, fmt, args) + 1;
-        va_end(args);
         *pbuf = (char*)malloc(len);
         if (*pbuf == NULL) {
             return ERR_OUT_OF_MEMORY;
         }
-        va_start(args, fmt);
         vsnprintf(*pbuf, len, fmt, args);
-        va_end(args);
     }
     return ec;
 }
@@ -611,6 +624,15 @@ move_data_sync game_e_move_make_sync(game* self, move_data move)
     assert(self);
     assert(self->methods);
     return (move_data_sync){.md = move, .sync_ctr = self->sync_ctr};
+}
+
+error_code grerrorf(game* self, error_code ec, const char* fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    error_code ret = rerrorvf((char**)&self->data2, ec, fmt, args);
+    va_end(args);
+    return ret;
 }
 
 #ifdef __cplusplus
