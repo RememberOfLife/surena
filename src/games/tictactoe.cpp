@@ -549,7 +549,7 @@ static error_code get_move_str(game* self, player_id player, move_data_sync move
 static error_code print(game* self, player_id player, size_t* ret_size, const char** ret_str)
 {
     export_buffers& bufs = get_bufs(self);
-    char* outbuf = bufs.move_str;
+    char* outbuf = bufs.print;
     player_id cell_player;
     for (int y = 2; y >= 0; y--) {
         for (int x = 0; x < 3; x++) {

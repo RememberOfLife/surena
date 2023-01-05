@@ -106,8 +106,15 @@ const game_methods* load_static_game_methods(const char* composite_id)
     if (strlen(id_name[VNAME_IDX]) == 0) {
         strcpy(id_name[VNAME_IDX], "Standard");
     }
-    //TODO find correctly named game method
-
+    // find correctly named game method
+    size_t statics_cnt = sizeof(static_game_methods) / sizeof(game_methods*);
+    for (size_t i = 0; i < statics_cnt; i++) {
+        if (strcmp(id_name[GNAME_IDX], static_game_methods[i]->game_name) == 0 &&
+            strcmp(id_name[VNAME_IDX], static_game_methods[i]->variant_name) == 0 &&
+            (strlen(id_name[INAME_IDX]) == 0 || strcmp(id_name[INAME_IDX], static_game_methods[i]->impl_name) == 0)) {
+            return static_game_methods[i];
+        }
+    }
     return NULL;
 }
 

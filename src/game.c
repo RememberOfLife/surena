@@ -620,7 +620,7 @@ error_code game_print(game* self, player_id player, size_t* ret_size, const char
     assert(game_ff(self).print);
     assert(ret_size);
     assert(ret_str);
-    assert(player != PLAYER_NONE && player != PLAYER_RAND);
+    assert(player != PLAYER_RAND);
     return self->methods->print(self, player, ret_size, ret_str);
 }
 
