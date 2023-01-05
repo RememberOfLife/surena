@@ -72,7 +72,7 @@ const game_methods* load_plugin_game_methods(const char* file, uint32_t idx)
 const game_methods* static_game_methods[] = {
     // &chess_gbe,
     // &havannah_gbe,
-    // &tictactoe_gbe,
+    &tictactoe_standard_gbe,
     // &tictactoe_ultimate_gbe,
     // &twixt_pp_gbe,
 };
@@ -171,8 +171,9 @@ typedef struct repl_state_s {
 typedef enum REPL_CMD_E {
     REPL_CMD_NONE = 0,
     //TODO M_HELP
+    //TODO M_LIST_STATIC
     REPL_CMD_M_LOAD_STATIC,
-    REPL_CMD_M_LOAD_PLUGIN,
+    REPL_CMD_M_LOAD_PLUGIN, //TODO support unloading?
     REPL_CMD_M_EXIT,
     REPL_CMD_M_GET,
     REPL_CMD_M_SET,

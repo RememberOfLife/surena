@@ -256,6 +256,7 @@ const game_methods SURENA_GDD_BENAME
         .playout = SURENA_GDD_FFB_PLAYOUT,
         .print = SURENA_GDD_FFB_PRINT,
     },
+    .internal_methods = (void*)(SURENA_GDD_INTERNALS),
 #if SURENA_GDD_FFB_ERROR_STRINGS
     .get_last_error = get_last_error,
 #else
@@ -361,7 +362,6 @@ const game_methods SURENA_GDD_BENAME
 #else
     .print = NULL,
 #endif
-    .internal_methods = (void*)(SURENA_GDD_INTERNALS),
 };
     // clang-format on
 

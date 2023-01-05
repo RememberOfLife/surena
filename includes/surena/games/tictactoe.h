@@ -1,12 +1,14 @@
 #pragma once
 
+#include <stdint.h>
+
+#include "surena/game.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include <stdint.h>
-
-#include "surena/game.h"
+//TODO fix X/O enum
 
 typedef struct tictactoe_internal_methods_s {
 
@@ -18,7 +20,7 @@ typedef struct tictactoe_internal_methods_s {
 
 } tictactoe_internal_methods;
 
-extern const game_methods tictactoe_gbe;
+extern const game_methods tictactoe_standard_gbe;
 
 #ifdef __cplusplus
 }
