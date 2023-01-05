@@ -365,7 +365,7 @@ const game_methods SURENA_GDD_BENAME
 };
     // clang-format on
 
-#undef SURENA_GDD_BNAME
+#undef SURENA_GDD_BENAME
 #undef SURENA_GDD_GNAME
 #undef SURENA_GDD_VNAME
 #undef SURENA_GDD_INAME

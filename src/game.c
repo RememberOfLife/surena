@@ -283,14 +283,26 @@ error_code game_create(game* self, game_init* init_info)
     assert(self);
     assert(self->methods);
     assert(init_info);
-    return self->methods->create(self, init_info);
+    assert(!(init_info->source_type == GAME_INIT_SOURCE_TYPE_SERIALIZED && game_ff(self).serializable == false));
+    self->data1 = NULL;
+    self->data2 = NULL;
+    error_code ec = self->methods->create(self, init_info);
+    self->sync_ctr = SYNC_CTR_DEFAULT;
+    return ec;
 }
 
 error_code game_destroy(game* self)
 {
     assert(self);
     assert(self->methods);
-    return self->methods->destroy(self);
+    error_code ec = self->methods->destroy(self);
+    *self = (game){
+        .methods = NULL,
+        .data1 = NULL,
+        .data2 = NULL,
+        .sync_ctr = SYNC_CTR_DEFAULT,
+    };
+    return ec;
 }
 
 error_code game_clone(game* self, game* clone_target)
@@ -298,7 +310,10 @@ error_code game_clone(game* self, game* clone_target)
     assert(self);
     assert(self->methods);
     assert(clone_target);
-    return self->methods->clone(self, clone_target);
+    clone_target->methods = self->methods;
+    error_code ec = self->methods->clone(self, clone_target);
+    clone_target->sync_ctr = self->sync_ctr;
+    return ec;
 }
 
 error_code game_copy_from(game* self, game* other)
@@ -306,7 +321,10 @@ error_code game_copy_from(game* self, game* other)
     assert(self);
     assert(self->methods);
     assert(other);
-    return self->methods->copy_from(self, other);
+    //TODO want to assert that game_methods are equal?
+    error_code ec = self->methods->copy_from(self, other);
+    self->sync_ctr = other->sync_ctr;
+    return ec;
 }
 
 error_code game_compare(game* self, game* other, bool* ret_equal)
@@ -322,6 +340,7 @@ error_code game_export_options(game* self, player_id player, size_t* ret_size, c
 {
     assert(self);
     assert(self->methods);
+    assert(game_ff(self).options);
     assert(ret_size);
     assert(ret_str);
     assert(player != PLAYER_RAND);
@@ -358,6 +377,7 @@ error_code game_serialize(game* self, player_id player, const blob** ret_blob)
 {
     assert(self);
     assert(self->methods);
+    assert(game_ff(self).serializable);
     assert(ret_blob);
     assert(player != PLAYER_RAND);
     return self->methods->serialize(self, player, ret_blob);
@@ -386,6 +406,7 @@ error_code game_get_concrete_move_probabilities(game* self, player_id player, ui
 {
     assert(self);
     assert(self->methods);
+    assert(game_ff(self).random_moves);
     assert(ret_count);
     assert(ret_move_probabilities);
     assert(player != PLAYER_NONE);
@@ -396,6 +417,7 @@ error_code game_get_concrete_moves_ordered(game* self, player_id player, uint32_
 {
     assert(self);
     assert(self->methods);
+    assert(game_ff(self).move_ordering);
     assert(ret_count);
     assert(ret_moves);
     assert(player != PLAYER_NONE);
@@ -406,6 +428,7 @@ error_code game_get_actions(game* self, player_id player, uint32_t* ret_count, c
 {
     assert(self);
     assert(self->methods);
+    assert(game_ff(self).random_moves || game_ff(self).hidden_information || game_ff(self).simultaneous_moves);
     assert(ret_count);
     assert(ret_moves);
     assert(player != PLAYER_NONE);
@@ -427,6 +450,7 @@ error_code game_move_to_action(game* self, player_id player, move_data_sync move
 {
     assert(self);
     assert(self->methods);
+    assert(game_ff(self).random_moves || game_ff(self).hidden_information || game_ff(self).simultaneous_moves);
     assert(ret_action);
     assert(player != PLAYER_NONE);
     if (self->sync_ctr != move.sync_ctr && game_ff(self).simultaneous_moves == false) {
@@ -439,6 +463,7 @@ error_code game_is_action(game* self, player_id player, move_data_sync move, boo
 {
     assert(self);
     assert(self->methods);
+    assert(game_ff(self).random_moves || game_ff(self).hidden_information || game_ff(self).simultaneous_moves);
     assert(ret_is_action);
     if (self->sync_ctr != move.sync_ctr && game_ff(self).simultaneous_moves == false) {
         return ERR_SYNC_COUNTER_MISMATCH;
@@ -481,6 +506,7 @@ error_code game_export_legacy(game* self, player_id player, size_t* ret_size, co
 {
     assert(self);
     assert(self->methods);
+    assert(game_ff(self).legacy);
     assert(ret_size);
     assert(ret_str);
     assert(player != PLAYER_RAND);
@@ -491,6 +517,7 @@ error_code game_get_scores(game* self, size_t* ret_count, player_id* players, co
 {
     assert(self);
     assert(self->methods);
+    assert(game_ff(self).scores);
     assert(ret_count);
     assert(players);
     assert(ret_scores);
@@ -501,6 +528,7 @@ error_code game_id(game* self, uint64_t* ret_id)
 {
     assert(self);
     assert(self->methods);
+    assert(game_ff(self).id);
     assert(ret_id);
     return self->methods->id(self, ret_id);
 }
@@ -509,6 +537,7 @@ error_code game_eval(game* self, player_id player, float* ret_eval)
 {
     assert(self);
     assert(self->methods);
+    assert(game_ff(self).eval);
     assert(ret_eval);
     assert(player != PLAYER_NONE && player != PLAYER_RAND);
     return self->methods->eval(self, player, ret_eval);
@@ -518,6 +547,7 @@ error_code game_discretize(game* self, uint64_t seed)
 {
     assert(self);
     assert(self->methods);
+    assert(game_ff(self).random_moves || game_ff(self).hidden_information || game_ff(self).simultaneous_moves);
     return self->methods->discretize(self, seed);
 }
 
@@ -525,6 +555,7 @@ error_code game_playout(game* self, uint64_t seed)
 {
     assert(self);
     assert(self->methods);
+    assert(game_ff(self).playout);
     assert(seed != SEED_NONE);
     return self->methods->playout(self, seed);
 }
@@ -533,6 +564,7 @@ error_code game_redact_keep_state(game* self, uint8_t count, const player_id* pl
 {
     assert(self);
     assert(self->methods);
+    assert(game_ff(self).random_moves || game_ff(self).hidden_information || game_ff(self).simultaneous_moves);
     assert(players);
     return self->methods->redact_keep_state(self, count, players);
 }
@@ -541,6 +573,7 @@ error_code game_export_sync_data(game* self, uint32_t* ret_count, const sync_dat
 {
     assert(self);
     assert(self->methods);
+    assert(game_ff(self).hidden_information || game_ff(self).simultaneous_moves);
     assert(ret_count);
     assert(ret_sync_data);
     return self->methods->export_sync_data(self, ret_count, ret_sync_data);
@@ -550,6 +583,7 @@ error_code game_import_sync_data(game* self, blob b)
 {
     assert(self);
     assert(self->methods);
+    assert(game_ff(self).hidden_information || game_ff(self).simultaneous_moves);
     assert(!blob_is_null(&b));
     return self->methods->import_sync_data(self, b);
 }
@@ -583,6 +617,7 @@ error_code game_print(game* self, player_id player, size_t* ret_size, const char
 {
     assert(self);
     assert(self->methods);
+    assert(game_ff(self).print);
     assert(ret_size);
     assert(ret_str);
     assert(player != PLAYER_NONE && player != PLAYER_RAND);
@@ -624,6 +659,34 @@ move_data_sync game_e_move_make_sync(game* self, move_data move)
     assert(self);
     assert(self->methods);
     return (move_data_sync){.md = move, .sync_ctr = self->sync_ctr};
+}
+
+move_data game_e_create_move_small(game* self, move_code move)
+{
+    assert(self);
+    assert(self->methods);
+    return (move_data){.cl.code = move};
+}
+
+move_data game_e_create_move_big(game* self, size_t len, uint8_t* buf)
+{
+    assert(self);
+    assert(self->methods);
+    return (move_data){.cl.len = len, .data = buf};
+}
+
+move_data_sync game_e_create_move_sync_small(game* self, move_code move)
+{
+    assert(self);
+    assert(self->methods);
+    return (move_data_sync){.md = {.cl.code = move}, .sync_ctr = self->sync_ctr};
+}
+
+move_data_sync game_e_create_move_sync_big(game* self, size_t len, uint8_t* buf)
+{
+    assert(self);
+    assert(self->methods);
+    return (move_data_sync){.md = {.cl.len = len, .data = buf}, .sync_ctr = self->sync_ctr};
 }
 
 error_code grerrorf(game* self, error_code ec, const char* fmt, ...)

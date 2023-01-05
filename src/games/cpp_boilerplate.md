@@ -44,6 +44,8 @@ extern const game_methods thegame_gbe;
 
 // if you need legacy support a similar pattern to opts here works well
 
+//TODO needs c boilerplate
+
 thegame.cpp
 ```cpp
 #include <cstddef>
@@ -65,7 +67,7 @@ namespace {
     //TODO use as much as you want, this is just meant to be an allocation tracking helper for impls that rewrite on call, if you want caching and lengths use something else
     struct export_buffers {
         char* options;
-        char* state
+        char* state;
         uint8_t* serialize;
         player_id* players_to_move;
         move_data* concrete_moves;
@@ -112,7 +114,7 @@ namespace {
 
     /* same for internals */
 
-    // impl declarations
+    // impl internal declarations
     // static error_code internal_call(game* self, int x);
 
     // need internal function pointer struct here
@@ -121,11 +123,11 @@ namespace {
     // };
 
     // declare and form game
-    #define SURENA_GDD_BNAME "thegame_standard_gbe"
+    #define SURENA_GDD_BENAME "thegame_standard_gbe"
     #define SURENA_GDD_GNAME "TheGame"
     #define SURENA_GDD_VNAME "Standard"
     #define SURENA_GDD_INAME "surena_default"
-    #define SURENA_GDD_VERSION (semver){1, 0, 0}
+    #define SURENA_GDD_VERSION ((semver){1, 0, 0})
     #define SURENA_GDD_INTERNALS &thegame_gbe_internal_methods
     #define SURENA_GDD_FF_ERROR_STRINGS
     #define SURENA_GDD_FF_OPTIONS

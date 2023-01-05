@@ -64,7 +64,8 @@ static const uint64_t SEED_NONE = 0;
 typedef uint64_t move_code;
 static const move_code MOVE_NONE = UINT64_MAX;
 
-typedef union move_data_u {
+//TODO why is this not just a union of move_code and blob???
+typedef struct move_data_s {
     union {
         move_code code; // FEATURE: !big_moves ; use MOVE_NONE for empty
         size_t len; // FEATURE: big_moves ; if data is NULL and this is 0 then the big move is empty
@@ -562,6 +563,10 @@ bool game_e_move_sync_is_none(game* self, move_data_sync move);
 move_data game_e_move_copy(game* self, move_data move);
 move_data_sync game_e_move_sync_copy(game* self, move_data_sync move);
 move_data_sync game_e_move_make_sync(game* self, move_data move);
+move_data game_e_create_move_small(game* self, move_code move);
+move_data game_e_create_move_big(game* self, size_t len, uint8_t* buf);
+move_data_sync game_e_create_move_sync_small(game* self, move_code move);
+move_data_sync game_e_create_move_sync_big(game* self, size_t len, uint8_t* buf);
 
 error_code grerrorf(game* self, error_code ec, const char* fmt, ...); // game internal rerrorf: if your error string is self->data2 use this as a shorthand
 
