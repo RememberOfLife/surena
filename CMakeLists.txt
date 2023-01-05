@@ -37,22 +37,23 @@ set(SOURCES
     lib/rosalia/src/impl/serialization.c
     lib/rosalia/src/impl/timestamp.c
 
-    src/engines/randomengine.cpp
+    # src/engines/randomengine.cpp
     # src/engines/singlethreadedmcts.cpp
-    src/engines/uci_wrap.cpp
+    # src/engines/uci_wrap.cpp
 
     # src/games/alhambra.cpp
     # src/games/caesar.cpp
-    src/games/chess.cpp
-    src/games/havannah.cpp
-    src/games/oshisumo.cpp
-    src/games/tictactoe_ultimate.cpp
-    src/games/tictactoe.cpp
-    src/games/twixt_pp.cpp
+    # src/games/chess.cpp
+    # src/games/havannah.cpp
+    # src/games/oshisumo.cpp
+    # src/games/tictactoe_ultimate.cpp
+    # src/games/tictactoe.cpp
+    # src/games/twixt_pp.cpp
 
-    src/engine.cpp
+    # src/engine.cpp
     src/game.c
-    src/move_history.c
+    # src/move_history.c
+    src/repl.c
 
     src/main.cpp
 )

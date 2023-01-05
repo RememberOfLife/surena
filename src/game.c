@@ -35,12 +35,12 @@ const char* general_error_strings[] = {
     [ERR_ENUM_DEFAULT_OFFSET] = NULL,
 };
 
-const char* get_general_error_string(error_code err)
+const char* get_general_error_string(error_code err, const char* fallback)
 {
     if (err < ERR_ENUM_DEFAULT_OFFSET) {
         return general_error_strings[err];
     }
-    return NULL;
+    return fallback;
 }
 
 error_code rerror(char** pbuf, error_code ec, const char* str, const char* str_end)

@@ -40,9 +40,8 @@ enum ERR {
     ERR_ENUM_DEFAULT_OFFSET, // not an error, start game method specific error enums at this offset
 };
 
-// returns NULL if the err is not a general error
-const char*
-get_general_error_string(error_code err);
+// returns not_general if the err is not a general error
+const char* get_general_error_string(error_code err, const char* fallback);
 // instead of returning an error code, one can return rerrorf which automatically manages fmt string buffer allocation for the error string
 // call rerrorf with fmt=NULL to free (*pbuf)
 error_code rerror(char** pbuf, error_code ec, const char* str, const char* str_end);
