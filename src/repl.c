@@ -26,12 +26,53 @@ const char* strpfc(const char* str, char c)
     return wstr;
 }
 
-// argc and argv are optional, the string is transformed into zero terminator separated args anyway
 // if str is NULL, then this frees the content of argv
-void strargsplit(char* str, int* argc, char*** argv)
+void strargsplit(const char* str, int* argc, char*** argv)
 {
-    //TODO want do backslash escapes
-    //TODO
+    if (str == NULL) {
+        free(*argv);
+        return;
+    }
+    //TODO want do backslash escapes for \ + (\,",',n,t,b,f,r,u,/) just like json
+    //TODO allow both quote modes with " and ', remember only the outer most one used
+    char* newstr = (char*)malloc(strlen(str) + 2);
+    char* ostr = newstr;
+    const char* wstr = str;
+    bool is_empty = true;
+    bool quoted = false;
+    int cnt = 0;
+    while (*wstr != '\0') {
+        if (*wstr == ' ' && quoted == false) {
+            *ostr = '\0';
+            if (is_empty == false) {
+                ostr++;
+                cnt++;
+            }
+            is_empty = true;
+        } else if (*wstr == '\"') {
+            quoted = !quoted;
+        } else {
+            is_empty = false;
+            *ostr = *wstr;
+            ostr++;
+        }
+        wstr++;
+    }
+    if (is_empty == false) {
+        cnt++;
+    }
+    ostr++;
+    *ostr = '\0';
+    *argc = cnt;
+    *argv = (char**)malloc(sizeof(char*) * cnt);
+    char* sstr = newstr;
+    for (int i = 0; i < cnt; i++) {
+        (*argv)[i] = sstr;
+        while (*sstr != '\0') {
+            sstr++;
+        }
+        sstr++;
+    }
 }
 
 const game_methods* load_plugin_game_methods(const char* file, uint32_t idx)
@@ -184,7 +225,7 @@ typedef enum REPL_CMD_E {
     REPL_CMD_M_EXIT,
     REPL_CMD_M_GET,
     REPL_CMD_M_SET,
-    //TODO M_POV
+    //TODO M_POV for set and get
     //TODO M_RS
     //TODO M_GINFO
     REPL_CMD_G_CREATE,
@@ -219,7 +260,7 @@ typedef enum REPL_CMD_E {
     REPL_CMD_COUNT,
 } REPL_CMD;
 
-typedef void repl_cmd_func_t(repl_state* rs, const char* args);
+typedef void repl_cmd_func_t(repl_state* rs, int argc, char** argv);
 
 repl_cmd_func_t repl_cmd_handle_m_load_static;
 repl_cmd_func_t repl_cmd_handle_m_load_plugin;
@@ -275,7 +316,7 @@ game_command_info game_command_infos[REPL_CMD_COUNT] = {
     [REPL_CMD_G_PRINT] = {"print", repl_cmd_handle_g_print},
 };
 
-void handle_command(repl_state* rs, const char* str)
+void handle_command(repl_state* rs, char* str)
 {
     /*TODO ideally cmd list wanted:
     :set option=value // use for things like print_after_move=off and similarly :set options="8+" and :set pov=1
@@ -302,7 +343,11 @@ void handle_command(repl_state* rs, const char* str)
     }
     wstr = estr;
     if (cmd_type != REPL_CMD_NONE && cmd_type < REPL_CMD_COUNT) {
-        game_command_infos[cmd_type].handler(rs, wstr);
+        int argc;
+        char** argv;
+        strargsplit(wstr, &argc, &argv);
+        game_command_infos[cmd_type].handler(rs, argc, argv);
+        strargsplit(NULL, NULL, &argv);
     } else {
         printf("[INFO] unknown command\n");
     }
@@ -465,29 +510,38 @@ int repl()
 
 */
 
-void repl_cmd_handle_m_load_static(repl_state* rs, const char* args)
+//TODO for all of these, check that arg count isnt too many! since some vary in function depending on args, also help should show this per command!
+
+void repl_cmd_handle_m_load_static(repl_state* rs, int argc, char** argv)
 {
-    if (strlen(args) == 0) {
+    if (argc < 1) {
         printf("[WARN] game name composite missing\n");
         return;
     }
-    const game_methods* gm = load_static_game_methods(args);
+    const game_methods* gm = load_static_game_methods(argv[0]);
     if (gm == NULL) {
-        printf("[WARN] game methods \"%s\" not found\n", args);
+        printf("[WARN] game methods \"%s\" not found\n", argv[0]);
     } else {
         printf("[INFO] found: %s.%s.%s v%u.%u.%u\n", gm->game_name, gm->variant_name, gm->impl_name, gm->version.major, gm->version.minor, gm->version.patch);
         rs->g_methods = gm;
     }
 }
 
-void repl_cmd_handle_m_load_plugin(repl_state* rs, const char* args)
+void repl_cmd_handle_m_load_plugin(repl_state* rs, int argc, char** argv)
 {
-    //TODO split args into path and idx properly //TODO use all purpose arg splitter
-    if (strlen(args) == 0) {
+    if (argc < 1) {
         printf("[WARN] plugin file path missing\n");
         return;
     }
-    const game_methods* gm = load_plugin_game_methods(args, 0);
+    uint32_t load_idx = 0;
+    if (argc >= 2) {
+        int sc = sscanf(argv[1], "%u", &load_idx);
+        if (sc != 1) {
+            printf("[WARN] could not parse index as u32\n");
+            return;
+        }
+    }
+    const game_methods* gm = load_plugin_game_methods(argv[0], load_idx);
     if (gm == NULL) {
         printf("[WARN] plugin did not provide at least one game, ignoring\n");
         printf("[INFO] relative plugin paths MUST be prefixed with \"./\"\n");
@@ -497,24 +551,24 @@ void repl_cmd_handle_m_load_plugin(repl_state* rs, const char* args)
     }
 }
 
-void repl_cmd_handle_m_exit(repl_state* rs, const char* args)
+void repl_cmd_handle_m_exit(repl_state* rs, int argc, char** argv)
 {
     rs->exit = true;
 }
 
-void repl_cmd_handle_m_get(repl_state* rs, const char* args)
+void repl_cmd_handle_m_get(repl_state* rs, int argc, char** argv)
 {
     //TODO
     printf("[WARN] feature unsupported");
 }
 
-void repl_cmd_handle_m_set(repl_state* rs, const char* args)
+void repl_cmd_handle_m_set(repl_state* rs, int argc, char** argv)
 {
     //TODO
     printf("[WARN] feature unsupported");
 }
 
-void repl_cmd_handle_g_create(repl_state* rs, const char* args)
+void repl_cmd_handle_g_create(repl_state* rs, int argc, char** argv)
 {
     //TODO switch on args to see if should create using std/b64 and then on if to use provided or from cache
     if (rs->g_methods == NULL) {
@@ -565,7 +619,7 @@ void repl_cmd_handle_g_create(repl_state* rs, const char* args)
     }
 }
 
-void repl_cmd_handle_g_destroy(repl_state* rs, const char* args)
+void repl_cmd_handle_g_destroy(repl_state* rs, int argc, char** argv)
 {
     if (rs->g.methods == NULL) {
         printf("[INFO] no game running\n");
@@ -584,18 +638,39 @@ void repl_cmd_handle_g_destroy(repl_state* rs, const char* args)
     }
 }
 
-void repl_cmd_handle_g_make_move(repl_state* rs, const char* args)
+void repl_cmd_handle_g_make_move(repl_state* rs, int argc, char** argv)
 {
     if (rs->g.methods == NULL) {
         printf("[INFO] no game running\n");
         return;
     }
-    //TODO
+    if (argc < 1) {
+        printf("[WARN] move string required to make move\n");
+        return;
+    }
+    move_data_sync move;
+    error_code ec = game_get_move_data(&rs->g, rs->pov, argv[0], &move);
+    if (ec != ERR_OK) {
+        print_game_error(&rs->g, ec);
+        printf("[WARN] could not get move data\n");
+        return;
+    }
+    ec = game_is_legal_move(&rs->g, rs->pov, move);
+    if (ec != ERR_OK) {
+        print_game_error(&rs->g, ec);
+        printf("[WARN] move is not legal to make\n");
+        return;
+    }
+    ec = game_make_move(&rs->g, rs->pov, move);
+    if (ec != ERR_OK) {
+        print_game_error(&rs->g, ec);
+        printf("[ERROR] unexpected move making error\n");
+        return;
+    }
 }
 
-void repl_cmd_handle_g_print(repl_state* rs, const char* args)
+void repl_cmd_handle_g_print(repl_state* rs, int argc, char** argv)
 {
-    //TODO print optionally takes a pov to use
     if (rs->g.methods == NULL) {
         printf("[INFO] no game running\n");
         return;
@@ -604,9 +679,29 @@ void repl_cmd_handle_g_print(repl_state* rs, const char* args)
         printf("[INFO] game does not support feature: print\n");
         return;
     }
+    error_code ec;
+    player_id pov = rs->pov;
+    if (argc >= 1) {
+        int sc = sscanf(argv[0], "%hhu", &pov);
+        if (sc != 1) {
+            printf("[WARN] could not parse pov as u8\n");
+            return;
+        }
+        uint8_t pnum;
+        ec = game_player_count(&rs->g, &pnum);
+        if (ec != ERR_OK) {
+            print_game_error(&rs->g, ec);
+            printf("[ERROR] unexpected game player count error\n");
+            return;
+        }
+        if (pov > pnum) {
+            printf("[WARN] invalid pov for %u players\n", pnum);
+            return;
+        }
+    }
     size_t print_size;
     const char* print_str;
-    error_code ec = game_print(&rs->g, rs->pov, &print_size, &print_str);
+    ec = game_print(&rs->g, pov, &print_size, &print_str);
     if (ec != ERR_OK) {
         print_game_error(&rs->g, ec);
         return;

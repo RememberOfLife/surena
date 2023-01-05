@@ -347,7 +347,7 @@ error_code game_export_options(game* self, player_id player, size_t* ret_size, c
     return self->methods->export_options(self, player, ret_size, ret_str);
 }
 
-error_code player_count(game* self, uint8_t* ret_count)
+error_code game_player_count(game* self, uint8_t* ret_count)
 {
     assert(self);
     assert(self->methods);
