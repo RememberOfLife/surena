@@ -218,7 +218,7 @@ typedef struct repl_state_s {
 
 typedef enum REPL_CMD_E {
     REPL_CMD_NONE = 0,
-    //TODO M_HELP
+    REPL_CMD_M_HELP,
     //TODO M_LIST_STATIC
     REPL_CMD_M_LOAD_STATIC,
     REPL_CMD_M_LOAD_PLUGIN, //TODO support unloading?
@@ -260,8 +260,10 @@ typedef enum REPL_CMD_E {
     REPL_CMD_COUNT,
 } REPL_CMD;
 
+// a repl_cmd_func_t must print help information if rs is NULL
 typedef void repl_cmd_func_t(repl_state* rs, int argc, char** argv);
 
+repl_cmd_func_t repl_cmd_handle_m_help;
 repl_cmd_func_t repl_cmd_handle_m_load_static;
 repl_cmd_func_t repl_cmd_handle_m_load_plugin;
 repl_cmd_func_t repl_cmd_handle_m_exit;
@@ -280,6 +282,7 @@ typedef struct game_command_info_s {
 //TODO separate commands for game and meta like repl state and info and load mehtods
 game_command_info game_command_infos[REPL_CMD_COUNT] = {
     [REPL_CMD_NONE] = {"noop", NULL},
+    [REPL_CMD_M_HELP] = {"help", repl_cmd_handle_m_help},
     [REPL_CMD_M_LOAD_STATIC] = {"load_static", repl_cmd_handle_m_load_static},
     [REPL_CMD_M_LOAD_PLUGIN] = {"load_plugin", repl_cmd_handle_m_load_plugin},
     [REPL_CMD_M_EXIT] = {"exit", repl_cmd_handle_m_exit},
@@ -316,6 +319,21 @@ game_command_info game_command_infos[REPL_CMD_COUNT] = {
     [REPL_CMD_G_PRINT] = {"print", repl_cmd_handle_g_print},
 };
 
+REPL_CMD get_cmd_type(const char* str, const char* str_end)
+{
+    const char* wstr = str;
+    const char* estr = (str_end == NULL ? str + strlen(str) : str_end);
+    size_t cmp_len = estr - wstr;
+    REPL_CMD cmd_type = REPL_CMD_NONE;
+    for (REPL_CMD ct = 0; ct < REPL_CMD_COUNT; ct++) {
+        if (strncmp(wstr, game_command_infos[ct].text, cmp_len) == 0) {
+            cmd_type = ct;
+            break;
+        }
+    }
+    return cmd_type;
+}
+
 void handle_command(repl_state* rs, char* str)
 {
     /*TODO ideally cmd list wanted:
@@ -330,14 +348,7 @@ void handle_command(repl_state* rs, char* str)
     */
     const char* wstr = str;
     const char* estr = strpfc(str, ' ');
-    size_t cmp_len = estr - wstr;
-    REPL_CMD cmd_type = REPL_CMD_NONE;
-    for (REPL_CMD ct = 0; ct < REPL_CMD_COUNT; ct++) {
-        if (strncmp(wstr, game_command_infos[ct].text, cmp_len) == 0) {
-            cmd_type = ct;
-            break;
-        }
-    }
+    REPL_CMD cmd_type = get_cmd_type(wstr, estr);
     if (*estr != '\0') {
         estr++;
     }
@@ -512,8 +523,30 @@ int repl()
 
 //TODO for all of these, check that arg count isnt too many! since some vary in function depending on args, also help should show this per command!
 
+void repl_cmd_handle_m_help(repl_state* rs, int argc, char** argv)
+{
+    if (argc == 0) {
+
+    } else if (argc == 1) {
+        printf("showing help for \"%s\"\n", argv[0]);
+        REPL_CMD cmd_type = get_cmd_type(argv[0], NULL);
+        if (cmd_type != REPL_CMD_NONE && cmd_type < REPL_CMD_COUNT) {
+            game_command_infos[cmd_type].handler(NULL, 0, NULL);
+        } else {
+            printf("[INFO] unknown command type\n");
+        }
+    } else {
+        printf("[WARN] too many args for help cmd\n");
+    }
+}
+
 void repl_cmd_handle_m_load_static(repl_state* rs, int argc, char** argv)
 {
+    if (rs == NULL) { // print help
+        printf("usage: load_static <composite id>\n");
+        printf("format is BaseName.VariantName.ImplName, if variant is omitted it is assumed \"Standard\", if impl is omitted the first found is accepted\n");
+        return;
+    }
     if (argc < 1) {
         printf("[WARN] game name composite missing\n");
         return;
@@ -529,6 +562,11 @@ void repl_cmd_handle_m_load_static(repl_state* rs, int argc, char** argv)
 
 void repl_cmd_handle_m_load_plugin(repl_state* rs, int argc, char** argv)
 {
+    if (rs == NULL) { // print help
+        printf("usage: load_plugin <path> [idx]\n");
+        printf("if index is omitted, 0 is used\n");
+        return;
+    }
     if (argc < 1) {
         printf("[WARN] plugin file path missing\n");
         return;
@@ -553,23 +591,40 @@ void repl_cmd_handle_m_load_plugin(repl_state* rs, int argc, char** argv)
 
 void repl_cmd_handle_m_exit(repl_state* rs, int argc, char** argv)
 {
+    if (rs == NULL) { // print help
+        printf("usage: exit\n");
+        printf("quit the program\n");
+        return;
+    }
     rs->exit = true;
 }
 
 void repl_cmd_handle_m_get(repl_state* rs, int argc, char** argv)
 {
+    if (rs == NULL) { // print help
+        //TODO
+        return;
+    }
     //TODO
     printf("[WARN] feature unsupported");
 }
 
 void repl_cmd_handle_m_set(repl_state* rs, int argc, char** argv)
 {
+    if (rs == NULL) { // print help
+        //TODO
+        return;
+    }
     //TODO
     printf("[WARN] feature unsupported");
 }
 
 void repl_cmd_handle_g_create(repl_state* rs, int argc, char** argv)
 {
+    if (rs == NULL) { // print help
+        //TODO
+        return;
+    }
     //TODO switch on args to see if should create using std/b64 and then on if to use provided or from cache
     if (rs->g_methods == NULL) {
         printf("[WARN] can not create game: no methods selected\n");
@@ -621,6 +676,11 @@ void repl_cmd_handle_g_create(repl_state* rs, int argc, char** argv)
 
 void repl_cmd_handle_g_destroy(repl_state* rs, int argc, char** argv)
 {
+    if (rs == NULL) { // print help
+        printf("usage: destroy\n");
+        printf("destroy the currently running game, if it exists\n");
+        return;
+    }
     if (rs->g.methods == NULL) {
         printf("[INFO] no game running\n");
         return;
@@ -640,6 +700,12 @@ void repl_cmd_handle_g_destroy(repl_state* rs, int argc, char** argv)
 
 void repl_cmd_handle_g_make_move(repl_state* rs, int argc, char** argv)
 {
+    if (rs == NULL) { // print help
+        //TODO povs
+        printf("usage: move <move string>\n");
+        printf("check if the move is legal, and make it one the board if it is, using the current pov\n");
+        return;
+    }
     if (rs->g.methods == NULL) {
         printf("[INFO] no game running\n");
         return;
@@ -671,6 +737,11 @@ void repl_cmd_handle_g_make_move(repl_state* rs, int argc, char** argv)
 
 void repl_cmd_handle_g_print(repl_state* rs, int argc, char** argv)
 {
+    if (rs == NULL) { // print help
+        printf("usage: print [pov]\n");
+        printf("print the board using the selected pov, or the supplied optional override\n");
+        return;
+    }
     if (rs->g.methods == NULL) {
         printf("[INFO] no game running\n");
         return;
@@ -706,5 +777,6 @@ void repl_cmd_handle_g_print(repl_state* rs, int argc, char** argv)
         print_game_error(&rs->g, ec);
         return;
     }
+    printf("board print (%03hhu):\n", pov);
     printf("%s", print_str);
 }
