@@ -34,19 +34,19 @@ TODO interesting evals to try:
 
 */
 
-enum TWIXT_PP_PLAYER : player_id {
+typedef enum __attribute__((__packed__)) TWIXT_PP_PLAYER_E {
     TWIXT_PP_PLAYER_NONE = 0,
     TWIXT_PP_PLAYER_WHITE,
     TWIXT_PP_PLAYER_BLACK,
     TWIXT_PP_PLAYER_INVALID,
-};
+} TWIXT_PP_PLAYER;
 
-enum TWIXT_PP_DIR : uint8_t {
+typedef enum __attribute__((__packed__)) TWIXT_PP_DIR_E {
     TWIXT_PP_DIR_RT = 1 << 3,
     TWIXT_PP_DIR_RB = 1 << 2,
     TWIXT_PP_DIR_BR = 1 << 1,
     TWIXT_PP_DIR_BL = 1 << 0,
-};
+} TWIXT_PP_DIR;
 
 static const move_code TWIXT_PP_MOVE_SWAP = 1 << 16;
 

@@ -82,7 +82,7 @@ error_code rerrorvf(char** pbuf, error_code ec, const char* fmt, va_list args)
 }
 
 //TODO this might be a candidate for a rosalia utility in serialization.h
-size_t sl_move_data_serializer(GSIT itype, void* obj_in, void* obj_out, void* buf, void* buf_end)
+size_t ls_move_data_serializer(GSIT itype, void* obj_in, void* obj_out, void* buf, void* buf_end)
 {
     // flatten the unions, this encodes more data than required, but keeps complexity down
 
@@ -176,7 +176,7 @@ size_t sl_move_data_serializer(GSIT itype, void* obj_in, void* obj_out, void* bu
 }
 
 const serialization_layout sl_move_data_sync[] = {
-    {SL_TYPE_CUSTOM, offsetof(move_data_sync, md), .ext.serializer = sl_move_data_serializer},
+    {SL_TYPE_CUSTOM, offsetof(move_data_sync, md), .ext.serializer = ls_move_data_serializer},
     {SL_TYPE_U64, offsetof(move_data_sync, sync_ctr)},
     {SL_TYPE_STOP},
 };

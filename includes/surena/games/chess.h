@@ -8,13 +8,14 @@ extern "C" {
 
 const uint32_t CHESS_MAX_MOVES = 218;
 
-enum CHESS_PLAYER : player_id {
+typedef enum __attribute__((__packed__)) CHESS_PLAYER_E {
     CHESS_PLAYER_NONE = 0,
     CHESS_PLAYER_WHITE,
     CHESS_PLAYER_BLACK,
-};
+    CHESS_PLAYER_COUNT,
+} CHESS_PLAYER;
 
-enum CHESS_PIECE_TYPE : uint8_t {
+typedef enum __attribute__((__packed__)) CHESS_PIECE_TYPE_E {
     CHESS_PIECE_TYPE_NONE = 0,
     CHESS_PIECE_TYPE_KING,
     CHESS_PIECE_TYPE_QUEEN,
@@ -22,7 +23,8 @@ enum CHESS_PIECE_TYPE : uint8_t {
     CHESS_PIECE_TYPE_BISHOP,
     CHESS_PIECE_TYPE_KNIGHT,
     CHESS_PIECE_TYPE_PAWN,
-};
+    CHESS_PIECE_TYPE_COUNT,
+} CHESS_PIECE_TYPE;
 
 extern const char CHESS_PIECE_TYPE_CHARS[7];
 

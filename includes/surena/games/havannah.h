@@ -20,12 +20,12 @@ because the first move has advantage, the opponent may either switch the colors 
 the weaker player may be allowed to place more than 1 stone on their first turn if desired, as compensation
 */
 
-enum HAVANNAH_PLAYER : player_id {
+typedef enum __attribute__((__packed__)) HAVANNAH_PLAYER_E {
     HAVANNAH_PLAYER_NONE = 0,
     HAVANNAH_PLAYER_WHITE,
     HAVANNAH_PLAYER_BLACK,
     HAVANNAH_PLAYER_INVALID,
-};
+} HAVANNAH_PLAYER;
 
 extern const char HAVANNAH_PLAYER_CHARS[4];
 
