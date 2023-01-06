@@ -480,12 +480,15 @@ error_code game_make_move(game* self, player_id player, move_data_sync move)
     if (ec != ERR_OK) {
         return ec;
     }
-    move_data_sync action;
-    ec = game_move_to_action(self, player, move, &action);
-    if (ec != ERR_OK) {
-        return ec;
+    bool action_dropped = false;
+    if (game_ff(self).random_moves || game_ff(self).hidden_information || game_ff(self).simultaneous_moves) {
+        move_data_sync action;
+        ec = game_move_to_action(self, player, move, &action);
+        if (ec != ERR_OK) {
+            return ec;
+        }
+        action_dropped = game_e_move_is_none(self, action.md);
     }
-    bool action_dropped = game_e_move_is_none(self, action.md);
     ec = self->methods->make_move(self, player, move);
     if (action_dropped == false) {
         self->sync_ctr++;

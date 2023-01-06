@@ -83,6 +83,8 @@ typedef struct move_data_sync_s {
 
 extern const serialization_layout sl_move_data_sync[];
 
+//TODO might want empty creates for data and data_sync
+
 static const uint64_t SYNC_CTR_DEFAULT = 0; // this is already a valid sync ctr value (usually first for a fresh game)
 
 //TODO !maybe! force every move to also include a player + move_to_player in the game_methods

@@ -35,7 +35,7 @@ void strargsplit(const char* str, int* argc, char*** argv)
     }
     //TODO want do backslash escapes for \ + (\,",',n,t,b,f,r,u,/) just like json
     //TODO allow both quote modes with " and ', remember only the outer most one used
-    char* newstr = (char*)malloc(strlen(str) + 2);
+    char* newstr = (char*)malloc(strlen(str) + 2); // sadly need 1 extra space for the very last terminator //TODO might not even want that feature
     char* ostr = newstr;
     const char* wstr = str;
     bool is_empty = true;
@@ -58,6 +58,7 @@ void strargsplit(const char* str, int* argc, char*** argv)
         }
         wstr++;
     }
+    *ostr = '\0';
     if (is_empty == false) {
         cnt++;
     }
@@ -599,33 +600,61 @@ void repl_cmd_handle_g_destroy(repl_state* rs, int argc, char** argv)
 void repl_cmd_handle_g_make_move(repl_state* rs, int argc, char** argv)
 {
     if (rs == NULL) { // print help
-        //TODO povs
-        printf("usage: move <move string>\n");
-        printf("check if the move is legal, and make it one the board if it is, using the current pov\n");
+        printf("usage: make_move [pov] <move string>\n");
+        printf("check if the move is legal, and make it one the board if it is, using the current pov or the supplied override\n");
         return;
     }
     if (rs->g.methods == NULL) {
         printf("no game running\n");
         return;
     }
-    if (argc < 1) {
-        printf("move string required to make move\n");
+    error_code ec;
+    player_id pov = rs->pov;
+    char* movestr = argv[0];
+    if (argc == 0) {
+        printf("at least a move string is required to make a move\n");
+        return;
+    } else if (argc == 2) {
+        int sc = sscanf(argv[0], "%hhu", &pov);
+        if (sc != 1) {
+            printf("could not parse pov as u8\n");
+            return;
+        }
+        uint8_t pnum;
+        ec = game_player_count(&rs->g, &pnum);
+        if (ec != ERR_OK) {
+            print_game_error(&rs->g, ec);
+            printf("[ERROR] unexpected game player count error\n");
+            return;
+        }
+        if (pov > pnum && pov != PLAYER_RAND) {
+            printf("invalid pov for %u players\n", pnum);
+            return;
+        }
+        movestr = argv[1];
+    } else if (argc > 2) {
+        printf("too many arguments for make move\n");
         return;
     }
+    if (pov == PLAYER_NONE) {
+        printf("can not make move as PLAYER_NONE\n");
+        return;
+    }
+    //TODO check if pov is to move before continuing?
     move_data_sync move;
-    error_code ec = game_get_move_data(&rs->g, rs->pov, argv[0], &move);
+    ec = game_get_move_data(&rs->g, pov, movestr, &move);
     if (ec != ERR_OK) {
         print_game_error(&rs->g, ec);
         printf("could not get move data\n");
         return;
     }
-    ec = game_is_legal_move(&rs->g, rs->pov, move);
+    ec = game_is_legal_move(&rs->g, pov, move);
     if (ec != ERR_OK) {
         print_game_error(&rs->g, ec);
         printf("move is not legal to make\n");
         return;
     }
-    ec = game_make_move(&rs->g, rs->pov, move);
+    ec = game_make_move(&rs->g, pov, move);
     if (ec != ERR_OK) {
         print_game_error(&rs->g, ec);
         printf("[ERROR] unexpected move making error\n");
