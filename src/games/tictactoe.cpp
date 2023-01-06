@@ -15,18 +15,20 @@
 
 // general purpose helpers for opts, data, bufs
 
-struct export_buffers {
-    char* state;
-    player_id* players_to_move;
-    move_data* concrete_moves;
-    player_id* results;
-    char* move_str;
-    char* print;
-};
+namespace {
 
-struct data_repr {
-    export_buffers bufs;
-    /*
+    struct export_buffers {
+        char* state;
+        player_id* players_to_move;
+        move_data* concrete_moves;
+        player_id* results;
+        char* move_str;
+        char* print;
+    };
+
+    struct data_repr {
+        export_buffers bufs;
+        /*
         board as:
         789
         456
@@ -34,28 +36,30 @@ struct data_repr {
         state bits (MSB<->LSB): ... RR CC 998877 665544 332211
         where RR is results and CC is current player
         */
-    uint32_t state;
-};
+        uint32_t state;
+    };
 
-export_buffers& get_bufs(game* self)
-{
-    return ((data_repr*)(self->data1))->bufs;
-}
+    export_buffers& get_bufs(game* self)
+    {
+        return ((data_repr*)(self->data1))->bufs;
+    }
 
-data_repr& get_repr(game* self)
-{
-    return *((data_repr*)(self->data1));
-}
+    data_repr& get_repr(game* self)
+    {
+        return *((data_repr*)(self->data1));
+    }
+
+} // namespace
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 // impl internal declarations
-error_code get_cell(game* self, int x, int y, player_id* p);
-error_code set_cell(game* self, int x, int y, player_id p);
-error_code set_current_player(game* self, player_id p);
-error_code set_result(game* self, player_id p);
+static error_code get_cell(game* self, int x, int y, player_id* p);
+static error_code set_cell(game* self, int x, int y, player_id p);
+static error_code set_current_player(game* self, player_id p);
+static error_code set_result(game* self, player_id p);
 
 // need internal function pointer struct here
 static const tictactoe_internal_methods tictactoe_gbe_internal_methods{
@@ -70,7 +74,7 @@ static const tictactoe_internal_methods tictactoe_gbe_internal_methods{
 #define SURENA_GDD_GNAME "TicTacToe"
 #define SURENA_GDD_VNAME "Standard"
 #define SURENA_GDD_INAME "surena_default"
-#define SURENA_GDD_VERSION ((semver){0, 1, 0})
+#define SURENA_GDD_VERSION ((semver){0, 2, 0})
 #define SURENA_GDD_INTERNALS &tictactoe_gbe_internal_methods
 #define SURENA_GDD_FF_ID
 #define SURENA_GDD_FF_PLAYOUT
@@ -88,12 +92,12 @@ static error_code create(game* self, game_init* init_info)
     self->data2 = NULL;
     {
         export_buffers& bufs = get_bufs(self);
-        bufs.state = (char*)malloc(16);
-        bufs.players_to_move = (player_id*)malloc(1);
-        bufs.concrete_moves = (move_data*)malloc(9);
-        bufs.results = (player_id*)malloc(1);
-        bufs.move_str = (char*)malloc(3);
-        bufs.print = (char*)malloc(13);
+        bufs.state = (char*)malloc(16 * sizeof(char));
+        bufs.players_to_move = (player_id*)malloc(1 * sizeof(player_id));
+        bufs.concrete_moves = (move_data*)malloc(9 * sizeof(move_data));
+        bufs.results = (player_id*)malloc(1 * sizeof(char));
+        bufs.move_str = (char*)malloc(3 * sizeof(char));
+        bufs.print = (char*)malloc(13 * sizeof(char));
         if (bufs.state == NULL ||
             bufs.players_to_move == NULL ||
             bufs.concrete_moves == NULL ||
@@ -129,9 +133,6 @@ static error_code destroy(game* self)
 
 static error_code clone(game* self, game* clone_target)
 {
-    if (clone_target == NULL) {
-        return ERR_INVALID_INPUT;
-    }
     clone_target->methods = self->methods;
     game_init init_info = (game_init){.source_type = GAME_INIT_SOURCE_TYPE_DEFAULT};
     error_code ec = clone_target->methods->create(clone_target, &init_info);
@@ -388,8 +389,9 @@ static error_code is_legal_move(game* self, player_id player, move_data_sync mov
     if (*ptm != player) {
         return ERR_INVALID_INPUT;
     }
-    int x = move.md.cl.code & 0b11;
-    int y = (move.md.cl.code >> 2) & 0b11;
+    move_code mcode = move.md.cl.code;
+    int x = mcode & 0b11;
+    int y = (mcode >> 2) & 0b11;
     if (x > 2 || y > 2) {
         return ERR_INVALID_INPUT;
     }
@@ -405,8 +407,9 @@ static error_code make_move(game* self, player_id player, move_data_sync move)
 {
     data_repr& data = get_repr(self);
     // set move as current player
-    int x = move.md.cl.code & 0b11;
-    int y = (move.md.cl.code >> 2) & 0b11;
+    move_code mcode = move.md.cl.code;
+    int x = mcode & 0b11;
+    int y = (mcode >> 2) & 0b11;
     int current_player = (data.state >> 18) & 0b11;
     set_cell(self, x, y, current_player);
     // detect win for current player
@@ -576,7 +579,7 @@ static error_code print(game* self, player_id player, size_t* ret_size, const ch
 //=====
 // game internal methods
 
-error_code get_cell(game* self, int x, int y, player_id* p)
+static error_code get_cell(game* self, int x, int y, player_id* p)
 {
     data_repr& data = get_repr(self);
     // shift over the correct 2 bits representing the player at that position
@@ -584,7 +587,7 @@ error_code get_cell(game* self, int x, int y, player_id* p)
     return ERR_OK;
 }
 
-error_code set_cell(game* self, int x, int y, player_id p)
+static error_code set_cell(game* self, int x, int y, player_id p)
 {
     data_repr& data = get_repr(self);
     player_id pc;
@@ -595,7 +598,7 @@ error_code set_cell(game* self, int x, int y, player_id p)
     return ERR_OK;
 }
 
-error_code set_current_player(game* self, player_id p)
+static error_code set_current_player(game* self, player_id p)
 {
     data_repr& data = get_repr(self);
     data.state &= ~(0b11 << 18); // reset current player to 0
@@ -603,7 +606,7 @@ error_code set_current_player(game* self, player_id p)
     return ERR_OK;
 }
 
-error_code set_result(game* self, player_id p)
+static error_code set_result(game* self, player_id p)
 {
     data_repr& data = get_repr(self);
     data.state &= ~(0b11 << 20); // reset result to 0

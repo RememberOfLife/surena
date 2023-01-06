@@ -64,7 +64,7 @@ static const uint64_t SEED_NONE = 0;
 typedef uint64_t move_code;
 static const move_code MOVE_NONE = UINT64_MAX;
 
-//TODO why is this not just a union of move_code and blob???
+// this can not just be a union over move_code and blob, because ls_move_data_serializer needs to be able to serialize this without the game as context
 typedef struct move_data_s {
     union {
         move_code code; // FEATURE: !big_moves ; use MOVE_NONE for empty

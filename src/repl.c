@@ -6,7 +6,6 @@
 
 #include "surena/games/chess.h"
 #include "surena/games/havannah.h"
-#include "surena/games/oshisumo.h"
 #include "surena/games/tictactoe_ultimate.h"
 #include "surena/games/tictactoe.h"
 #include "surena/games/twixt_pp.h"
@@ -112,11 +111,11 @@ const game_methods* load_plugin_game_methods(const char* file, uint32_t idx)
 
 //TODO keep this ordered via a sort and compare func, for now use hierarchical
 const game_methods* static_game_methods[] = {
-    // &chess_gbe,
-    // &havannah_gbe,
+    &chess_standard_gbe,
+    &havannah_standard_gbe,
     &tictactoe_standard_gbe,
-    // &tictactoe_ultimate_gbe,
-    // &twixt_pp_gbe,
+    &tictactoe_ultimate_gbe,
+    &twixt_pp_gbe,
 };
 
 const game_methods* load_static_game_methods(const char* composite_id)

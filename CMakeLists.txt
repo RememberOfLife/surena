@@ -43,12 +43,12 @@ set(SOURCES
 
     # src/games/alhambra.cpp
     # src/games/caesar.cpp
-    # src/games/chess.cpp
-    # src/games/havannah.cpp
+    src/games/chess.cpp
+    src/games/havannah.cpp
     # src/games/oshisumo.cpp
-    # src/games/tictactoe_ultimate.cpp
+    src/games/tictactoe_ultimate.cpp
     src/games/tictactoe.cpp
-    # src/games/twixt_pp.cpp
+    src/games/twixt_pp.cpp
 
     # src/engine.cpp
     src/game.c

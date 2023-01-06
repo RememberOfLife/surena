@@ -49,7 +49,7 @@ typedef struct chess_internal_methods_s {
 
 } chess_internal_methods;
 
-extern const game_methods chess_gbe;
+extern const game_methods chess_standard_gbe;
 
 #ifdef __cplusplus
 }

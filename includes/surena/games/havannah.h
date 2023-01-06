@@ -62,7 +62,7 @@ typedef struct havannah_internal_methods_s {
 
 } havannah_internal_methods;
 
-extern const game_methods havannah_gbe;
+extern const game_methods havannah_standard_gbe;
 
 #ifdef __cplusplus
 }
