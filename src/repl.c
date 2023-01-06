@@ -360,7 +360,7 @@ void handle_command(repl_state* rs, char* str)
         game_command_infos[cmd_type].handler(rs, argc, argv);
         strargsplit(NULL, NULL, &argv);
     } else {
-        printf("[INFO] unknown command\n");
+        printf("unknown command\n");
     }
 }
 
@@ -398,145 +398,43 @@ int repl()
             handle_command(&rs, read_buf + 1);
         } else {
             // unknown
-            printf("[INFO] not a command, direct moves unsupported for now, use \":help\" for help\n");
+            printf("not a command, direct moves unsupported for now, use \"%chelp\" for help\n", cmd_prefix);
             //TODO this should be the default "move"
         }
         // print
-        //TODO
+        /*TODO
+        auto print results on end
+        auto print board/id/state/eval/ptm after move
+        auto print sync data after move? or show some info about it
+        */
     }
     free(read_buf);
 
     return 0;
 }
 
-/*
-
-    if (game_method->features.print == false) {
-        printf("[WARN] game method does not support debug print\n");
-    }
-
-    error_code ec;
-    game thegame{
-        .methods = game_method,
-        .data1 = NULL,
-        .data2 = NULL,
-    };
-    printf("[INFO] game method: %s.%s.%s %d.%d.%d\n", thegame.methods->game_name, thegame.methods->variant_name, thegame.methods->impl_name, thegame.methods->version.major, thegame.methods->version.minor, thegame.methods->version.patch);
-    if (game_options != NULL && thegame.methods->features.options == false) {
-        printf("[WARN] game does not support options, ignoring\n");
-    }
-
-    // game gets created
-
-    if (ec != ERR_OK) {
-        printf("[ERROR] failed to create: #%d %s\n", ec, thegame.methods->features.error_strings ? thegame.methods->get_last_error(&thegame) : NULL);
-        printf("%*soptions: %s\n", 8, "", game_options);
-        printf("%*slegacy: %s\n", 8, "", game_legacy);
-        printf("%*sinitial state: %s\n", 8, "", initial_state);
-        exit(1);
-    }
-    if (thegame.methods->features.options) {
-        size_t options_str_size = thegame.sizer.options_str;
-        char* options_str = (char*)malloc(options_str_size);
-        thegame.methods->export_options(&thegame, &options_str_size, options_str);
-        printf("[INFO] options: \"%s\"\n", options_str);
-        free(options_str);
-    }
-    size_t state_str_size = thegame.sizer.state_str;
-    char* state_str = (char*)malloc(state_str_size);
-    size_t print_buf_size = thegame.sizer.print_str;
-    char* print_buf = thegame.methods->features.print ? (char*)malloc(print_buf_size) : NULL;
-    size_t move_str_size = thegame.sizer.move_str;
-    move_str_size++; // account for reading '\n' later on
-    if (move_str_size < 1024) {
-        // increase input buffer to prevent typical input overflows
-        // this does not serve security purposes but rather usability, overflow security is handled later on
-        move_str_size = 1024;
-    }
-    char* move_str = (char*)malloc(move_str_size);
-    player_id ptm;
-    uint8_t ptm_count;
-    thegame.methods->players_to_move(&thegame, &ptm_count, &ptm);
-    //TODO adapt loop for simul player games, and what way to print the whole knowing board AND a privacy view hidden board?
-    //TODO also print sync data when it becomes available
-    while (true) {
-        printf("================================\n");
-        thegame.methods->export_state(&thegame, &state_str_size, state_str);
-        printf("state: \"%s\"\n", state_str);
-        bool extra_state = false;
-        if (thegame.methods->features.id) {
-            extra_state = true;
-            uint64_t theid;
-            thegame.methods->id(&thegame, &theid);
-            printf("ID#%016lx", theid);
-        }
-        if (thegame.methods->features.eval) {
-            if (extra_state) {
-                printf(" ");
-            }
-            extra_state = true;
-            float theeval;
-            thegame.methods->eval(&thegame, ptm, &theeval);
-            printf("EVAL:%.5f", theeval);
-        }
-        if (extra_state) {
-            printf("\n");
-        }
-        if (thegame.methods->features.print) {
-            thegame.methods->print(&thegame, &print_buf_size, print_buf);
-            printf("%s", print_buf);
-        }
-        if (ptm_count == 0) {
-            break;
-        }
-        printf("player to move %d: ", ptm);
-
-        // input reading
-
-        move_code themove;
-        ec = thegame.methods->get_move_code(&thegame, PLAYER_NONE, move_str, &themove);
-        if (ec == ERR_OK) {
-            ec = thegame.methods->is_legal_move(&thegame, ptm, themove);
-        }
-        if (ec == ERR_OK) {
-            thegame.methods->make_move(&thegame, ptm, themove);
-        } else {
-            printf("invalid move: %s\n", thegame.methods->features.error_strings ? thegame.methods->get_last_error(&thegame) : NULL);
-        }
-        thegame.methods->players_to_move(&thegame, &ptm_count, &ptm);
-    }
-    player_id res;
-    uint8_t res_count;
-    thegame.methods->get_results(&thegame, &res_count, &res);
-    if (res_count == 0) {
-        res = PLAYER_NONE;
-    }
-    printf("result player %d\n", res);
-    thegame.methods->destroy(&thegame);
-    printf("================================\n");
-
-    free(state_str);
-    free(print_buf);
-    free(move_str);
-
-*/
-
 //TODO for all of these, check that arg count isnt too many! since some vary in function depending on args, also help should show this per command!
 
 void repl_cmd_handle_m_help(repl_state* rs, int argc, char** argv)
 {
     if (argc == 0) {
-
+        printf("usage: help [cmd]\n");
+        printf("use with command to see its usage\n");
+        printf("available commands:");
+        for (REPL_CMD cmd_type = REPL_CMD_NONE; cmd_type < REPL_CMD_COUNT; cmd_type++) {
+            printf(" %s", game_command_infos[cmd_type].text);
+        }
+        printf("\n");
     } else if (argc == 1) {
         printf("showing help for \"%s\"\n", argv[0]);
         REPL_CMD cmd_type = get_cmd_type(argv[0], NULL);
         if (cmd_type != REPL_CMD_NONE && cmd_type < REPL_CMD_COUNT) {
             game_command_infos[cmd_type].handler(NULL, 0, NULL);
         } else {
-            printf("[INFO] unknown command type\n");
+            printf("unknown command type\n");
         }
     } else {
-        printf("[WARN] too many args for help cmd\n");
+        printf("too many args for help cmd\n");
     }
 }
 
@@ -548,14 +446,14 @@ void repl_cmd_handle_m_load_static(repl_state* rs, int argc, char** argv)
         return;
     }
     if (argc < 1) {
-        printf("[WARN] game name composite missing\n");
+        printf("game name composite missing\n");
         return;
     }
     const game_methods* gm = load_static_game_methods(argv[0]);
     if (gm == NULL) {
-        printf("[WARN] game methods \"%s\" not found\n", argv[0]);
+        printf("game methods \"%s\" not found\n", argv[0]);
     } else {
-        printf("[INFO] found: %s.%s.%s v%u.%u.%u\n", gm->game_name, gm->variant_name, gm->impl_name, gm->version.major, gm->version.minor, gm->version.patch);
+        printf("found: %s.%s.%s v%u.%u.%u\n", gm->game_name, gm->variant_name, gm->impl_name, gm->version.major, gm->version.minor, gm->version.patch);
         rs->g_methods = gm;
     }
 }
@@ -568,23 +466,23 @@ void repl_cmd_handle_m_load_plugin(repl_state* rs, int argc, char** argv)
         return;
     }
     if (argc < 1) {
-        printf("[WARN] plugin file path missing\n");
+        printf("plugin file path missing\n");
         return;
     }
     uint32_t load_idx = 0;
     if (argc >= 2) {
         int sc = sscanf(argv[1], "%u", &load_idx);
         if (sc != 1) {
-            printf("[WARN] could not parse index as u32\n");
+            printf("could not parse index as u32\n");
             return;
         }
     }
     const game_methods* gm = load_plugin_game_methods(argv[0], load_idx);
     if (gm == NULL) {
-        printf("[WARN] plugin did not provide at least one game, ignoring\n");
-        printf("[INFO] relative plugin paths MUST be prefixed with \"./\"\n");
+        printf("plugin did not provide at least one game, ignoring\n");
+        printf("note: relative plugin paths MUST be prefixed with \"./\"\n");
     } else {
-        printf("[INFO] loaded method 0: %s.%s.%s v%u.%u.%u\n", gm->game_name, gm->variant_name, gm->impl_name, gm->version.major, gm->version.minor, gm->version.patch);
+        printf("loaded method %u: %s.%s.%s v%u.%u.%u\n", load_idx, gm->game_name, gm->variant_name, gm->impl_name, gm->version.major, gm->version.minor, gm->version.patch);
         rs->g_methods = gm;
     }
 }
@@ -606,7 +504,7 @@ void repl_cmd_handle_m_get(repl_state* rs, int argc, char** argv)
         return;
     }
     //TODO
-    printf("[WARN] feature unsupported");
+    printf("feature unsupported");
 }
 
 void repl_cmd_handle_m_set(repl_state* rs, int argc, char** argv)
@@ -616,7 +514,7 @@ void repl_cmd_handle_m_set(repl_state* rs, int argc, char** argv)
         return;
     }
     //TODO
-    printf("[WARN] feature unsupported");
+    printf("feature unsupported");
 }
 
 void repl_cmd_handle_g_create(repl_state* rs, int argc, char** argv)
@@ -627,7 +525,7 @@ void repl_cmd_handle_g_create(repl_state* rs, int argc, char** argv)
     }
     //TODO switch on args to see if should create using std/b64 and then on if to use provided or from cache
     if (rs->g_methods == NULL) {
-        printf("[WARN] can not create game: no methods selected\n");
+        printf("can not create game: no methods selected\n");
         return;
     }
     error_code ec;
@@ -682,7 +580,7 @@ void repl_cmd_handle_g_destroy(repl_state* rs, int argc, char** argv)
         return;
     }
     if (rs->g.methods == NULL) {
-        printf("[INFO] no game running\n");
+        printf("no game running\n");
         return;
     }
     error_code ec = game_destroy(&rs->g);
@@ -707,24 +605,24 @@ void repl_cmd_handle_g_make_move(repl_state* rs, int argc, char** argv)
         return;
     }
     if (rs->g.methods == NULL) {
-        printf("[INFO] no game running\n");
+        printf("no game running\n");
         return;
     }
     if (argc < 1) {
-        printf("[WARN] move string required to make move\n");
+        printf("move string required to make move\n");
         return;
     }
     move_data_sync move;
     error_code ec = game_get_move_data(&rs->g, rs->pov, argv[0], &move);
     if (ec != ERR_OK) {
         print_game_error(&rs->g, ec);
-        printf("[WARN] could not get move data\n");
+        printf("could not get move data\n");
         return;
     }
     ec = game_is_legal_move(&rs->g, rs->pov, move);
     if (ec != ERR_OK) {
         print_game_error(&rs->g, ec);
-        printf("[WARN] move is not legal to make\n");
+        printf("move is not legal to make\n");
         return;
     }
     ec = game_make_move(&rs->g, rs->pov, move);
@@ -743,11 +641,11 @@ void repl_cmd_handle_g_print(repl_state* rs, int argc, char** argv)
         return;
     }
     if (rs->g.methods == NULL) {
-        printf("[INFO] no game running\n");
+        printf("no game running\n");
         return;
     }
     if (game_ff(&rs->g).print == false) {
-        printf("[INFO] game does not support feature: print\n");
+        printf("game does not support feature: print\n");
         return;
     }
     error_code ec;
@@ -755,7 +653,7 @@ void repl_cmd_handle_g_print(repl_state* rs, int argc, char** argv)
     if (argc >= 1) {
         int sc = sscanf(argv[0], "%hhu", &pov);
         if (sc != 1) {
-            printf("[WARN] could not parse pov as u8\n");
+            printf("could not parse pov as u8\n");
             return;
         }
         uint8_t pnum;
@@ -766,7 +664,7 @@ void repl_cmd_handle_g_print(repl_state* rs, int argc, char** argv)
             return;
         }
         if (pov > pnum) {
-            printf("[WARN] invalid pov for %u players\n", pnum);
+            printf("invalid pov for %u players\n", pnum);
             return;
         }
     }

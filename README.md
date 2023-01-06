@@ -8,13 +8,7 @@ Don't forget to clone submodules too by using:
 `git clone --recurse-submodules https://github.com/RememberOfLife/surena.git`
 
 ## usage
-`surena [options]`  
-available options:
-* `--game <basegame[.variant]>` play the **basegame**, if specified use the **variant** (standard variants are not specified)
-* `--game-plugin <file>` play the the first provided game method of the **file** game plugin by using the game plugin loader
-* `--game-options <string>` don't create a default game, but use the options **string** instead
-* `--game-state <string>` after creating the game, import the given state **string**
-* `--version`
+`surena <version/repl>`
 
 ## support
 |game|status|
