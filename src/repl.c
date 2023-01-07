@@ -219,15 +219,15 @@ typedef struct repl_state_s {
 typedef enum REPL_CMD_E {
     REPL_CMD_NONE = 0,
     REPL_CMD_M_HELP,
-    //TODO M_LIST_STATIC
+    //TODO REPL_CMD_M_LIST_STATIC,
     REPL_CMD_M_LOAD_STATIC,
     REPL_CMD_M_LOAD_PLUGIN, //TODO support unloading?
     REPL_CMD_M_EXIT,
     REPL_CMD_M_GET,
     REPL_CMD_M_SET,
-    //TODO M_POV for set and get
-    //TODO M_RS
-    //TODO M_GINFO
+    REPL_CMD_M_POV,
+    //TODO REPL_CMD_M_RS,
+    //TODO REPL_CMD_M_GINFO,
     REPL_CMD_G_CREATE,
     REPL_CMD_G_DESTROY,
     // REPL_CMD_G_EXPORT_OPTIONS,
@@ -269,6 +269,7 @@ repl_cmd_func_t repl_cmd_handle_m_load_plugin;
 repl_cmd_func_t repl_cmd_handle_m_exit;
 repl_cmd_func_t repl_cmd_handle_m_get;
 repl_cmd_func_t repl_cmd_handle_m_set;
+repl_cmd_func_t repl_cmd_handle_m_pov;
 repl_cmd_func_t repl_cmd_handle_g_create;
 repl_cmd_func_t repl_cmd_handle_g_destroy;
 repl_cmd_func_t repl_cmd_handle_g_make_move;
@@ -288,6 +289,7 @@ game_command_info game_command_infos[REPL_CMD_COUNT] = {
     [REPL_CMD_M_EXIT] = {"exit", repl_cmd_handle_m_exit},
     [REPL_CMD_M_GET] = {"get", repl_cmd_handle_m_get},
     [REPL_CMD_M_SET] = {"set", repl_cmd_handle_m_set},
+    [REPL_CMD_M_POV] = {"pov", repl_cmd_handle_m_pov},
     [REPL_CMD_G_CREATE] = {"create", repl_cmd_handle_g_create},
     [REPL_CMD_G_DESTROY] = {"destroy", repl_cmd_handle_g_destroy},
     // [REPL_CMD_G_EXPORT_OPTIONS] = {"export_options", NULL},
@@ -397,9 +399,12 @@ int repl()
             // is a command
             handle_command(&rs, read_buf + 1);
         } else {
-            // unknown
-            printf("not a command, direct moves unsupported for now, use \"%chelp\" for help\n", cmd_prefix);
-            //TODO this should be the default "move"
+            // default "move"
+            int move_argc;
+            char** move_argv;
+            strargsplit(read_buf, &move_argc, &move_argv);
+            game_command_infos[REPL_CMD_G_MAKE_MOVE].handler(&rs, move_argc, move_argv);
+            strargsplit(NULL, NULL, &move_argv);
         }
         // print
         /*TODO
@@ -517,6 +522,41 @@ void repl_cmd_handle_m_set(repl_state* rs, int argc, char** argv)
     printf("feature unsupported");
 }
 
+void repl_cmd_handle_m_pov(repl_state* rs, int argc, char** argv)
+{
+    if (rs == NULL) { // print help
+        //TODO
+        return;
+    }
+    if (rs->g.methods == NULL) {
+        printf("no game running\n");
+        return;
+    }
+    player_id pov = rs->pov;
+    if (argc == 0) {
+        printf("pov: %03hhu\n", pov);
+        return;
+    }
+    //TODO allow none and rand as string shorthands for 0 and 255 and allow rand only for games with random in general!
+    int sc = sscanf(argv[0], "%hhu", &pov);
+    if (sc != 1) {
+        printf("could not parse pov as u8\n");
+        return;
+    }
+    uint8_t pnum;
+    error_code ec = game_player_count(&rs->g, &pnum);
+    if (ec != ERR_OK) {
+        print_game_error(&rs->g, ec);
+        printf("[ERROR] unexpected game player count error\n");
+        return;
+    }
+    if (pov > pnum && pov != PLAYER_RAND) {
+        printf("invalid pov for %u players\n", pnum);
+        return;
+    }
+    rs->pov = pov;
+}
+
 void repl_cmd_handle_g_create(repl_state* rs, int argc, char** argv)
 {
     if (rs == NULL) { // print help
@@ -570,6 +610,7 @@ void repl_cmd_handle_g_create(repl_state* rs, int argc, char** argv)
             printf("[ERROR] unexpected game destruction error\n");
         }
     }
+    rs->pov = PLAYER_NONE;
 }
 
 void repl_cmd_handle_g_destroy(repl_state* rs, int argc, char** argv)
@@ -594,6 +635,7 @@ void repl_cmd_handle_g_destroy(repl_state* rs, int argc, char** argv)
         print_game_error(&rs->g, ec);
         printf("[ERROR] unexpected game destruction error\n");
     }
+    rs->pov = PLAYER_NONE;
 }
 
 void repl_cmd_handle_g_make_move(repl_state* rs, int argc, char** argv)
@@ -614,6 +656,7 @@ void repl_cmd_handle_g_make_move(repl_state* rs, int argc, char** argv)
         printf("at least a move string is required to make a move\n");
         return;
     } else if (argc == 2) {
+        //TODO allow none and rand as string shorthands for 0 and 255 and allow rand only for games with random in general!
         int sc = sscanf(argv[0], "%hhu", &pov);
         if (sc != 1) {
             printf("could not parse pov as u8\n");

@@ -631,14 +631,14 @@ bool game_e_move_is_none(game* self, move_data move)
 {
     assert(self);
     assert(self->methods);
-    return ((move.data == NULL && move.cl.len == 0) || move.cl.code == MOVE_NONE);
+    return game_ff(self).big_moves ? (move.data == NULL && move.cl.len == 0) : (move.cl.code == MOVE_NONE);
 }
 
 bool game_e_move_sync_is_none(game* self, move_data_sync move)
 {
     assert(self);
     assert(self->methods);
-    return ((move.md.data == NULL && move.md.cl.len == 0) || move.md.cl.code == MOVE_NONE);
+    return game_e_move_is_none(self, move.md);
 }
 
 move_data game_e_move_copy(game* self, move_data move)

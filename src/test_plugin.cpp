@@ -1,7 +1,8 @@
 /*
     compile from the project root with:
-    g++ -g -fPIC -shared src/test_plugin.cpp src/games/tictactoe.cpp src/util/fast_prng.c src/util/noise.c src/util/semver.c src/game.c -Iincludes -o build/test_plugin.so
+    g++ -g -fPIC -shared src/test_plugin.cpp src/games/tictactoe.cpp lib/rosalia/src/impl/noise.c lib/rosalia/src/impl/rand.c lib/rosalia/src/impl/semver.c lib/rosalia/src/impl/serialization.c src/game.c -Iincludes -Ilib/rosalia/includes -o build/test_plugin.so
     this provides standard tictactoe as a test for the plugin loading system
+    unfortunately it seems that g++ currently doesn't support part of the C features used in serialization.h, so this doesn't actually work
 */
 
 #include "surena/games/tictactoe.h"
@@ -22,7 +23,7 @@ void plugin_get_game_methods(uint32_t* count, const game_methods** methods)
     if (methods == NULL) {
         return;
     }
-    methods[0] = &tictactoe_gbe;
+    methods[0] = &tictactoe_standard_gbe;
 }
 
 void plugin_cleanup_game()
