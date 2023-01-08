@@ -564,6 +564,8 @@ bool game_e_move_is_none(game* self, move_data move);
 bool game_e_move_sync_is_none(game* self, move_data_sync move);
 move_data game_e_move_copy(game* self, move_data move);
 move_data_sync game_e_move_sync_copy(game* self, move_data_sync move);
+void game_e_move_destroy(game* self, move_data move);
+void game_e_move_sync_destroy(game* self, move_data_sync move);
 move_data_sync game_e_move_make_sync(game* self, move_data move);
 move_data game_e_create_move_small(game* self, move_code move);
 move_data game_e_create_move_big(game* self, size_t len, uint8_t* buf);

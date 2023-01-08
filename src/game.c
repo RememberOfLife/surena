@@ -664,6 +664,24 @@ move_data_sync game_e_move_sync_copy(game* self, move_data_sync move)
     return ret;
 }
 
+void game_e_move_destroy(game* self, move_data move)
+{
+    assert(self);
+    assert(self->methods);
+    if (game_ff(self).big_moves == true) {
+        ls_move_data_serializer(GSIT_DESTROY, &move, NULL, NULL, NULL);
+    }
+}
+
+void game_e_move_sync_destroy(game* self, move_data_sync move)
+{
+    assert(self);
+    assert(self->methods);
+    if (game_ff(self).big_moves == true) {
+        layout_serializer(GSIT_DESTROY, sl_move_data_sync, &move, NULL, NULL, NULL);
+    }
+}
+
 move_data_sync game_e_move_make_sync(game* self, move_data move)
 {
     assert(self);
