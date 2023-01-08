@@ -169,6 +169,7 @@ size_t ls_move_data_serializer(GSIT itype, void* obj_in, void* obj_out, void* bu
             cout_p->data = fo_out.u.big.data;
         } else {
             cout_p->cl.code = fo_out.u.code;
+            cout_p->data = NULL;
         }
     }
 
@@ -693,28 +694,38 @@ move_data game_e_create_move_small(game* self, move_code move)
 {
     assert(self);
     assert(self->methods);
-    return (move_data){.cl.code = move};
+    return (move_data){.cl.code = move, .data = NULL};
 }
 
 move_data game_e_create_move_big(game* self, size_t len, uint8_t* buf)
 {
     assert(self);
     assert(self->methods);
-    return (move_data){.cl.len = len, .data = buf};
+    uint8_t* new_data = NULL;
+    if (len > 0) {
+        new_data = (uint8_t*)malloc(len);
+        memcpy(new_data, buf, len);
+    }
+    return (move_data){.cl.len = len, .data = new_data};
 }
 
 move_data_sync game_e_create_move_sync_small(game* self, move_code move)
 {
     assert(self);
     assert(self->methods);
-    return (move_data_sync){.md = {.cl.code = move}, .sync_ctr = self->sync_ctr};
+    return (move_data_sync){.md = {.cl.code = move, .data = NULL}, .sync_ctr = self->sync_ctr};
 }
 
 move_data_sync game_e_create_move_sync_big(game* self, size_t len, uint8_t* buf)
 {
     assert(self);
     assert(self->methods);
-    return (move_data_sync){.md = {.cl.len = len, .data = buf}, .sync_ctr = self->sync_ctr};
+    uint8_t* new_data = NULL;
+    if (len > 0) {
+        new_data = (uint8_t*)malloc(len);
+        memcpy(new_data, buf, len);
+    }
+    return (move_data_sync){.md = {.cl.len = len, .data = new_data}, .sync_ctr = self->sync_ctr};
 }
 
 error_code grerrorf(game* self, error_code ec, const char* fmt, ...)
