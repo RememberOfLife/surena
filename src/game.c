@@ -182,7 +182,7 @@ const serialization_layout sl_move_data_sync[] = {
     {SL_TYPE_STOP},
 };
 
-void game_init_create_standard(game_init* init_info, const char* opts, const char* legacy, const char* state)
+void game_init_create_standard(game_init* init_info, const char* opts, const char* legacy, const char* state, uint64_t sync_ctr)
 {
     *init_info = (game_init){
         .source_type = GAME_INIT_SOURCE_TYPE_STANDARD,
@@ -191,6 +191,7 @@ void game_init_create_standard(game_init* init_info, const char* opts, const cha
                 .opts = (opts == NULL ? NULL : strdup(opts)),
                 .legacy = (legacy == NULL ? NULL : strdup(legacy)),
                 .state = (state == NULL ? NULL : strdup(state)),
+                .sync_ctr = sync_ctr,
             },
         },
     };
@@ -209,11 +210,12 @@ const serialization_layout sl_game_init_info_standard[] = {
     {SL_TYPE_STRING, offsetof(game_init_standard, opts)},
     {SL_TYPE_STRING, offsetof(game_init_standard, legacy)},
     {SL_TYPE_STRING, offsetof(game_init_standard, state)},
+    {SL_TYPE_U64, offsetof(game_init_standard, sync_ctr)},
     {SL_TYPE_STOP},
 };
 
 const serialization_layout sl_game_init_info_serialized[] = {
-    {SL_TYPE_STRING, offsetof(game_init_serialized, b)},
+    {SL_TYPE_BLOB, offsetof(game_init_serialized, b)},
     {SL_TYPE_STOP},
 };
 
@@ -288,7 +290,11 @@ error_code game_create(game* self, game_init* init_info)
     self->data1 = NULL;
     self->data2 = NULL;
     error_code ec = self->methods->create(self, init_info);
-    self->sync_ctr = SYNC_CTR_DEFAULT;
+    if (init_info->source_type == GAME_INIT_SOURCE_TYPE_DEFAULT) {
+        self->sync_ctr = SYNC_CTR_DEFAULT;
+    } else if (init_info->source_type == GAME_INIT_SOURCE_TYPE_STANDARD) {
+        self->sync_ctr = init_info->source.standard.sync_ctr;
+    }
     return ec;
 }
 

@@ -160,6 +160,7 @@ typedef struct game_init_standard_s {
     const char* opts; // FEATURE: options ; may be NULL to use default
     const char* legacy; // FEATURE: legacy ; may be NULL to use none
     const char* state; // may be null to use default
+    uint64_t sync_ctr; // ignore this if you don't need it, otherwise this is used by the wrapper to set the initial sync ctr
 } game_init_standard;
 
 typedef struct game_init_serialized_s {
@@ -176,7 +177,7 @@ typedef struct game_init_s {
     } source;
 } game_init;
 
-void game_init_create_standard(game_init* init_info, const char* opts, const char* legacy, const char* state);
+void game_init_create_standard(game_init* init_info, const char* opts, const char* legacy, const char* state, uint64_t sync_ctr);
 
 void game_init_create_serialized(game_init* init_info, blob b);
 
@@ -263,6 +264,7 @@ typedef error_code import_state_gf_t(game* self, const char* str);
 // writes the game state and options to a game specific raw byte representation that is absolutely accurate to the state of the game and returns a read only pointer to it
 // player specifies the perspective player from which this is done (relevant for feature: hidden_information) (PLAYER_NONE is omniscient pov)
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
+// considerations: the serialization contains the: sync_ctr, options, legacy, state, internals
 typedef error_code serialize_gf_t(game* self, player_id player, const blob** ret_blob);
 
 // writes the player ids to move from this state and returns a read only pointer to them
