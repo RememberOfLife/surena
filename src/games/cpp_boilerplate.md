@@ -77,6 +77,7 @@ struct export_buffers {
     char* legacy;
     int32_t* scores;
     // sync_data* sync_data;
+    move_data_sync move_out;
     char* move_str;
     char* print;
 };
@@ -126,7 +127,7 @@ extern "C" {
 // };
 
 // declare and form game
-#define SURENA_GDD_BENAME "thegame_standard_gbe"
+#define SURENA_GDD_BENAME thegame_standard_gbe
 #define SURENA_GDD_GNAME "TheGame"
 #define SURENA_GDD_VNAME "Standard"
 #define SURENA_GDD_INAME "surena_default"
@@ -231,7 +232,7 @@ static error_code is_legal_move(game* self, player_id player, move_data_sync mov
     //TODO
 }
 
-static error_code move_to_action(game* self, player_id player, move_data_sync move, move_data_sync* ret_action)
+static error_code move_to_action(game* self, player_id player, move_data_sync move, move_data_sync** ret_action)
 {
     //TODO
 }
@@ -296,7 +297,7 @@ static error_code import_sync_data(game* self, blob b)
     //TODO
 }
 
-static error_code get_move_data(game* self, player_id player, const char* str, move_data_sync* ret_move)
+static error_code get_move_data(game* self, player_id player, const char* str, move_data_sync** ret_move)
 {
     //TODO
 }

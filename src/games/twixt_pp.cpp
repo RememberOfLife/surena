@@ -22,6 +22,7 @@ namespace {
         player_id* players_to_move;
         move_data* concrete_moves;
         player_id* results;
+        move_data_sync move_out;
         char* move_str;
         char* print;
     };
@@ -724,19 +725,23 @@ static error_code playout(game* self, uint64_t seed)
     return ERR_OK;
 }
 
-static error_code get_move_data(game* self, player_id player, const char* str, move_data_sync* ret_move)
+static error_code get_move_data(game* self, player_id player, const char* str, move_data_sync** ret_move)
 {
+    export_buffers& bufs = get_bufs(self);
     if (strlen(str) >= 1 && str[0] == '-') {
-        *ret_move = game_e_create_move_sync_small(self, MOVE_NONE);
+        bufs.move_out = game_e_create_move_sync_small(self, MOVE_NONE);
+        *ret_move = &bufs.move_out;
         return ERR_INVALID_INPUT;
     }
     if (strlen(str) < 2) {
-        *ret_move = game_e_create_move_sync_small(self, MOVE_NONE);
+        bufs.move_out = game_e_create_move_sync_small(self, MOVE_NONE);
+        *ret_move = &bufs.move_out;
         return ERR_INVALID_INPUT;
     }
     opts_repr& opts = get_opts(self);
     if (opts.pie_swap == true && strcmp(str, "swap") == 0) {
-        *ret_move = game_e_create_move_sync_small(self, TWIXT_PP_MOVE_SWAP);
+        bufs.move_out = game_e_create_move_sync_small(self, TWIXT_PP_MOVE_SWAP);
+        *ret_move = &bufs.move_out;
         return ERR_OK;
     }
     char msc = '\0';
@@ -756,10 +761,12 @@ static error_code get_move_data(game* self, player_id player, const char* str, m
     TWIXT_PP_PLAYER cell_player;
     get_node(self, x, y, &cell_player);
     if (cell_player == TWIXT_PP_PLAYER_INVALID) {
-        *ret_move = game_e_create_move_sync_small(self, MOVE_NONE);
+        bufs.move_out = game_e_create_move_sync_small(self, MOVE_NONE);
+        *ret_move = &bufs.move_out;
         return ERR_INVALID_INPUT;
     }
-    *ret_move = game_e_create_move_sync_small(self, (x << 8) | y);
+    bufs.move_out = game_e_create_move_sync_small(self, (x << 8) | y);
+    *ret_move = &bufs.move_out;
     return ERR_OK;
 }
 

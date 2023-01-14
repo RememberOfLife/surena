@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 25;
+static const uint64_t SURENA_GAME_API_VERSION = 26;
 
 typedef uint32_t error_code;
 
@@ -43,7 +43,7 @@ enum ERR {
 // returns not_general if the err is not a general error
 const char* get_general_error_string(error_code err, const char* fallback);
 // instead of returning an error code, one can return rerrorf which automatically manages fmt string buffer allocation for the error string
-// call rerrorf with fmt=NULL to free (*pbuf)
+// call rerrorf or rerrorvf with fmt(or str)=NULL to free (*pbuf) (does not work on rerror)
 error_code rerror(char** pbuf, error_code ec, const char* str, const char* str_end);
 error_code rerrorf(char** pbuf, error_code ec, const char* fmt, ...);
 error_code rerrorvf(char** pbuf, error_code ec, const char* fmt, va_list args);
@@ -306,6 +306,7 @@ typedef error_code get_actions_gf_t(game* self, player_id player, uint32_t* ret_
 // for non SM games (or those that are totally ordered) equivalent to the fallback check of: move in list of get_moves?
 // should be optimized by the game method if possible
 // moves do not have to be valid
+// the game only reads the move, the caller still has to clean it up
 typedef error_code is_legal_move_gf_t(game* self, player_id player, move_data_sync move);
 
 // FEATURE: random_moves || hidden_information || simultaneous_moves
@@ -313,17 +314,21 @@ typedef error_code is_legal_move_gf_t(game* self, player_id player, move_data_sy
 // if move is already an action then it is directly returned unaltered
 // if this returns the null move action, the action should not be sent to ther clients and the sync_ctr in the game no incremented after making the move
 // use e.g. on server, send out only the action to client which are not controlling the player that sent the move
-typedef error_code move_to_action_gf_t(game* self, player_id player, move_data_sync move, move_data_sync* ret_action);
+// the game only reads the move, the caller still has to clean it up
+// the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
+typedef error_code move_to_action_gf_t(game* self, player_id player, move_data_sync move, move_data_sync** ret_action);
 
 // FEATURE: random_moves || hidden_information || simultaneous_moves
 // convenience wrapper
 // returns true if the move represents an action for this player
+// the game only reads the move, the caller still has to clean it up
 typedef error_code is_action_gf_t(game* self, player_id player, move_data_sync move, bool* ret_is_action);
 
 // make the legal move on the game state as player
 // undefined behaviour if move is not within the get_moves list for this player (MAY CRASH)
 // undefined behaviour if player is not within players_to_move (MAY CRASH)
 // after a move is made, if it's action was not the null move (if applicable), the sync_ctr in the game must be incremented!
+// the game only reads the move, the caller still has to clean it up
 typedef error_code make_move_gf_t(game* self, player_id player, move_data_sync move);
 
 // writes the result (winning) players and returns a read only pointer to them
@@ -393,11 +398,13 @@ typedef error_code import_sync_data_gf_t(game* self, blob b);
 // if the move string does not represent a valid move this returns MOVE_NONE (or for big moves len==0 data==NULL) (NOTE: avoid crashes)
 // if player is PLAYER_NONE assumes current player to move
 // this should accept at least the string given out by get_move_str, but is allowed to accept more strings as well
-typedef error_code get_move_data_gf_t(game* self, player_id player, const char* str, move_data_sync* ret_move);
+// the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
+typedef error_code get_move_data_gf_t(game* self, player_id player, const char* str, move_data_sync** ret_move);
 
 // writes the game method and state specific move string representing the move data for this player and returns a read only pointer to it
 // if player is PLAYER_NONE assumes current player to move
 // returns number of characters written to string buffer on success, excluding null character
+// the game only reads the move, the caller still has to clean it up
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
 typedef error_code get_move_str_gf_t(game* self, player_id player, move_data_sync move, size_t* ret_size, const char** ret_str);
 
@@ -562,17 +569,17 @@ get_move_data_gf_t game_get_move_data;
 get_move_str_gf_t game_get_move_str;
 print_gf_t game_print;
 // extra utility for game funcs
+move_data game_e_create_move_small(game* self, move_code move);
+move_data game_e_create_move_big(game* self, size_t len, uint8_t* buf);
+move_data_sync game_e_create_move_sync_small(game* self, move_code move);
+move_data_sync game_e_create_move_sync_big(game* self, size_t len, uint8_t* buf);
+move_data_sync game_e_move_make_sync(game* self, move_data move);
 bool game_e_move_is_none(game* self, move_data move);
 bool game_e_move_sync_is_none(game* self, move_data_sync move);
 move_data game_e_move_copy(game* self, move_data move);
 move_data_sync game_e_move_sync_copy(game* self, move_data_sync move);
 void game_e_move_destroy(game* self, move_data move);
 void game_e_move_sync_destroy(game* self, move_data_sync move);
-move_data_sync game_e_move_make_sync(game* self, move_data move);
-move_data game_e_create_move_small(game* self, move_code move);
-move_data game_e_create_move_big(game* self, size_t len, uint8_t* buf);
-move_data_sync game_e_create_move_sync_small(game* self, move_code move);
-move_data_sync game_e_create_move_sync_big(game* self, size_t len, uint8_t* buf);
 
 error_code grerrorf(game* self, error_code ec, const char* fmt, ...); // game internal rerrorf: if your error string is self->data2 use this as a shorthand
 

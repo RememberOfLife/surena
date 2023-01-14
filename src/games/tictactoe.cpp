@@ -22,6 +22,7 @@ namespace {
         player_id* players_to_move;
         move_data* concrete_moves;
         player_id* results;
+        move_data_sync move_out;
         char* move_str;
         char* print;
     };
@@ -510,26 +511,31 @@ static error_code playout(game* self, uint64_t seed)
     return ERR_OK;
 }
 
-static error_code get_move_data(game* self, player_id player, const char* str, move_data_sync* ret_move)
+static error_code get_move_data(game* self, player_id player, const char* str, move_data_sync** ret_move)
 {
+    export_buffers& bufs = get_bufs(self);
     if (strlen(str) >= 1 && str[0] == '-') {
-        *ret_move = game_e_create_move_sync_small(self, MOVE_NONE);
+        bufs.move_out = game_e_create_move_sync_small(self, MOVE_NONE);
+        *ret_move = &bufs.move_out;
         return ERR_INVALID_INPUT;
     }
     if (strlen(str) != 2) {
-        *ret_move = game_e_create_move_sync_small(self, MOVE_NONE);
+        bufs.move_out = game_e_create_move_sync_small(self, MOVE_NONE);
+        *ret_move = &bufs.move_out;
         return ERR_INVALID_INPUT;
     }
     move_code move_id = 0;
     int x = (str[0] - 'a');
     int y = (str[1] - '0');
     if (x < 0 || x > 2 || y < 0 || y > 2) {
-        *ret_move = game_e_create_move_sync_small(self, MOVE_NONE);
+        bufs.move_out = game_e_create_move_sync_small(self, MOVE_NONE);
+        *ret_move = &bufs.move_out;
         return ERR_INVALID_INPUT;
     }
     move_id |= x;
     move_id |= (y << 2);
-    *ret_move = game_e_create_move_sync_small(self, move_id);
+    bufs.move_out = game_e_create_move_sync_small(self, move_id);
+    *ret_move = &bufs.move_out;
     return ERR_OK;
 }
 

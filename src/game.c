@@ -453,7 +453,7 @@ error_code game_is_legal_move(game* self, player_id player, move_data_sync move)
     return self->methods->is_legal_move(self, player, move);
 }
 
-error_code game_move_to_action(game* self, player_id player, move_data_sync move, move_data_sync* ret_action)
+error_code game_move_to_action(game* self, player_id player, move_data_sync move, move_data_sync** ret_action)
 {
     assert(self);
     assert(self->methods);
@@ -489,12 +489,12 @@ error_code game_make_move(game* self, player_id player, move_data_sync move)
     }
     bool action_dropped = false;
     if (game_ff(self).random_moves || game_ff(self).hidden_information || game_ff(self).simultaneous_moves) {
-        move_data_sync action;
+        const move_data_sync* action;
         ec = game_move_to_action(self, player, move, &action);
         if (ec != ERR_OK) {
             return ec;
         }
-        action_dropped = game_e_move_is_none(self, action.md);
+        action_dropped = game_e_move_is_none(self, action->md);
     }
     ec = self->methods->make_move(self, player, move);
     if (action_dropped == false) {
@@ -598,7 +598,7 @@ error_code game_import_sync_data(game* self, blob b)
     return self->methods->import_sync_data(self, b);
 }
 
-error_code game_get_move_data(game* self, player_id player, const char* str, move_data_sync* ret_move)
+error_code game_get_move_data(game* self, player_id player, const char* str, move_data_sync** ret_move)
 {
     assert(self);
     assert(self->methods);
@@ -606,7 +606,7 @@ error_code game_get_move_data(game* self, player_id player, const char* str, mov
     assert(ret_move);
     assert(player != PLAYER_NONE);
     error_code ec = self->methods->get_move_data(self, player, str, ret_move);
-    ret_move->sync_ctr = self->sync_ctr;
+    (*ret_move)->sync_ctr = self->sync_ctr;
     return ec;
 }
 
@@ -632,6 +632,60 @@ error_code game_print(game* self, player_id player, size_t* ret_size, const char
     assert(ret_str);
     assert(player != PLAYER_RAND);
     return self->methods->print(self, player, ret_size, ret_str);
+}
+
+move_data game_e_create_move_small(game* self, move_code move)
+{
+    assert(self);
+    assert(self->methods);
+    return (move_data){.cl.code = move, .data = NULL};
+}
+
+move_data game_e_create_move_big(game* self, size_t len, uint8_t* buf)
+{
+    assert(self);
+    assert(self->methods);
+    uint8_t* new_data = NULL;
+    if (len > 0) {
+        new_data = (uint8_t*)malloc(len);
+        memcpy(new_data, buf, len);
+    }
+    return (move_data){.cl.len = len, .data = new_data};
+}
+
+move_data_sync game_e_create_move_sync_small(game* self, move_code move)
+{
+    assert(self);
+    assert(self->methods);
+    return (move_data_sync){.md = {.cl.code = move, .data = NULL}, .sync_ctr = self->sync_ctr};
+}
+
+move_data_sync game_e_create_move_sync_big(game* self, size_t len, uint8_t* buf)
+{
+    assert(self);
+    assert(self->methods);
+    uint8_t* new_data = NULL;
+    if (len > 0) {
+        new_data = (uint8_t*)malloc(len);
+        memcpy(new_data, buf, len);
+    }
+    return (move_data_sync){.md = {.cl.len = len, .data = new_data}, .sync_ctr = self->sync_ctr};
+}
+
+error_code grerrorf(game* self, error_code ec, const char* fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    error_code ret = rerrorvf((char**)&self->data2, ec, fmt, args);
+    va_end(args);
+    return ret;
+}
+
+move_data_sync game_e_move_make_sync(game* self, move_data move)
+{
+    assert(self);
+    assert(self->methods);
+    return (move_data_sync){.md = move, .sync_ctr = self->sync_ctr};
 }
 
 bool game_e_move_is_none(game* self, move_data move)
@@ -687,60 +741,6 @@ void game_e_move_sync_destroy(game* self, move_data_sync move)
     if (game_ff(self).big_moves == true) {
         layout_serializer(GSIT_DESTROY, sl_move_data_sync, &move, NULL, NULL, NULL);
     }
-}
-
-move_data_sync game_e_move_make_sync(game* self, move_data move)
-{
-    assert(self);
-    assert(self->methods);
-    return (move_data_sync){.md = move, .sync_ctr = self->sync_ctr};
-}
-
-move_data game_e_create_move_small(game* self, move_code move)
-{
-    assert(self);
-    assert(self->methods);
-    return (move_data){.cl.code = move, .data = NULL};
-}
-
-move_data game_e_create_move_big(game* self, size_t len, uint8_t* buf)
-{
-    assert(self);
-    assert(self->methods);
-    uint8_t* new_data = NULL;
-    if (len > 0) {
-        new_data = (uint8_t*)malloc(len);
-        memcpy(new_data, buf, len);
-    }
-    return (move_data){.cl.len = len, .data = new_data};
-}
-
-move_data_sync game_e_create_move_sync_small(game* self, move_code move)
-{
-    assert(self);
-    assert(self->methods);
-    return (move_data_sync){.md = {.cl.code = move, .data = NULL}, .sync_ctr = self->sync_ctr};
-}
-
-move_data_sync game_e_create_move_sync_big(game* self, size_t len, uint8_t* buf)
-{
-    assert(self);
-    assert(self->methods);
-    uint8_t* new_data = NULL;
-    if (len > 0) {
-        new_data = (uint8_t*)malloc(len);
-        memcpy(new_data, buf, len);
-    }
-    return (move_data_sync){.md = {.cl.len = len, .data = new_data}, .sync_ctr = self->sync_ctr};
-}
-
-error_code grerrorf(game* self, error_code ec, const char* fmt, ...)
-{
-    va_list args;
-    va_start(args, fmt);
-    error_code ret = rerrorvf((char**)&self->data2, ec, fmt, args);
-    va_end(args);
-    return ret;
 }
 
 #ifdef __cplusplus

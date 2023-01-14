@@ -20,6 +20,7 @@ namespace {
         player_id* players_to_move;
         move_data* concrete_moves;
         player_id* results;
+        move_data_sync move_out;
         char* move_str;
         char* print;
     };
@@ -609,15 +610,18 @@ static error_code id(game* self, uint64_t* ret_id)
     return ERR_OK;
 }
 
-static error_code get_move_data(game* self, player_id player, const char* str, move_data_sync* ret_move)
+static error_code get_move_data(game* self, player_id player, const char* str, move_data_sync** ret_move)
 {
+    export_buffers& bufs = get_bufs(self);
     size_t str_len = strlen(str);
     if (str_len >= 1 && str[0] == '-') {
-        *ret_move = game_e_create_move_sync_small(self, MOVE_NONE);
+        bufs.move_out = game_e_create_move_sync_small(self, MOVE_NONE);
+        *ret_move = &bufs.move_out;
         return ERR_INVALID_INPUT;
     }
     if (str_len < 4 || str_len > 5) {
-        *ret_move = game_e_create_move_sync_small(self, MOVE_NONE);
+        bufs.move_out = game_e_create_move_sync_small(self, MOVE_NONE);
+        *ret_move = &bufs.move_out;
         return ERR_INVALID_INPUT;
     }
     int ox = str[0] - 'a';
@@ -625,7 +629,8 @@ static error_code get_move_data(game* self, player_id player, const char* str, m
     int tx = str[2] - 'a';
     int ty = str[3] - '1';
     if (ox < 0 || ox > 7 || oy < 0 || oy > 7 || tx < 0 || tx > 7 || ty < 0 || ty > 7) {
-        *ret_move = game_e_create_move_sync_small(self, MOVE_NONE);
+        bufs.move_out = game_e_create_move_sync_small(self, MOVE_NONE);
+        *ret_move = &bufs.move_out;
         return ERR_INVALID_INPUT;
     }
     CHESS_PIECE_TYPE promotion = CHESS_PIECE_TYPE_NONE;
@@ -649,7 +654,8 @@ static error_code get_move_data(game* self, player_id player, const char* str, m
             } break;
         }
     }
-    *ret_move = game_e_create_move_sync_small(self, (promotion << 16) | (ox << 12) | (oy << 8) | (tx << 4) | (ty));
+    bufs.move_out = game_e_create_move_sync_small(self, (promotion << 16) | (ox << 12) | (oy << 8) | (tx << 4) | (ty));
+    *ret_move = &bufs.move_out;
     return ERR_OK;
 }
 

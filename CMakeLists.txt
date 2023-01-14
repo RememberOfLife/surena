@@ -29,14 +29,6 @@ set(INCLUDES
 )
 
 set(SOURCES
-    lib/rosalia/src/impl/base64.c
-    lib/rosalia/src/impl/noise.c
-    lib/rosalia/src/impl/rand.c
-    lib/rosalia/src/impl/raw_stream.c
-    lib/rosalia/src/impl/semver.c
-    lib/rosalia/src/impl/serialization.c
-    lib/rosalia/src/impl/timestamp.c
-
     # src/engines/randomengine.cpp
     # src/engines/singlethreadedmcts.cpp
     # src/engines/uci_wrap.cpp
@@ -49,6 +41,13 @@ set(SOURCES
     src/games/tictactoe_ultimate.cpp
     src/games/tictactoe.cpp
     src/games/twixt_pp.cpp
+
+    src/rosa_impl/base64.c
+    src/rosa_impl/noise.c
+    src/rosa_impl/rand.c
+    src/rosa_impl/semver.c
+    src/rosa_impl/serialization.c
+    src/rosa_impl/timestamp.c
 
     # src/engine.cpp
     src/game.c
