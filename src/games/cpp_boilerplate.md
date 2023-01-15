@@ -84,32 +84,36 @@ struct export_buffers {
 
 typedef thegame_options opts_repr;
 
-struct data_repr {
+struct state_repr {
+    uint32_t state;
+};
+
+//TODO should probably just in general hold all creation info, i.e. legacy as well if exists
+struct game_data {
     export_buffers bufs;
     opts_repr opts;
-
-    uint32_t state;
+    state_repr state;
 };
 
 export_buffers& get_bufs(game* self)
 {
-    return ((data_repr*)(self->data1))->bufs;
+    return ((game_data*)(self->data1))->bufs;
 }
 
 opts_repr& get_opts(game* self)
 {
-    return ((data_repr*)(self->data1))->opts;
+    return ((game_data*)(self->data1))->opts;
 }
 
-data_repr& get_repr(game* self)
+state_repr& get_repr(game* self)
 {
-    return *((data_repr*)(self->data1));
+    return ((game_data*)(self->data1))->state;
 }
 
 /* use these in your functions for easy access
 export_buffers& bufs = get_bufs(self);
 opts_repr& opts = get_opts(self);
-data_repr& data = get_repr(self);
+state_repr& data = get_repr(self);
 */
 
 #ifdef __cplusplus
@@ -156,7 +160,7 @@ static error_code create(game* self, game_init* init_info)
 
 static error_code destroy(game* self)
 {
-    //TODO destroy data_repr
+    //TODO destroy state_repr
     free(self->data2);
     self->data2 = NULL;
     return ERR_OK;

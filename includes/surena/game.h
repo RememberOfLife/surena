@@ -71,7 +71,8 @@ typedef struct move_data_s {
         size_t len; // FEATURE: big_moves ; if data is NULL and this is 0 then the big move is empty
     } cl;
 
-    uint8_t* data; // FEATURE: big_moves ; MUST always be NULL for non big moves or empty big moves
+    // this functions as a tag for the cl union
+    uint8_t* data; // MUST always be NULL for non big moves; if not NULL then this is a big move (use e.g. UINTPTR_MAX for NONE moves but use a 0 len)
 } move_data; // unindexed move realization, switch by big_move feature flag
 
 custom_serializer_t ls_move_data_serializer;
@@ -569,17 +570,18 @@ get_move_data_gf_t game_get_move_data;
 get_move_str_gf_t game_get_move_str;
 print_gf_t game_print;
 // extra utility for game funcs
-move_data game_e_create_move_small(game* self, move_code move);
-move_data game_e_create_move_big(game* self, size_t len, uint8_t* buf);
+move_data game_e_create_move_small(move_code move);
+move_data game_e_create_move_big(size_t len, uint8_t* buf);
 move_data_sync game_e_create_move_sync_small(game* self, move_code move);
 move_data_sync game_e_create_move_sync_big(game* self, size_t len, uint8_t* buf);
 move_data_sync game_e_move_make_sync(game* self, move_data move);
-bool game_e_move_is_none(game* self, move_data move);
-bool game_e_move_sync_is_none(game* self, move_data_sync move);
-move_data game_e_move_copy(game* self, move_data move);
-move_data_sync game_e_move_sync_copy(game* self, move_data_sync move);
-void game_e_move_destroy(game* self, move_data move);
-void game_e_move_sync_destroy(game* self, move_data_sync move);
+bool game_e_move_is_none(move_data move);
+bool game_e_move_sync_is_none(move_data_sync move);
+move_data game_e_move_copy(move_data move);
+move_data_sync game_e_move_sync_copy(move_data_sync move);
+void game_e_move_destroy(move_data move);
+void game_e_move_sync_destroy(move_data_sync move);
+bool game_e_move_is_big(move_data move);
 
 error_code grerrorf(game* self, error_code ec, const char* fmt, ...); // game internal rerrorf: if your error string is self->data2 use this as a shorthand
 

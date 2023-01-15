@@ -690,7 +690,7 @@ void repl_cmd_handle_g_make_move(repl_state* rs, int argc, char** argv)
         printf("could not get move data\n");
         return;
     }
-    move_data_sync move = game_e_move_sync_copy(&rs->g, *fill_move);
+    move_data_sync move = game_e_move_sync_copy(*fill_move);
     ec = game_is_legal_move(&rs->g, pov, move);
     if (ec != ERR_OK) {
         print_game_error(&rs->g, ec);

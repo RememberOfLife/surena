@@ -29,10 +29,7 @@ namespace {
 
     typedef twixt_pp_options opts_repr;
 
-    struct data_repr {
-        export_buffers bufs;
-        opts_repr opts;
-
+    struct state_repr {
         TWIXT_PP_PLAYER current_player;
         TWIXT_PP_PLAYER winning_player;
         uint16_t remaining_inner_nodes;
@@ -43,19 +40,25 @@ namespace {
         uint16_t swap_target;
     };
 
+    struct game_data {
+        export_buffers bufs;
+        opts_repr opts;
+        state_repr state;
+    };
+
     export_buffers& get_bufs(game* self)
     {
-        return ((data_repr*)(self->data1))->bufs;
+        return ((game_data*)(self->data1))->bufs;
     }
 
     opts_repr& get_opts(game* self)
     {
-        return ((data_repr*)(self->data1))->opts;
+        return ((game_data*)(self->data1))->opts;
     }
 
-    data_repr& get_repr(game* self)
+    state_repr& get_repr(game* self)
     {
-        return *((data_repr*)(self->data1));
+        return ((game_data*)(self->data1))->state;
     }
 
 } // namespace
@@ -97,7 +100,7 @@ static const twixt_pp_internal_methods twixt_pp_gbe_internal_methods{
 
 static error_code create(game* self, game_init* init_info)
 {
-    self->data1 = new (malloc(sizeof(data_repr))) data_repr();
+    self->data1 = new (malloc(sizeof(game_data))) game_data();
     if (self->data1 == NULL) {
         return ERR_OUT_OF_MEMORY;
     }
@@ -182,7 +185,7 @@ static error_code destroy(game* self)
         free(bufs.move_str);
         free(bufs.print);
     }
-    delete (data_repr*)self->data1;
+    delete (game_data*)self->data1;
     self->data1 = NULL;
     return ERR_OK;
 }
@@ -208,19 +211,20 @@ static error_code clone(game* self, game* clone_target)
     if (ec != ERR_OK) {
         return ec;
     }
-    *(data_repr*)clone_target->data1 = *(data_repr*)self->data1;
+    copy_from(clone_target, self);
     return ERR_OK;
 }
 
 static error_code copy_from(game* self, game* other)
 {
-    *(data_repr*)self->data1 = *(data_repr*)other->data1;
+    get_opts(self) = get_opts(other);
+    get_repr(self) = get_repr(other);
     return ERR_OK;
 }
 
 static error_code compare(game* self, game* other, bool* ret_equal)
 {
-    //TODO
+    //TODO same as havannah..
     return ERR_STATE_CORRUPTED;
 }
 
@@ -251,7 +255,7 @@ static error_code export_state(game* self, player_id player, size_t* ret_size, c
         return ERR_INVALID_INPUT;
     }
     opts_repr& opts = get_opts(self);
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     const char* ostr = outbuf;
     TWIXT_PP_PLAYER cell_player;
     for (int y = 0; y < opts.wy; y++) {
@@ -346,7 +350,7 @@ static error_code export_state(game* self, player_id player, size_t* ret_size, c
 static error_code import_state(game* self, const char* str)
 {
     opts_repr& opts = get_opts(self);
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     data.current_player = TWIXT_PP_PLAYER_WHITE;
     data.winning_player = TWIXT_PP_PLAYER_INVALID;
     data.remaining_inner_nodes = opts.wx * opts.wy;
@@ -564,7 +568,7 @@ static error_code import_state(game* self, const char* str)
 static error_code players_to_move(game* self, uint8_t* ret_count, const player_id** ret_players)
 {
     *ret_count = 1;
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     player_id ptm = data.current_player;
     if (ptm == TWIXT_PP_PLAYER_NONE) {
         *ret_count = 0;
@@ -582,7 +586,7 @@ static error_code get_concrete_moves(game* self, player_id player, uint32_t* ret
     export_buffers& bufs = get_bufs(self);
     move_data* outbuf = bufs.concrete_moves;
     opts_repr& opts = get_opts(self);
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     uint32_t move_cnt = 0;
     for (int iy = 0; iy < opts.wy; iy++) {
         if ((iy == 0 || iy == opts.wy - 1) && player == TWIXT_PP_PLAYER_BLACK) {
@@ -594,12 +598,12 @@ static error_code get_concrete_moves(game* self, player_id player, uint32_t* ret
             }
             if (data.gameboard[iy][ix].player == TWIXT_PP_PLAYER_NONE) {
                 // add the free tile to the return vector
-                outbuf[move_cnt++] = game_e_create_move_small(self, (ix << 8) | iy);
+                outbuf[move_cnt++] = game_e_create_move_small((ix << 8) | iy);
             }
         }
     }
     if (data.pie_swap == true && data.current_player == TWIXT_PP_PLAYER_BLACK) {
-        outbuf[move_cnt++] = game_e_create_move_small(self, TWIXT_PP_MOVE_SWAP);
+        outbuf[move_cnt++] = game_e_create_move_small(TWIXT_PP_MOVE_SWAP);
     }
     *ret_count = move_cnt;
     *ret_moves = bufs.concrete_moves;
@@ -608,7 +612,7 @@ static error_code get_concrete_moves(game* self, player_id player, uint32_t* ret
 
 static error_code is_legal_move(game* self, player_id player, move_data_sync move)
 {
-    if (game_e_move_sync_is_none(self, move) == true) {
+    if (game_e_move_sync_is_none(move) == true) {
         return ERR_INVALID_INPUT;
     }
     uint8_t ptm_count;
@@ -617,7 +621,7 @@ static error_code is_legal_move(game* self, player_id player, move_data_sync mov
     if (*ptm != player) {
         return ERR_INVALID_INPUT;
     }
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     move_code mcode = move.md.cl.code;
     if (mcode == TWIXT_PP_MOVE_SWAP) {
         if (data.pie_swap == true && data.current_player == TWIXT_PP_PLAYER_BLACK) {
@@ -640,7 +644,7 @@ static error_code is_legal_move(game* self, player_id player, move_data_sync mov
 static error_code make_move(game* self, player_id player, move_data_sync move)
 {
     opts_repr& opts = get_opts(self);
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     move_code mcode = move.md.cl.code;
 
     if (mcode == TWIXT_PP_MOVE_SWAP) {
@@ -699,7 +703,7 @@ static error_code get_results(game* self, uint8_t* ret_count, const player_id** 
     export_buffers& bufs = get_bufs(self);
     player_id* outbuf = bufs.results;
     *ret_count = 1;
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     if (data.current_player != TWIXT_PP_PLAYER_NONE) {
         *ret_count = 0;
         return ERR_OK;
@@ -808,7 +812,7 @@ static error_code print(game* self, player_id player, size_t* ret_size, const ch
     export_buffers& bufs = get_bufs(self);
     char* outbuf = bufs.print;
     opts_repr& opts = get_opts(self);
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     const char* ostr = outbuf;
 
     // print all node infos and all graphs for debugging purposes
@@ -855,7 +859,7 @@ static error_code print(game* self, player_id player, size_t* ret_size, const ch
 static error_code get_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER* p)
 {
     opts_repr& opts = get_opts(self);
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     if (x < 0 || y < 0 || x >= opts.wx || y >= opts.wy) {
         *p = TWIXT_PP_PLAYER_INVALID;
     } else {
@@ -867,7 +871,7 @@ static error_code get_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER* p)
 static error_code set_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER p, uint8_t connection_mask, bool* wins)
 {
     opts_repr& opts = get_opts(self);
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     data.gameboard[y][x].player = p;
     if (p == TWIXT_PP_PLAYER_NONE) {
         if (wins) {
@@ -929,7 +933,7 @@ static error_code set_node(game* self, uint8_t x, uint8_t y, TWIXT_PP_PLAYER p, 
 static error_code get_node_connections(game* self, uint8_t x, uint8_t y, uint8_t* connections)
 {
     opts_repr& opts = get_opts(self);
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     if (x < 0 || y < 0 || x >= opts.wx || y >= opts.wy) {
         *connections = 0;
     } else {
@@ -941,7 +945,7 @@ static error_code get_node_connections(game* self, uint8_t x, uint8_t y, uint8_t
 static error_code get_node_collisions(game* self, uint8_t x, uint8_t y, uint8_t* collisions)
 {
     opts_repr& opts = get_opts(self);
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     if (x < 0 || y < 0 || x >= opts.wx || y >= opts.wy) {
         *collisions = 0;
     } else {
@@ -954,7 +958,7 @@ static error_code get_node_collisions(game* self, uint8_t x, uint8_t y, uint8_t*
 void add_collision(game* self, uint8_t x, uint8_t y, uint8_t dir, TWIXT_PP_PLAYER np)
 {
     opts_repr& opts = get_opts(self);
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     if (x < 0 || y < 0 || x >= opts.wx || y >= opts.wy) {
         return;
     }
@@ -973,7 +977,7 @@ static error_code set_connection(game* self, uint8_t x1, uint8_t y1, uint8_t x2,
     }
 
     opts_repr& opts = get_opts(self);
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     // get what type of connection this is
     uint8_t conn_dir = 0;
     if (x2 < x1) {
@@ -1109,7 +1113,7 @@ static error_code set_connection(game* self, uint8_t x1, uint8_t y1, uint8_t x2,
 
 static error_code can_swap(game* self, bool* swap_available)
 {
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     *swap_available = (data.pie_swap == true && data.current_player == TWIXT_PP_PLAYER_BLACK);
     return ERR_OK;
 }

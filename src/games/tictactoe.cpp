@@ -27,8 +27,7 @@ namespace {
         char* print;
     };
 
-    struct data_repr {
-        export_buffers bufs;
+    struct state_repr {
         /*
         board as:
         789
@@ -40,14 +39,19 @@ namespace {
         uint32_t state;
     };
 
+    struct game_data {
+        export_buffers bufs;
+        state_repr state;
+    };
+
     export_buffers& get_bufs(game* self)
     {
-        return ((data_repr*)(self->data1))->bufs;
+        return ((game_data*)(self->data1))->bufs;
     }
 
-    data_repr& get_repr(game* self)
+    state_repr& get_repr(game* self)
     {
-        return *((data_repr*)(self->data1));
+        return ((game_data*)(self->data1))->state;
     }
 
 } // namespace
@@ -86,7 +90,7 @@ static const tictactoe_internal_methods tictactoe_gbe_internal_methods{
 
 static error_code create(game* self, game_init* init_info)
 {
-    self->data1 = malloc(sizeof(data_repr));
+    self->data1 = malloc(sizeof(game_data));
     if (self->data1 == NULL) {
         return ERR_OUT_OF_MEMORY;
     }
@@ -136,23 +140,23 @@ static error_code clone(game* self, game* clone_target)
 {
     clone_target->methods = self->methods;
     game_init init_info = (game_init){.source_type = GAME_INIT_SOURCE_TYPE_DEFAULT};
-    error_code ec = clone_target->methods->create(clone_target, &init_info);
+    error_code ec = create(clone_target, &init_info);
     if (ec != ERR_OK) {
         return ec;
     }
-    memcpy(clone_target->data1, self->data1, sizeof(data_repr));
+    copy_from(clone_target, self);
     return ERR_OK;
 }
 
 static error_code copy_from(game* self, game* other)
 {
-    memcpy(self->data1, other->data1, sizeof(data_repr));
+    get_repr(self) = get_repr(other);
     return ERR_OK;
 }
 
 static error_code compare(game* self, game* other, bool* ret_equal)
 {
-    *ret_equal = (memcmp(self->data1, other->data1, sizeof(data_repr)) == 0);
+    *ret_equal = (memcmp(&get_repr(self), &get_repr(other), sizeof(state_repr)) == 0);
     return ERR_OK;
 }
 
@@ -244,7 +248,7 @@ static error_code export_state(game* self, player_id player, size_t* ret_size, c
 
 static error_code import_state(game* self, const char* str)
 {
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     if (str == NULL) {
         data.state = 1 << 18; // player one starts
         return ERR_OK;
@@ -340,7 +344,7 @@ static error_code import_state(game* self, const char* str)
 static error_code players_to_move(game* self, uint8_t* ret_count, const player_id** ret_players)
 {
     *ret_count = 1;
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     player_id ptm = (data.state >> 18) & 0b11;
     if (ptm == PLAYER_NONE) {
         *ret_count = 0;
@@ -370,7 +374,7 @@ static error_code get_concrete_moves(game* self, player_id player, uint32_t* ret
         for (int x = 0; x < 3; x++) {
             get_cell(self, x, y, &cell_player);
             if (cell_player == PLAYER_NONE) {
-                outbuf[count++] = game_e_create_move_small(self, (y << 2) | x);
+                outbuf[count++] = game_e_create_move_small((y << 2) | x);
             }
         }
     }
@@ -381,7 +385,7 @@ static error_code get_concrete_moves(game* self, player_id player, uint32_t* ret
 
 static error_code is_legal_move(game* self, player_id player, move_data_sync move)
 {
-    if (game_e_move_sync_is_none(self, move) == true) {
+    if (game_e_move_sync_is_none(move) == true) {
         return ERR_INVALID_INPUT;
     }
     uint8_t ptm_count;
@@ -406,7 +410,7 @@ static error_code is_legal_move(game* self, player_id player, move_data_sync mov
 
 static error_code make_move(game* self, player_id player, move_data_sync move)
 {
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     // set move as current player
     move_code mcode = move.md.cl.code;
     int x = mcode & 0b11;
@@ -475,7 +479,7 @@ static error_code get_results(game* self, uint8_t* ret_count, const player_id** 
     export_buffers& bufs = get_bufs(self);
     player_id* outbuf = bufs.results;
     *ret_count = 1;
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     player_id result = (player_id)((data.state >> 20) & 0b11);
     if (result == PLAYER_NONE) {
         *ret_count = 0;
@@ -488,7 +492,7 @@ static error_code get_results(game* self, uint8_t* ret_count, const player_id** 
 
 static error_code id(game* self, uint64_t* ret_id)
 {
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     uint32_t state_noise = squirrelnoise5(data.state, 0);
     *ret_id = ((uint64_t)state_noise << 32) | (uint64_t)squirrelnoise5(state_noise, state_noise);
     return ERR_OK;
@@ -587,7 +591,7 @@ static error_code print(game* self, player_id player, size_t* ret_size, const ch
 
 static error_code get_cell(game* self, int x, int y, player_id* p)
 {
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     // shift over the correct 2 bits representing the player at that position
     *p = ((data.state >> (y * 6 + x * 2)) & 0b11);
     return ERR_OK;
@@ -595,7 +599,7 @@ static error_code get_cell(game* self, int x, int y, player_id* p)
 
 static error_code set_cell(game* self, int x, int y, player_id p)
 {
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     player_id pc;
     get_cell(self, x, y, &pc);
     int offset = (y * 6 + x * 2);
@@ -606,7 +610,7 @@ static error_code set_cell(game* self, int x, int y, player_id p)
 
 static error_code set_current_player(game* self, player_id p)
 {
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     data.state &= ~(0b11 << 18); // reset current player to 0
     data.state |= p << 18; // insert new current player
     return ERR_OK;
@@ -614,7 +618,7 @@ static error_code set_current_player(game* self, player_id p)
 
 static error_code set_result(game* self, player_id p)
 {
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     data.state &= ~(0b11 << 20); // reset result to 0
     data.state |= p << 20; // insert new result
     return ERR_OK;

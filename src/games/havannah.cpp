@@ -31,9 +31,7 @@ namespace {
 
     typedef havannah_options opts_repr;
 
-    struct data_repr {
-        export_buffers bufs;
-        opts_repr opts;
+    struct state_repr {
         int board_sizer; // 2 * size - 1
 
         int remaining_tiles;
@@ -50,19 +48,25 @@ namespace {
         uint16_t swap_target;
     };
 
+    struct game_data {
+        export_buffers bufs;
+        opts_repr opts;
+        state_repr state;
+    };
+
     export_buffers& get_bufs(game* self)
     {
-        return ((data_repr*)(self->data1))->bufs;
+        return ((game_data*)(self->data1))->bufs;
     }
 
     opts_repr& get_opts(game* self)
     {
-        return ((data_repr*)(self->data1))->opts;
+        return ((game_data*)(self->data1))->opts;
     }
 
-    data_repr& get_repr(game* self)
+    state_repr& get_repr(game* self)
     {
-        return *((data_repr*)(self->data1));
+        return ((game_data*)(self->data1))->state;
     }
 
 } // namespace
@@ -101,7 +105,7 @@ static const havannah_internal_methods havannah_gbe_internal_methods{
 
 static error_code create(game* self, game_init* init_info)
 {
-    self->data1 = new (malloc(sizeof(data_repr))) data_repr();
+    self->data1 = new (malloc(sizeof(game_data))) game_data();
     if (self->data1 == NULL) {
         return ERR_OUT_OF_MEMORY;
     }
@@ -127,7 +131,7 @@ static error_code create(game* self, game_init* init_info)
             return ERR_INVALID_INPUT;
         }
     }
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     data.board_sizer = 2 * opts.size - 1;
 
     {
@@ -168,7 +172,7 @@ static error_code destroy(game* self)
         free(bufs.move_str);
         free(bufs.print);
     }
-    delete (data_repr*)self->data1;
+    delete (game_data*)self->data1;
     // free(self->data); // not required in the vector+map version
     self->data1 = NULL;
     return ERR_OK;
@@ -195,13 +199,14 @@ static error_code clone(game* self, game* clone_target)
     if (ec != ERR_OK) {
         return ec;
     }
-    *(data_repr*)clone_target->data1 = *(data_repr*)self->data1;
+    copy_from(clone_target, self);
     return ERR_OK;
 }
 
 static error_code copy_from(game* self, game* other)
 {
-    *(data_repr*)self->data1 = *(data_repr*)other->data1;
+    get_opts(self) = get_opts(other);
+    get_repr(self) = get_repr(other);
     return ERR_OK;
 }
 
@@ -237,7 +242,7 @@ static error_code export_state(game* self, player_id player, size_t* ret_size, c
         return ERR_INVALID_INPUT;
     }
     opts_repr& opts = get_opts(self);
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     const char* ostr = outbuf;
     HAVANNAH_PLAYER cell_player;
     for (int y = 0; y < data.board_sizer; y++) {
@@ -315,7 +320,7 @@ static error_code export_state(game* self, player_id player, size_t* ret_size, c
 static error_code import_state(game* self, const char* str)
 {
     opts_repr& opts = get_opts(self);
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     data.remaining_tiles = (data.board_sizer * data.board_sizer) - (opts.size * (opts.size - 1));
     data.current_player = HAVANNAH_PLAYER_WHITE;
     data.winning_player = HAVANNAH_PLAYER_INVALID;
@@ -466,7 +471,7 @@ static error_code import_state(game* self, const char* str)
 static error_code players_to_move(game* self, uint8_t* ret_count, const player_id** ret_players)
 {
     *ret_count = 1;
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     player_id ptm = data.current_player;
     if (ptm == HAVANNAH_PLAYER_NONE) {
         *ret_count = 0;
@@ -484,18 +489,18 @@ static error_code get_concrete_moves(game* self, player_id player, uint32_t* ret
     export_buffers& bufs = get_bufs(self);
     move_data* outbuf = bufs.concrete_moves;
     opts_repr& opts = get_opts(self);
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     uint32_t move_cnt = 0;
     for (int iy = 0; iy < data.board_sizer; iy++) {
         for (int ix = 0; ix < data.board_sizer; ix++) {
             if (data.gameboard[iy][ix].color == HAVANNAH_PLAYER_NONE) {
                 // add the free tile to the return vector
-                outbuf[move_cnt++] = game_e_create_move_small(self, (ix << 8) | iy);
+                outbuf[move_cnt++] = game_e_create_move_small((ix << 8) | iy);
             }
         }
     }
     if (data.pie_swap == true && data.current_player == HAVANNAH_PLAYER_BLACK) {
-        outbuf[move_cnt++] = game_e_create_move_small(self, HAVANNAH_MOVE_SWAP);
+        outbuf[move_cnt++] = game_e_create_move_small(HAVANNAH_MOVE_SWAP);
     }
     *ret_count = move_cnt;
     *ret_moves = bufs.concrete_moves;
@@ -504,7 +509,7 @@ static error_code get_concrete_moves(game* self, player_id player, uint32_t* ret
 
 static error_code is_legal_move(game* self, player_id player, move_data_sync move)
 {
-    if (game_e_move_sync_is_none(self, move) == true) {
+    if (game_e_move_sync_is_none(move) == true) {
         return ERR_INVALID_INPUT;
     }
     uint8_t ptm_count;
@@ -513,7 +518,7 @@ static error_code is_legal_move(game* self, player_id player, move_data_sync mov
     if (*ptm != player) {
         return ERR_INVALID_INPUT;
     }
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     move_code mcode = move.md.cl.code;
     if (mcode == HAVANNAH_MOVE_SWAP) {
         if (data.pie_swap == true && data.current_player == HAVANNAH_PLAYER_BLACK) {
@@ -531,7 +536,7 @@ static error_code is_legal_move(game* self, player_id player, move_data_sync mov
 
 static error_code make_move(game* self, player_id player, move_data_sync move)
 {
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     move_code mcode = move.md.cl.code;
 
     if (mcode == HAVANNAH_MOVE_SWAP) {
@@ -590,7 +595,7 @@ static error_code get_results(game* self, uint8_t* ret_count, const player_id** 
     export_buffers& bufs = get_bufs(self);
     player_id* outbuf = bufs.results;
     *ret_count = 1;
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     if (data.current_player != HAVANNAH_PLAYER_NONE) {
         *ret_count = 0;
         return ERR_OK;
@@ -680,7 +685,7 @@ static error_code print(game* self, player_id player, size_t* ret_size, const ch
     export_buffers& bufs = get_bufs(self);
     char* outbuf = bufs.print;
     opts_repr& opts = get_opts(self);
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     const char* ostr = outbuf;
     switch (1) { //TODO proper switch in options
         case 0:
@@ -753,7 +758,7 @@ static error_code print(game* self, player_id player, size_t* ret_size, const ch
 static error_code get_cell(game* self, int x, int y, HAVANNAH_PLAYER* p)
 {
     opts_repr& opts = get_opts(self);
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     if (x < 0 || y < 0 || x >= data.board_sizer || y >= data.board_sizer) {
         *p = HAVANNAH_PLAYER_INVALID;
     } else {
@@ -765,7 +770,7 @@ static error_code get_cell(game* self, int x, int y, HAVANNAH_PLAYER* p)
 static error_code set_cell(game* self, int x, int y, HAVANNAH_PLAYER p, bool* wins)
 {
     opts_repr& opts = get_opts(self);
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
 
     bool winner = false; // if this is true by the end, player p wins with this move
     uint8_t contribution_border = 0b00111111; // begin on the north-west corner and it's left border, going counter-clockwise
@@ -982,7 +987,7 @@ static error_code get_size(game* self, int* size)
 
 static error_code can_swap(game* self, bool* swap_available)
 {
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     *swap_available = (data.pie_swap == true && data.current_player == HAVANNAH_PLAYER_BLACK);
     return ERR_OK;
 }

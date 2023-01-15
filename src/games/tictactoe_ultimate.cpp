@@ -25,8 +25,7 @@ namespace {
         char* print;
     };
 
-    struct data_repr {
-        export_buffers bufs;
+    struct state_repr {
         // origin bottom left, y upwards, x to the right
         // individual boards work like standard tictactoe board
         uint32_t board[3][3];
@@ -38,14 +37,19 @@ namespace {
         player_id winning_player;
     };
 
+    struct game_data {
+        export_buffers bufs;
+        state_repr state;
+    };
+
     export_buffers& get_bufs(game* self)
     {
-        return ((data_repr*)(self->data1))->bufs;
+        return ((game_data*)(self->data1))->bufs;
     }
 
-    data_repr& get_repr(game* self)
+    state_repr& get_repr(game* self)
     {
-        return *((data_repr*)(self->data1));
+        return ((game_data*)(self->data1))->state;
     }
 
 } // namespace
@@ -96,7 +100,7 @@ static const tictactoe_ultimate_internal_methods tictactoe_ultimate_gbe_internal
 
 static error_code create(game* self, game_init* init_info)
 {
-    self->data1 = malloc(sizeof(data_repr));
+    self->data1 = malloc(sizeof(game_data));
     if (self->data1 == NULL) {
         return ERR_OUT_OF_MEMORY;
     }
@@ -146,23 +150,23 @@ static error_code clone(game* self, game* clone_target)
 {
     clone_target->methods = self->methods;
     game_init init_info = (game_init){.source_type = GAME_INIT_SOURCE_TYPE_DEFAULT};
-    error_code ec = clone_target->methods->create(clone_target, &init_info);
+    error_code ec = create(clone_target, &init_info);
     if (ec != ERR_OK) {
         return ec;
     }
-    memcpy(clone_target->data1, self->data1, sizeof(data_repr));
+    copy_from(clone_target, self);
     return ERR_OK;
 }
 
 static error_code copy_from(game* self, game* other)
 {
-    memcpy(self->data1, other->data1, sizeof(data_repr));
+    get_repr(self) = get_repr(other);
     return ERR_OK;
 }
 
 static error_code compare(game* self, game* other, bool* ret_equal)
 {
-    *ret_equal = (memcmp(self->data1, other->data1, sizeof(data_repr)) == 0);
+    *ret_equal = (memcmp(&get_repr(self), &get_repr(other), sizeof(state_repr)) == 0);
     return ERR_OK;
 }
 
@@ -179,7 +183,7 @@ static error_code export_state(game* self, player_id player, size_t* ret_size, c
     if (outbuf == NULL) {
         return ERR_INVALID_INPUT;
     }
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     const char* ostr = outbuf;
     player_id cell_player;
     for (int y = 8; y >= 0; y--) {
@@ -259,7 +263,7 @@ static error_code export_state(game* self, player_id player, size_t* ret_size, c
 
 static error_code import_state(game* self, const char* str)
 {
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     for (int y = 0; y < 3; y++) {
         for (int x = 0; x < 3; x++) {
             data.board[y][x] = 0;
@@ -394,7 +398,7 @@ static error_code import_state(game* self, const char* str)
 static error_code players_to_move(game* self, uint8_t* ret_count, const player_id** ret_players)
 {
     *ret_count = 1;
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     player_id ptm = data.current_player;
     if (ptm == PLAYER_NONE) {
         *ret_count = 0;
@@ -418,7 +422,7 @@ static error_code get_concrete_moves(game* self, player_id player, uint32_t* ret
         *ret_count = 0;
         return ERR_OK;
     }
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     uint32_t count = 0;
     player_id cell_player;
     if (data.global_target_x >= 0 && data.global_target_y >= 0) {
@@ -427,7 +431,7 @@ static error_code get_concrete_moves(game* self, player_id player, uint32_t* ret
             for (int lx = data.global_target_x * 3; lx < data.global_target_x * 3 + 3; lx++) {
                 get_cell_local(self, lx, ly, &cell_player);
                 if (cell_player == PLAYER_NONE) {
-                    outbuf[count++] = game_e_create_move_small(self, (ly << 4) | lx);
+                    outbuf[count++] = game_e_create_move_small((ly << 4) | lx);
                 }
             }
         }
@@ -440,7 +444,7 @@ static error_code get_concrete_moves(game* self, player_id player, uint32_t* ret
                         for (int lx = gx * 3; lx < gx * 3 + 3; lx++) {
                             get_cell_local(self, lx, ly, &cell_player);
                             if (cell_player == PLAYER_NONE) {
-                                outbuf[count++] = game_e_create_move_small(self, (ly << 4) | lx);
+                                outbuf[count++] = game_e_create_move_small((ly << 4) | lx);
                             }
                         }
                     }
@@ -455,7 +459,7 @@ static error_code get_concrete_moves(game* self, player_id player, uint32_t* ret
 
 static error_code is_legal_move(game* self, player_id player, move_data_sync move)
 {
-    if (game_e_move_sync_is_none(self, move) == true) {
+    if (game_e_move_sync_is_none(move) == true) {
         return ERR_INVALID_INPUT;
     }
     uint8_t ptm_count;
@@ -475,7 +479,7 @@ static error_code is_legal_move(game* self, player_id player, move_data_sync mov
     if (cell_player != PLAYER_NONE) {
         return ERR_INVALID_INPUT;
     }
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     // check if we're playing into the global target, if any
     if (data.global_target_x >= 0 && data.global_target_y >= 0) {
         if ((x / 3 != data.global_target_x) || (y / 3 != data.global_target_y)) {
@@ -487,7 +491,7 @@ static error_code is_legal_move(game* self, player_id player, move_data_sync mov
 
 static error_code make_move(game* self, player_id player, move_data_sync move)
 {
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     // calc move and set cell
     move_code mcode = move.md.cl.code;
     int x = mcode & 0b1111;
@@ -536,7 +540,7 @@ static error_code get_results(game* self, uint8_t* ret_count, const player_id** 
     export_buffers& bufs = get_bufs(self);
     player_id* outbuf = bufs.results;
     *ret_count = 1;
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     player_id result = data.winning_player;
     if (result == PLAYER_NONE) {
         *ret_count = 0;
@@ -549,7 +553,7 @@ static error_code get_results(game* self, uint8_t* ret_count, const player_id** 
 
 static error_code id(game* self, uint64_t* ret_id)
 {
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     uint32_t r_id = squirrelnoise5((int32_t)data.global_board, data.global_target_x + data.global_target_y + data.current_player);
     for (int i = 0; i < 9; i++) {
         r_id = squirrelnoise5((int32_t)data.board[i / 3][i % 3], r_id);
@@ -623,7 +627,7 @@ static error_code print(game* self, player_id player, size_t* ret_size, const ch
 {
     export_buffers& bufs = get_bufs(self);
     char* outbuf = bufs.print;
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     player_id cell_player;
     size_t global_target_str_len;
     const char* global_target_str;
@@ -754,42 +758,42 @@ static error_code set_cell(game* self, uint32_t* state, int x, int y, player_id 
 
 static error_code get_cell_global(game* self, int x, int y, player_id* ret_p)
 {
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     get_cell(self, data.global_board, x, y, ret_p);
     return ERR_OK;
 }
 
 static error_code set_cell_global(game* self, int x, int y, player_id p)
 {
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     set_cell(self, &(data.global_board), x, y, p);
     return ERR_OK;
 }
 
 static error_code get_cell_local(game* self, int x, int y, player_id* ret_p)
 {
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     get_cell(self, data.board[y / 3][x / 3], x % 3, y % 3, ret_p);
     return ERR_OK;
 }
 
 static error_code set_cell_local(game* self, int x, int y, player_id p)
 {
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     set_cell(self, &(data.board[y / 3][x / 3]), x % 3, y % 3, p);
     return ERR_OK;
 }
 
 static error_code get_global_target(game* self, uint8_t* ret)
 {
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     *ret = ((data.global_target_y == -1 ? 3 : data.global_target_y) << 2) | (data.global_target_x == -1 ? 3 : data.global_target_x);
     return ERR_OK;
 }
 
 static error_code set_global_target(game* self, int x, int y)
 {
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     data.global_target_x = x;
     data.global_target_y = y;
     return ERR_OK;
@@ -797,14 +801,14 @@ static error_code set_global_target(game* self, int x, int y)
 
 static error_code set_current_player(game* self, player_id p)
 {
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     data.current_player = p;
     return ERR_OK;
 }
 
 static error_code set_result(game* self, player_id p)
 {
-    data_repr& data = get_repr(self);
+    state_repr& data = get_repr(self);
     data.winning_player = p;
     return ERR_OK;
 }
