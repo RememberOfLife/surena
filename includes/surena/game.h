@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 26;
+static const uint64_t SURENA_GAME_API_VERSION = 27;
 
 typedef uint32_t error_code;
 
@@ -241,7 +241,7 @@ typedef error_code compare_gf_t(game* self, game* other, bool* ret_equal);
 
 // FEATURE: options
 // write this games options to a universal options string and returns a read only pointer to it
-// returns the length of the options string written, 0 if failure, excluding null character
+// returns the length of the options string written, excluding null character
 // player specifies the perspective player from which this is done (relevant for feature: hidden_information) (PLAYER_NONE is omniscient pov)
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
 typedef error_code export_options_gf_t(game* self, player_id player, size_t* ret_size, const char** ret_str);
@@ -250,7 +250,7 @@ typedef error_code export_options_gf_t(game* self, player_id player, size_t* ret
 typedef error_code player_count_gf_t(game* self, uint8_t* ret_count);
 
 // writes the game state to a universal state string and returns a read only pointer to it
-// returns the length of the state string written, 0 if failure, excluding null character
+// returns the length of the state string written, excluding null character
 // player specifies the perspective player from which this is done (relevant for feature: hidden_information) (PLAYER_NONE is omniscient pov)
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
 typedef error_code export_state_gf_t(game* self, player_id player, size_t* ret_size, const char** ret_str);

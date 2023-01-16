@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "rosalia/base64.h"
+#include "rosalia/serialization.h"
+
 #include "surena/games/chess.h"
 #include "surena/games/havannah.h"
 #include "surena/games/tictactoe_ultimate.h"
@@ -208,10 +211,11 @@ typedef struct repl_state_s {
     bool exit;
     //TODO set and get variable array and enum type + string tag list
     const game_methods* g_methods;
-    const char* g_c_options;
-    const char* g_c_legacy;
-    const char* g_c_initial_state;
-    const char* g_c_b64_serialized;
+    char* g_c_options;
+    char* g_c_legacy;
+    char* g_c_initial_state;
+    char* g_c_b64_serialized;
+    blob g_c_serialized;
     game g;
     player_id pov;
 } repl_state;
@@ -560,12 +564,116 @@ void repl_cmd_handle_m_pov(repl_state* rs, int argc, char** argv)
 void repl_cmd_handle_g_create(repl_state* rs, int argc, char** argv)
 {
     if (rs == NULL) { // print help
-        //TODO
+        // printf("usage: create\n"); //TODO future feature
+        printf("usage: create def\n");
+        printf("usage: create std <[O][L][S]> [options] [legacy] [state]\n");
+        printf("usage: create ser <b64>\n");
+        printf("create a game from default, standard or serialization source\n"); //TODO if no source is specified the cached one rs->g_c_* should be used
+        printf("standard sources can specify which parts are supplied, other are assumed NULL\n");
+        printf("e.g. to create with opts and default state: /create std O \"myopts\"\n");
+        printf("e.g. to create with legacy and initial state use default opts: /create std LS \"mylegacy\" \"mystate\"\n");
         return;
     }
-    //TODO switch on args to see if should create using std/b64 and then on if to use provided or from cache
     if (rs->g_methods == NULL) {
         printf("can not create game: no methods selected\n");
+        return;
+    }
+    game_init game_init_info;
+    if (argc < 1) {
+        printf("can not create game without specifying a source\n"); //TODO this is a future feature
+        return;
+    }
+    const char* source_type = argv[0];
+    if (strcmp(source_type, "def") == 0) {
+        game_init_info.source_type = GAME_INIT_SOURCE_TYPE_DEFAULT;
+    } else if (strcmp(source_type, "std") == 0) {
+        game_init_info = (game_init){
+            .source_type = GAME_INIT_SOURCE_TYPE_STANDARD,
+            .source = {
+                .standard = {
+                    .opts = NULL,
+                    .legacy = NULL,
+                    .state = NULL,
+                    .sync_ctr = SYNC_CTR_DEFAULT,
+                },
+            },
+        };
+        // if no O/L/S supplied then just use null everywhere
+        if (argc > 1) { // must be in order otherwise it might be confusing
+            const int C_OPTIONS_IDX = 0;
+            const int C_LEGACY_IDX = 1;
+            const int C_STATE_IDX = 2;
+            bool expecting[3] = {false, false, false};
+            char* gotstr[3] = {NULL, NULL, NULL};
+            const char* announcing = argv[1];
+            for (int ai = 0; announcing[ai] != '\0'; ai++) {
+                if (ai > 2) {
+                    printf("too many announced source strings for standard source\n");
+                    return;
+                }
+                switch (announcing[ai]) {
+                    case 'O': {
+                        if (rs->g_methods->features.options == false) {
+                            printf("game does not support options\n");
+                            return;
+                        }
+                        expecting[C_OPTIONS_IDX] = true;
+                    } break;
+                    case 'L': {
+                        if (rs->g_methods->features.options == false) {
+                            printf("game does not support legacy\n");
+                            return;
+                        }
+                        expecting[C_LEGACY_IDX] = true;
+                    } break;
+                    case 'S': {
+                        expecting[C_STATE_IDX] = true;
+                    } break;
+                    default: {
+                        printf("unkown announced source string for standard source\n");
+                        return;
+                    }
+                }
+            }
+            // go through the rest of the supplied args and fill in everywhere where expecting first before going on
+            int wargc = argc - 2;
+            char** wargv = argv + 2;
+            for (int ei = 0; ei < 3; ei++) {
+                if (expecting[ei] == false) {
+                    continue;
+                }
+                if (wargc < 1) {
+                    printf("missing expected source string\n");
+                    return;
+                }
+                gotstr[ei] = strdup(wargv[0]);
+                wargc--;
+                wargv++;
+            }
+            game_init_info.source.standard.opts = gotstr[C_OPTIONS_IDX];
+            game_init_info.source.standard.legacy = gotstr[C_LEGACY_IDX];
+            game_init_info.source.standard.state = gotstr[C_STATE_IDX];
+        }
+    } else if (strcmp(source_type, "ser") == 0) {
+        if (rs->g_methods->features.serializable == false) {
+            printf("game does not support serialization source\n");
+            return;
+        }
+        game_init_info.source_type = GAME_INIT_SOURCE_TYPE_SERIALIZED;
+        if (argc < 2) {
+            printf("need to supply serialization to use for create\n");
+            return;
+        }
+        free(rs->g_c_b64_serialized);
+        rs->g_c_b64_serialized = NULL;
+        blob_destroy(&rs->g_c_serialized);
+        rs->g_c_b64_serialized = strdup(argv[1]);
+        size_t rsize = b64_decode_size(argv[1]);
+        blob_create(&rs->g_c_serialized, rsize);
+        rsize = b64_decode(rs->g_c_serialized.data, argv[1]);
+        game_init_info.source.serialized.b = rs->g_c_serialized;
+    } else {
+        printf("unknown source type\n");
         return;
     }
     error_code ec;
@@ -583,17 +691,6 @@ void repl_cmd_handle_g_create(repl_state* rs, int argc, char** argv)
         }
     }
     rs->g.methods = rs->g_methods;
-    //TODO use selected init type
-    game_init game_init_info = (game_init){
-        .source_type = GAME_INIT_SOURCE_TYPE_STANDARD,
-        .source = {
-            .standard = {
-                .opts = rs->g_c_options,
-                .legacy = rs->g_c_legacy,
-                .state = rs->g_c_initial_state,
-            },
-        },
-    };
     ec = game_create(&rs->g, &game_init_info);
     if (ec != ERR_OK) {
         print_game_error(&rs->g, ec);

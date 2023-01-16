@@ -8,7 +8,7 @@
 #include "repl.h"
 
 namespace surena {
-    const semver version = {0, 13, 1};
+    const semver version = {0, 13, 2};
 } // namespace surena
 
 int main(int argc, char** argv)

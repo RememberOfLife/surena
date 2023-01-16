@@ -611,7 +611,9 @@ error_code game_get_move_data(game* self, player_id player, const char* str, mov
     assert(ret_move);
     assert(player != PLAYER_NONE);
     error_code ec = self->methods->get_move_data(self, player, str, ret_move);
-    (*ret_move)->sync_ctr = self->sync_ctr;
+    if (ec == ERR_OK) {
+        (*ret_move)->sync_ctr = self->sync_ctr;
+    }
     return ec;
 }
 
