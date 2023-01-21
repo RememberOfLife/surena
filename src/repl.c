@@ -748,10 +748,12 @@ void repl_cmd_handle_g_make_move(repl_state* rs, int argc, char** argv)
     }
     error_code ec;
     player_id pov = rs->pov;
-    char* movestr = argv[0];
+    char* movestr;
     if (argc == 0) {
         printf("at least a move string is required to make a move\n");
         return;
+    } else if (argc == 1) {
+        movestr = argv[0];
     } else if (argc == 2) {
         //TODO allow none and rand as string shorthands for 0 and 255 and allow rand only for games with random in general!
         int sc = sscanf(argv[0], "%hhu", &pov);
@@ -771,7 +773,7 @@ void repl_cmd_handle_g_make_move(repl_state* rs, int argc, char** argv)
             return;
         }
         movestr = argv[1];
-    } else if (argc > 2) {
+    } else {
         printf("too many arguments for make move\n");
         return;
     }
