@@ -29,9 +29,14 @@ const char* strpfc(const char* str, char c)
 }
 
 // if str is NULL, then this frees the content of argv
+// you still need to provide argc
 void strargsplit(const char* str, int* argc, char*** argv)
 {
     if (str == NULL) {
+        // the first element of *argv points to the start of the allocation used
+        // for all strings in *argv
+        if (*argc)
+            free((*argv)[0]);
         free(*argv);
         return;
     }
@@ -76,6 +81,10 @@ void strargsplit(const char* str, int* argc, char*** argv)
         }
         sstr++;
     }
+    // if cnt is 0, no reference to the newstr allocation will remain
+    // hence, free newstr now for this case
+    if (!cnt)
+        free(newstr);
 }
 
 const game_methods* load_plugin_game_methods(const char* file, uint32_t idx)
@@ -364,7 +373,7 @@ void handle_command(repl_state* rs, char* str)
         char** argv;
         strargsplit(wstr, &argc, &argv);
         game_command_infos[cmd_type].handler(rs, argc, argv);
-        strargsplit(NULL, NULL, &argv);
+        strargsplit(NULL, &argc, &argv);
     } else {
         printf("unknown command\n");
     }
@@ -408,7 +417,7 @@ int repl()
             char** move_argv;
             strargsplit(read_buf, &move_argc, &move_argv);
             game_command_infos[REPL_CMD_G_MAKE_MOVE].handler(&rs, move_argc, move_argv);
-            strargsplit(NULL, NULL, &move_argv);
+            strargsplit(NULL, &move_argc, &move_argv);
         }
         // print
         /*TODO
