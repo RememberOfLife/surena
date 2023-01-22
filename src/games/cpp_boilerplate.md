@@ -123,7 +123,7 @@ extern "C" {
 /* same for internals */
 
 // impl internal declarations
-// static error_code internal_call(game* self, int x);
+// static error_code internal_call_gf(game* self, int x);
 
 // need internal function pointer struct here
 // static const thegame_internal_methods thegame_gbe_internal_methods{
@@ -153,12 +153,12 @@ static const char* get_last_error(game* self)
     return (char*)self->data2;
 }
 
-static error_code create(game* self, game_init* init_info)
+static error_code create_gf(game* self, game_init* init_info)
 {
     //TODO
 }
 
-static error_code destroy(game* self)
+static error_code destroy_gf(game* self)
 {
     //TODO destroy state_repr
     free(self->data2);
@@ -166,152 +166,152 @@ static error_code destroy(game* self)
     return ERR_OK;
 }
 
-static error_code clone(game* self, game* clone_target)
+static error_code clone_gf(game* self, game* clone_target)
 {
     //TODO
 }
 
-static error_code copy_from(game* self, game* other)
+static error_code copy_from_gf(game* self, game* other)
 {
     //TODO
 }
 
-static error_code compare(game* self, game* other, bool* ret_equal)
+static error_code compare_gf(game* self, game* other, bool* ret_equal)
 {
     //TODO
 }
 
-static error_code export_options(game* self, player_id player, size_t* ret_size, const char** ret_str)
+static error_code export_options_gf(game* self, player_id player, size_t* ret_size, const char** ret_str)
 {
     //TODO
 }
 
-static error_code player_count(game* self, uint8_t* ret_count)
+static error_code player_count_gf(game* self, uint8_t* ret_count)
 {
     //TODO
 }
 
-static error_code export_state(game* self, player_id player, size_t* ret_size, const char** ret_str)
+static error_code export_state_gf(game* self, player_id player, size_t* ret_size, const char** ret_str)
 {
     //TODO
 }
 
-static error_code import_state(game* self, const char* str)
+static error_code import_state_gf(game* self, const char* str)
 {
     //TODO
 }
 
-static error_code serialize(game* self, player_id player, const blob** ret_blob)
+static error_code serialize_gf(game* self, player_id player, const blob** ret_blob)
 {
     //TODO
 }
 
-static error_code players_to_move(game* self, uint8_t* ret_count, const player_id** ret_players)
+static error_code players_to_move_gf(game* self, uint8_t* ret_count, const player_id** ret_players)
 {
     //TODO
 }
 
-static error_code get_concrete_moves(game* self, player_id player, uint32_t* ret_count, const move_data** ret_moves)
+static error_code get_concrete_moves_gf(game* self, player_id player, uint32_t* ret_count, const move_data** ret_moves)
 {
     //TODO
 }
 
-static error_code get_concrete_move_probabilities(game* self, player_id player, uint32_t* ret_count, const float** ret_move_probabilities)
+static error_code get_concrete_move_probabilities_gf(game* self, player_id player, uint32_t* ret_count, const float** ret_move_probabilities)
 {
     //TODO
 }
 
-static error_code get_concrete_moves_ordered(game* self, player_id player, uint32_t* ret_count, const move_data** ret_moves)
+static error_code get_concrete_moves_ordered_gf(game* self, player_id player, uint32_t* ret_count, const move_data** ret_moves)
 {
     //TODO
 }
 
-static error_code get_actions(game* self, player_id player, uint32_t* ret_count, const move_data** ret_moves)
+static error_code get_actions_gf(game* self, player_id player, uint32_t* ret_count, const move_data** ret_moves)
 {
     //TODO
 }
 
-static error_code is_legal_move(game* self, player_id player, move_data_sync move)
+static error_code is_legal_move_gf(game* self, player_id player, move_data_sync move)
 {
     //TODO
 }
 
-static error_code move_to_action(game* self, player_id player, move_data_sync move, move_data_sync** ret_action)
+static error_code move_to_action_gf(game* self, player_id player, move_data_sync move, move_data_sync** ret_action)
 {
     //TODO
 }
 
-static error_code is_action(game* self, player_id player, move_data_sync move, bool* ret_is_action)
+static error_code is_action_gf(game* self, player_id player, move_data_sync move, bool* ret_is_action)
 {
     //TODO
 }
 
-static error_code make_move(game* self, player_id player, move_data_sync move)
+static error_code make_move_gf(game* self, player_id player, move_data_sync move)
 {
     //TODO
 }
 
-static error_code get_results(game* self, uint8_t* ret_count, const player_id** ret_players)
+static error_code get_results_gf(game* self, uint8_t* ret_count, const player_id** ret_players)
 {
     //TODO
 }
 
-static error_code export_legacy(game* self, player_id player, size_t* ret_size, const char** ret_str)
+static error_code export_legacy_gf(game* self, player_id player, size_t* ret_size, const char** ret_str)
 {
     //TODO
 }
 
-static error_code get_scores(game* self, size_t* ret_count, player_id* players, const int32_t** ret_scores)
+static error_code get_scores_gf(game* self, size_t* ret_count, player_id* players, const int32_t** ret_scores)
 {
     //TODO
 }
 
-static error_code id(game* self, uint64_t* ret_id)
+static error_code id_gf(game* self, uint64_t* ret_id)
 {
     //TODO
 }
 
-static error_code eval(game* self, player_id player, float* ret_eval)
+static error_code eval_gf(game* self, player_id player, float* ret_eval)
 {
     //TODO
 }
 
-static error_code discretize(game* self, uint64_t seed)
+static error_code discretize_gf(game* self, uint64_t seed)
 {
     //TODO
 }
 
-static error_code playout(game* self, uint64_t seed)
+static error_code playout_gf(game* self, uint64_t seed)
 {
     //TODO
 }
 
-static error_code redact_keep_state(game* self, uint8_t count, const player_id* players)
+static error_code redact_keep_state_gf(game* self, uint8_t count, const player_id* players)
 {
     //TODO
 }
 
-static error_code export_sync_data(game* self, uint32_t* ret_count, const sync_data** ret_sync_data)
+static error_code export_sync_data_gf(game* self, uint32_t* ret_count, const sync_data** ret_sync_data)
 {
     //TODO
 }
 
-static error_code import_sync_data(game* self, blob b)
+static error_code import_sync_data_gf(game* self, blob b)
 {
     //TODO
 }
 
-static error_code get_move_data(game* self, player_id player, const char* str, move_data_sync** ret_move)
+static error_code get_move_data_gf(game* self, player_id player, const char* str, move_data_sync** ret_move)
 {
     //TODO
 }
 
-static error_code get_move_str(game* self, player_id player, move_data_sync move, size_t* ret_size, const char** ret_str)
+static error_code get_move_str_gf(game* self, player_id player, move_data_sync move, size_t* ret_size, const char** ret_str)
 {
     //TODO
 }
 
-static error_code print(game* self, player_id player, size_t* ret_size, const char** ret_str)
+static error_code print_gf(game* self, player_id player, size_t* ret_size, const char** ret_str)
 {
     //TODO
 }
@@ -319,7 +319,7 @@ static error_code print(game* self, player_id player, size_t* ret_size, const ch
 //=====
 // game internal methods
 
-// static error_code internal_call(game* self, int x)
+// static error_code internal_call_gf(game* self, int x)
 // {
 //     //TODO
 // }

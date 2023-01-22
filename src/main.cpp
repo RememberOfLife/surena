@@ -8,7 +8,7 @@
 #include "repl.h"
 
 namespace surena {
-    const semver version = {0, 13, 2};
+    const semver version = {0, 13, 3};
 } // namespace surena
 
 int main(int argc, char** argv)
@@ -23,7 +23,7 @@ int main(int argc, char** argv)
     if (strcmp(w_arg, "version") == 0) {
         printf("surena version %d.%d.%d\n", surena::version.major, surena::version.minor, surena::version.patch);
         //TODO api versions?
-        printf("git commit hash: %s%s\n", GIT_COMMIT_HASH == NULL ? "<no commit info available>" : GIT_COMMIT_HASH, GIT_COMMIT_DIRTY ? " (dirty)" : "");
+        printf("git commit hash: %s%s\n", GIT_COMMIT_HASH == NULL ? "<no commit info available>" : GIT_COMMIT_HASH, GIT_COMMIT_HASH != NULL && GIT_COMMIT_DIRTY ? " (dirty)" : "");
         exit(EXIT_SUCCESS);
     } else if (strcmp(w_arg, "repl") == 0) {
         //TODO allow for initial input via cli

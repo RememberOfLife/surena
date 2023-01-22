@@ -58,30 +58,30 @@ namespace {
 extern "C" {
 #endif
 
-static error_code check_result(game* self, uint32_t state, player_id* ret_p);
-static error_code get_cell(game* self, uint32_t state, int x, int y, player_id* ret_p);
-static error_code set_cell(game* self, uint32_t* state, int x, int y, player_id p);
-static error_code get_cell_global(game* self, int x, int y, player_id* ret_p);
-static error_code set_cell_global(game* self, int x, int y, player_id p);
-static error_code get_cell_local(game* self, int x, int y, player_id* ret_p);
-static error_code set_cell_local(game* self, int x, int y, player_id p);
-static error_code get_global_target(game* self, uint8_t* ret);
-static error_code set_global_target(game* self, int x, int y);
-static error_code set_current_player(game* self, player_id p);
-static error_code set_result(game* self, player_id p);
+static error_code check_result_gf(game* self, uint32_t state, player_id* ret_p);
+static error_code get_cell_gf(game* self, uint32_t state, int x, int y, player_id* ret_p);
+static error_code set_cell_gf(game* self, uint32_t* state, int x, int y, player_id p);
+static error_code get_cell_global_gf(game* self, int x, int y, player_id* ret_p);
+static error_code set_cell_global_gf(game* self, int x, int y, player_id p);
+static error_code get_cell_local_gf(game* self, int x, int y, player_id* ret_p);
+static error_code set_cell_local_gf(game* self, int x, int y, player_id p);
+static error_code get_global_target_gf(game* self, uint8_t* ret);
+static error_code set_global_target_gf(game* self, int x, int y);
+static error_code set_current_player_gf(game* self, player_id p);
+static error_code set_result_gf(game* self, player_id p);
 
 static const tictactoe_ultimate_internal_methods tictactoe_ultimate_gbe_internal_methods{
-    .check_result = check_result,
-    .get_cell = get_cell,
-    .set_cell = set_cell,
-    .get_cell_global = get_cell_global,
-    .set_cell_global = set_cell_global,
-    .get_cell_local = get_cell_local,
-    .set_cell_local = set_cell_local,
-    .get_global_target = get_global_target,
-    .set_global_target = set_global_target,
-    .set_current_player = set_current_player,
-    .set_result = set_result,
+    .check_result = check_result_gf,
+    .get_cell = get_cell_gf,
+    .set_cell = set_cell_gf,
+    .get_cell_global = get_cell_global_gf,
+    .set_cell_global = set_cell_global_gf,
+    .get_cell_local = get_cell_local_gf,
+    .set_cell_local = set_cell_local_gf,
+    .get_global_target = get_global_target_gf,
+    .set_global_target = set_global_target_gf,
+    .set_current_player = set_current_player_gf,
+    .set_result = set_result_gf,
 };
 
 // declare and form game
@@ -98,7 +98,7 @@ static const tictactoe_ultimate_internal_methods tictactoe_ultimate_gbe_internal
 
 // implementation
 
-static error_code create(game* self, game_init* init_info)
+static error_code create_gf(game* self, game_init* init_info)
 {
     self->data1 = malloc(sizeof(game_data));
     if (self->data1 == NULL) {
@@ -119,7 +119,7 @@ static error_code create(game* self, game_init* init_info)
             bufs.results == NULL ||
             bufs.move_str == NULL ||
             bufs.print == NULL) {
-            destroy(self);
+            destroy_gf(self);
             return ERR_OUT_OF_MEMORY;
         }
     }
@@ -127,10 +127,10 @@ static error_code create(game* self, game_init* init_info)
     if (init_info->source_type == GAME_INIT_SOURCE_TYPE_STANDARD) {
         initial_state = init_info->source.standard.state;
     }
-    return import_state(self, initial_state);
+    return import_state_gf(self, initial_state);
 }
 
-static error_code destroy(game* self)
+static error_code destroy_gf(game* self)
 {
     {
         export_buffers& bufs = get_bufs(self);
@@ -146,37 +146,37 @@ static error_code destroy(game* self)
     return ERR_OK;
 }
 
-static error_code clone(game* self, game* clone_target)
+static error_code clone_gf(game* self, game* clone_target)
 {
     clone_target->methods = self->methods;
     game_init init_info = (game_init){.source_type = GAME_INIT_SOURCE_TYPE_DEFAULT};
-    error_code ec = create(clone_target, &init_info);
+    error_code ec = create_gf(clone_target, &init_info);
     if (ec != ERR_OK) {
         return ec;
     }
-    copy_from(clone_target, self);
+    copy_from_gf(clone_target, self);
     return ERR_OK;
 }
 
-static error_code copy_from(game* self, game* other)
+static error_code copy_from_gf(game* self, game* other)
 {
     get_repr(self) = get_repr(other);
     return ERR_OK;
 }
 
-static error_code compare(game* self, game* other, bool* ret_equal)
+static error_code compare_gf(game* self, game* other, bool* ret_equal)
 {
     *ret_equal = (memcmp(&get_repr(self), &get_repr(other), sizeof(state_repr)) == 0);
     return ERR_OK;
 }
 
-static error_code player_count(game* self, uint8_t* ret_count)
+static error_code player_count_gf(game* self, uint8_t* ret_count)
 {
     *ret_count = 2;
     return ERR_OK;
 }
 
-static error_code export_state(game* self, player_id player, size_t* ret_size, const char** ret_str)
+static error_code export_state_gf(game* self, player_id player, size_t* ret_size, const char** ret_str)
 {
     export_buffers& bufs = get_bufs(self);
     char* outbuf = bufs.state;
@@ -189,7 +189,7 @@ static error_code export_state(game* self, player_id player, size_t* ret_size, c
     for (int y = 8; y >= 0; y--) {
         int empty_squares = 0;
         for (int x = 0; x < 9; x++) {
-            get_cell_local(self, x, y, &cell_player);
+            get_cell_local_gf(self, x, y, &cell_player);
             if (cell_player == PLAYER_NONE) {
                 empty_squares++;
             } else {
@@ -217,7 +217,7 @@ static error_code export_state(game* self, player_id player, size_t* ret_size, c
     // current player
     uint8_t ptm_count;
     const player_id* ptm_buf;
-    players_to_move(self, &ptm_count, &ptm_buf);
+    players_to_move_gf(self, &ptm_count, &ptm_buf);
     player_id ptm;
     if (ptm_count == 0) {
         ptm = PLAYER_NONE;
@@ -238,7 +238,7 @@ static error_code export_state(game* self, player_id player, size_t* ret_size, c
     // result player
     uint8_t res_count;
     const player_id* res_buf;
-    get_results(self, &res_count, &res_buf);
+    get_results_gf(self, &res_count, &res_buf);
     player_id res;
     if (res_count == 0) {
         res = PLAYER_NONE;
@@ -261,7 +261,7 @@ static error_code export_state(game* self, player_id player, size_t* ret_size, c
     return ERR_OK;
 }
 
-static error_code import_state(game* self, const char* str)
+static error_code import_state_gf(game* self, const char* str)
 {
     state_repr& data = get_repr(self);
     for (int y = 0; y < 3; y++) {
@@ -289,14 +289,14 @@ static error_code import_state(game* self, const char* str)
                     // out of bounds board
                     return ERR_INVALID_INPUT;
                 }
-                set_cell_local(self, x++, y, 1);
+                set_cell_local_gf(self, x++, y, 1);
             } break;
             case 'O': {
                 if (x > 8 || y < 0) {
                     // out of bounds board
                     return ERR_INVALID_INPUT;
                 }
-                set_cell_local(self, x++, y, 2);
+                set_cell_local_gf(self, x++, y, 2);
             } break;
             case '1':
             case '2':
@@ -312,7 +312,7 @@ static error_code import_state(game* self, const char* str)
                         // out of bounds board
                         return ERR_INVALID_INPUT;
                     }
-                    set_cell_local(self, x++, y, PLAYER_NONE);
+                    set_cell_local_gf(self, x++, y, PLAYER_NONE);
                 }
             } break;
             case '/': { // advance to next
@@ -333,9 +333,9 @@ static error_code import_state(game* self, const char* str)
     for (int iy = 0; iy < 3; iy++) {
         for (int ix = 0; ix < 3; ix++) {
             uint8_t local_result;
-            check_result(self, data.board[iy][ix], &local_result);
+            check_result_gf(self, data.board[iy][ix], &local_result);
             if (local_result > 0) {
-                set_cell_global(self, ix, iy, local_result);
+                set_cell_global_gf(self, ix, iy, local_result);
             }
         }
     }
@@ -357,13 +357,13 @@ static error_code import_state(game* self, const char* str)
     // current player
     switch (*str) {
         case '-': {
-            set_current_player(self, PLAYER_NONE);
+            set_current_player_gf(self, PLAYER_NONE);
         } break;
         case 'X': {
-            set_current_player(self, 1);
+            set_current_player_gf(self, 1);
         } break;
         case 'O': {
-            set_current_player(self, 2);
+            set_current_player_gf(self, 2);
         } break;
         default: {
             // failure, ran out of str to use or got invalid character
@@ -379,13 +379,13 @@ static error_code import_state(game* self, const char* str)
     // result player
     switch (*str) {
         case '-': {
-            set_result(self, PLAYER_NONE);
+            set_result_gf(self, PLAYER_NONE);
         } break;
         case 'X': {
-            set_result(self, 1);
+            set_result_gf(self, 1);
         } break;
         case 'O': {
-            set_result(self, 2);
+            set_result_gf(self, 2);
         } break;
         default: {
             // failure, ran out of str to use or got invalid character
@@ -395,7 +395,7 @@ static error_code import_state(game* self, const char* str)
     return ERR_OK;
 }
 
-static error_code players_to_move(game* self, uint8_t* ret_count, const player_id** ret_players)
+static error_code players_to_move_gf(game* self, uint8_t* ret_count, const player_id** ret_players)
 {
     *ret_count = 1;
     state_repr& data = get_repr(self);
@@ -411,13 +411,13 @@ static error_code players_to_move(game* self, uint8_t* ret_count, const player_i
     return ERR_OK;
 }
 
-static error_code get_concrete_moves(game* self, player_id player, uint32_t* ret_count, const move_data** ret_moves)
+static error_code get_concrete_moves_gf(game* self, player_id player, uint32_t* ret_count, const move_data** ret_moves)
 {
     export_buffers& bufs = get_bufs(self);
     move_data* outbuf = bufs.concrete_moves;
     uint8_t ptm_count;
     const player_id* ptm;
-    players_to_move(self, &ptm_count, &ptm);
+    players_to_move_gf(self, &ptm_count, &ptm);
     if (ptm_count == 0 || player != *ptm) {
         *ret_count = 0;
         return ERR_OK;
@@ -429,7 +429,7 @@ static error_code get_concrete_moves(game* self, player_id player, uint32_t* ret
         // only give moves for the target local board
         for (int ly = data.global_target_y * 3; ly < data.global_target_y * 3 + 3; ly++) {
             for (int lx = data.global_target_x * 3; lx < data.global_target_x * 3 + 3; lx++) {
-                get_cell_local(self, lx, ly, &cell_player);
+                get_cell_local_gf(self, lx, ly, &cell_player);
                 if (cell_player == PLAYER_NONE) {
                     outbuf[count++] = game_e_create_move_small((ly << 4) | lx);
                 }
@@ -438,11 +438,11 @@ static error_code get_concrete_moves(game* self, player_id player, uint32_t* ret
     } else {
         for (int gy = 0; gy < 3; gy++) {
             for (int gx = 0; gx < 3; gx++) {
-                get_cell_global(self, gx, gy, &cell_player);
+                get_cell_global_gf(self, gx, gy, &cell_player);
                 if (cell_player == PLAYER_NONE) {
                     for (int ly = gy * 3; ly < gy * 3 + 3; ly++) {
                         for (int lx = gx * 3; lx < gx * 3 + 3; lx++) {
-                            get_cell_local(self, lx, ly, &cell_player);
+                            get_cell_local_gf(self, lx, ly, &cell_player);
                             if (cell_player == PLAYER_NONE) {
                                 outbuf[count++] = game_e_create_move_small((ly << 4) | lx);
                             }
@@ -457,14 +457,14 @@ static error_code get_concrete_moves(game* self, player_id player, uint32_t* ret
     return ERR_OK;
 }
 
-static error_code is_legal_move(game* self, player_id player, move_data_sync move)
+static error_code is_legal_move_gf(game* self, player_id player, move_data_sync move)
 {
     if (game_e_move_sync_is_none(move) == true) {
         return ERR_INVALID_INPUT;
     }
     uint8_t ptm_count;
     const player_id* ptm;
-    players_to_move(self, &ptm_count, &ptm);
+    players_to_move_gf(self, &ptm_count, &ptm);
     if (*ptm != player) {
         return ERR_INVALID_INPUT;
     }
@@ -475,7 +475,7 @@ static error_code is_legal_move(game* self, player_id player, move_data_sync mov
         return ERR_INVALID_INPUT;
     }
     player_id cell_player;
-    get_cell_local(self, x, y, &cell_player);
+    get_cell_local_gf(self, x, y, &cell_player);
     if (cell_player != PLAYER_NONE) {
         return ERR_INVALID_INPUT;
     }
@@ -489,27 +489,27 @@ static error_code is_legal_move(game* self, player_id player, move_data_sync mov
     return ERR_OK;
 }
 
-static error_code make_move(game* self, player_id player, move_data_sync move)
+static error_code make_move_gf(game* self, player_id player, move_data_sync move)
 {
     state_repr& data = get_repr(self);
     // calc move and set cell
     move_code mcode = move.md.cl.code;
     int x = mcode & 0b1111;
     int y = (mcode >> 4) & 0b1111;
-    set_cell_local(self, x, y, data.current_player);
+    set_cell_local_gf(self, x, y, data.current_player);
     int gx = x / 3;
     int gy = y / 3;
     int lx = x % 3;
     int ly = y % 3;
     // calculate possible result of local board
     uint8_t local_result;
-    check_result(self, data.board[gy][gx], &local_result);
+    check_result_gf(self, data.board[gy][gx], &local_result);
     if (local_result > 0) {
-        set_cell_global(self, gx, gy, local_result);
+        set_cell_global_gf(self, gx, gy, local_result);
     }
     // set global target if applicable
     player_id cell_player;
-    get_cell_global(self, lx, ly, &cell_player);
+    get_cell_global_gf(self, lx, ly, &cell_player);
     if (cell_player == PLAYER_NONE) {
         data.global_target_x = lx;
         data.global_target_y = ly;
@@ -524,7 +524,7 @@ static error_code make_move(game* self, player_id player, move_data_sync move)
     }
     // detect win for current player
     uint8_t global_result;
-    check_result(self, data.global_board, &global_result);
+    check_result_gf(self, data.global_board, &global_result);
     if (global_result > 0) {
         data.winning_player = global_result;
         data.current_player = 0;
@@ -535,7 +535,7 @@ static error_code make_move(game* self, player_id player, move_data_sync move)
     return ERR_OK;
 }
 
-static error_code get_results(game* self, uint8_t* ret_count, const player_id** ret_players)
+static error_code get_results_gf(game* self, uint8_t* ret_count, const player_id** ret_players)
 {
     export_buffers& bufs = get_bufs(self);
     player_id* outbuf = bufs.results;
@@ -551,7 +551,7 @@ static error_code get_results(game* self, uint8_t* ret_count, const player_id** 
     return ERR_OK;
 }
 
-static error_code id(game* self, uint64_t* ret_id)
+static error_code id_gf(game* self, uint64_t* ret_id)
 {
     state_repr& data = get_repr(self);
     uint32_t r_id = squirrelnoise5((int32_t)data.global_board, data.global_target_x + data.global_target_y + data.current_player);
@@ -562,7 +562,7 @@ static error_code id(game* self, uint64_t* ret_id)
     return ERR_OK;
 }
 
-static error_code playout(game* self, uint64_t seed)
+static error_code playout_gf(game* self, uint64_t seed)
 {
     fast_prng rng;
     fprng_srand(&rng, seed);
@@ -570,16 +570,16 @@ static error_code playout(game* self, uint64_t seed)
     const move_data* moves;
     uint8_t ptm_count;
     const player_id* ptm;
-    players_to_move(self, &ptm_count, &ptm);
+    players_to_move_gf(self, &ptm_count, &ptm);
     while (ptm_count > 0) {
-        get_concrete_moves(self, ptm[0], &moves_count, &moves);
-        make_move(self, ptm[0], game_e_move_make_sync(self, moves[fprng_rand(&rng) % moves_count]));
-        players_to_move(self, &ptm_count, &ptm);
+        get_concrete_moves_gf(self, ptm[0], &moves_count, &moves);
+        make_move_gf(self, ptm[0], game_e_move_make_sync(self, moves[fprng_rand(&rng) % moves_count]));
+        players_to_move_gf(self, &ptm_count, &ptm);
     }
     return ERR_OK;
 }
 
-static error_code get_move_data(game* self, player_id player, const char* str, move_data_sync** ret_move)
+static error_code get_move_data_gf(game* self, player_id player, const char* str, move_data_sync** ret_move)
 {
     export_buffers& bufs = get_bufs(self);
     if (strlen(str) >= 1 && str[0] == '-') {
@@ -607,7 +607,7 @@ static error_code get_move_data(game* self, player_id player, const char* str, m
     return ERR_OK;
 }
 
-static error_code get_move_str(game* self, player_id player, move_data_sync move, size_t* ret_size, const char** ret_str)
+static error_code get_move_str_gf(game* self, player_id player, move_data_sync move, size_t* ret_size, const char** ret_str)
 {
     export_buffers& bufs = get_bufs(self);
     char* outbuf = bufs.move_str;
@@ -623,7 +623,7 @@ static error_code get_move_str(game* self, player_id player, move_data_sync move
     return ERR_OK;
 }
 
-static error_code print(game* self, player_id player, size_t* ret_size, const char** ret_str)
+static error_code print_gf(game* self, player_id player, size_t* ret_size, const char** ret_str)
 {
     export_buffers& bufs = get_bufs(self);
     char* outbuf = bufs.print;
@@ -631,16 +631,16 @@ static error_code print(game* self, player_id player, size_t* ret_size, const ch
     player_id cell_player;
     size_t global_target_str_len;
     const char* global_target_str;
-    get_move_str(self, data.current_player, game_e_create_move_sync_small(self, (data.global_target_y << 4) | data.global_target_x), &global_target_str_len, &global_target_str);
+    get_move_str_gf(self, data.current_player, game_e_create_move_sync_small(self, (data.global_target_y << 4) | data.global_target_x), &global_target_str_len, &global_target_str);
     outbuf += sprintf(outbuf, "global target: %s\n", (data.global_target_x >= 0 && data.global_target_y >= 0) ? global_target_str : "-");
     for (int gy = 2; gy >= 0; gy--) {
         for (int ly = 2; ly >= 0; ly--) {
             outbuf += sprintf(outbuf, "%c ", '0' + (gy * 3 + ly));
             for (int gx = 0; gx < 3; gx++) {
                 for (int lx = 0; lx < 3; lx++) {
-                    get_cell_global(self, gx, gy, &cell_player);
+                    get_cell_global_gf(self, gx, gy, &cell_player);
                     if (cell_player == 0) {
-                        get_cell_local(self, gx * 3 + lx, gy * 3 + ly, &cell_player);
+                        get_cell_local_gf(self, gx * 3 + lx, gy * 3 + ly, &cell_player);
                     }
                     switch (cell_player) {
                         case (1): {
@@ -681,7 +681,7 @@ static error_code print(game* self, player_id player, size_t* ret_size, const ch
 //=====
 // game internal methods
 
-static error_code check_result(game* self, uint32_t state, player_id* ret_p)
+static error_code check_result_gf(game* self, uint32_t state, player_id* ret_p)
 {
     // return 0 if game running, 1-2 for player wins, 3 for draw
     // detect win for current player
@@ -694,15 +694,15 @@ static error_code check_result(game* self, uint32_t state, player_id* ret_p)
         player_id cell_player_i0;
         player_id cell_player_i1;
         player_id cell_player_i2;
-        get_cell(self, state, 0, i, &cell_player_0i);
-        get_cell(self, state, 1, i, &cell_player_1i);
-        get_cell(self, state, 2, i, &cell_player_2i);
-        get_cell(self, state, i, 0, &cell_player_i0);
-        get_cell(self, state, i, 1, &cell_player_i1);
-        get_cell(self, state, i, 2, &cell_player_i2);
+        get_cell_gf(self, state, 0, i, &cell_player_0i);
+        get_cell_gf(self, state, 1, i, &cell_player_1i);
+        get_cell_gf(self, state, 2, i, &cell_player_2i);
+        get_cell_gf(self, state, i, 0, &cell_player_i0);
+        get_cell_gf(self, state, i, 1, &cell_player_i1);
+        get_cell_gf(self, state, i, 2, &cell_player_i2);
         if (cell_player_0i == cell_player_1i && cell_player_0i == cell_player_2i && cell_player_0i != 0 || cell_player_i0 == cell_player_i1 && cell_player_i0 == cell_player_i2 && cell_player_i0 != 0) {
             win = true;
-            get_cell(self, state, i, i, &state_winner);
+            get_cell_gf(self, state, i, i, &state_winner);
         }
     }
     player_id cell_player_00;
@@ -710,14 +710,14 @@ static error_code check_result(game* self, uint32_t state, player_id* ret_p)
     player_id cell_player_22;
     player_id cell_player_02;
     player_id cell_player_20;
-    get_cell(self, state, 0, 0, &cell_player_00);
-    get_cell(self, state, 1, 1, &cell_player_11);
-    get_cell(self, state, 2, 2, &cell_player_22);
-    get_cell(self, state, 0, 2, &cell_player_02);
-    get_cell(self, state, 2, 0, &cell_player_20);
+    get_cell_gf(self, state, 0, 0, &cell_player_00);
+    get_cell_gf(self, state, 1, 1, &cell_player_11);
+    get_cell_gf(self, state, 2, 2, &cell_player_22);
+    get_cell_gf(self, state, 0, 2, &cell_player_02);
+    get_cell_gf(self, state, 2, 0, &cell_player_20);
     if ((cell_player_00 == cell_player_11 && cell_player_00 == cell_player_22 || cell_player_02 == cell_player_11 && cell_player_02 == cell_player_20) && cell_player_11 != 0) {
         win = true;
-        get_cell(self, state, 1, 1, &state_winner);
+        get_cell_gf(self, state, 1, 1, &state_winner);
     }
     if (win) {
         *ret_p = state_winner;
@@ -739,59 +739,59 @@ static error_code check_result(game* self, uint32_t state, player_id* ret_p)
     return ERR_OK;
 }
 
-static error_code get_cell(game* self, uint32_t state, int x, int y, player_id* ret_p)
+static error_code get_cell_gf(game* self, uint32_t state, int x, int y, player_id* ret_p)
 {
     // shift over the correct 2 bits representing the player at that position
     *ret_p = ((state >> (y * 6 + x * 2)) & 0b11);
     return ERR_OK;
 }
 
-static error_code set_cell(game* self, uint32_t* state, int x, int y, player_id p)
+static error_code set_cell_gf(game* self, uint32_t* state, int x, int y, player_id p)
 {
     player_id pc;
-    get_cell(self, *state, x, y, &pc);
+    get_cell_gf(self, *state, x, y, &pc);
     int offset = (y * 6 + x * 2);
     // new_state = current_value xor (current_value xor new_value)
     *state ^= ((((uint32_t)pc) << offset) ^ (((uint32_t)p) << offset));
     return ERR_OK;
 }
 
-static error_code get_cell_global(game* self, int x, int y, player_id* ret_p)
+static error_code get_cell_global_gf(game* self, int x, int y, player_id* ret_p)
 {
     state_repr& data = get_repr(self);
-    get_cell(self, data.global_board, x, y, ret_p);
+    get_cell_gf(self, data.global_board, x, y, ret_p);
     return ERR_OK;
 }
 
-static error_code set_cell_global(game* self, int x, int y, player_id p)
+static error_code set_cell_global_gf(game* self, int x, int y, player_id p)
 {
     state_repr& data = get_repr(self);
-    set_cell(self, &(data.global_board), x, y, p);
+    set_cell_gf(self, &(data.global_board), x, y, p);
     return ERR_OK;
 }
 
-static error_code get_cell_local(game* self, int x, int y, player_id* ret_p)
+static error_code get_cell_local_gf(game* self, int x, int y, player_id* ret_p)
 {
     state_repr& data = get_repr(self);
-    get_cell(self, data.board[y / 3][x / 3], x % 3, y % 3, ret_p);
+    get_cell_gf(self, data.board[y / 3][x / 3], x % 3, y % 3, ret_p);
     return ERR_OK;
 }
 
-static error_code set_cell_local(game* self, int x, int y, player_id p)
+static error_code set_cell_local_gf(game* self, int x, int y, player_id p)
 {
     state_repr& data = get_repr(self);
-    set_cell(self, &(data.board[y / 3][x / 3]), x % 3, y % 3, p);
+    set_cell_gf(self, &(data.board[y / 3][x / 3]), x % 3, y % 3, p);
     return ERR_OK;
 }
 
-static error_code get_global_target(game* self, uint8_t* ret)
+static error_code get_global_target_gf(game* self, uint8_t* ret)
 {
     state_repr& data = get_repr(self);
     *ret = ((data.global_target_y == -1 ? 3 : data.global_target_y) << 2) | (data.global_target_x == -1 ? 3 : data.global_target_x);
     return ERR_OK;
 }
 
-static error_code set_global_target(game* self, int x, int y)
+static error_code set_global_target_gf(game* self, int x, int y)
 {
     state_repr& data = get_repr(self);
     data.global_target_x = x;
@@ -799,14 +799,14 @@ static error_code set_global_target(game* self, int x, int y)
     return ERR_OK;
 }
 
-static error_code set_current_player(game* self, player_id p)
+static error_code set_current_player_gf(game* self, player_id p)
 {
     state_repr& data = get_repr(self);
     data.current_player = p;
     return ERR_OK;
 }
 
-static error_code set_result(game* self, player_id p)
+static error_code set_result_gf(game* self, player_id p)
 {
     state_repr& data = get_repr(self);
     data.winning_player = p;

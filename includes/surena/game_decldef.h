@@ -165,73 +165,73 @@
 #endif
 
 #if SURENA_GDD_FFB_ERROR_STRINGS
-static get_last_error_gf_t get_last_error;
+static get_last_error_gf_t get_last_error_gf;
 #endif
-static create_gf_t create;
-static destroy_gf_t destroy;
-static clone_gf_t clone;
-static copy_from_gf_t copy_from;
-static compare_gf_t compare;
+static create_gf_t create_gf;
+static destroy_gf_t destroy_gf;
+static clone_gf_t clone_gf;
+static copy_from_gf_t copy_from_gf;
+static compare_gf_t compare_gf;
 #if SURENA_GDD_FFB_OPTIONS
-static export_options_gf_t export_options;
+static export_options_gf_t export_options_gf;
 #endif
-static player_count_gf_t player_count;
-static export_state_gf_t export_state;
-static import_state_gf_t import_state;
+static player_count_gf_t player_count_gf;
+static export_state_gf_t export_state_gf;
+static import_state_gf_t import_state_gf;
 #if SURENA_GDD_FFB_SERIALIZABLE
-static serialize_gf_t serialize;
+static serialize_gf_t serialize_gf;
 #endif
-static players_to_move_gf_t players_to_move;
-static get_concrete_moves_gf_t get_concrete_moves;
+static players_to_move_gf_t players_to_move_gf;
+static get_concrete_moves_gf_t get_concrete_moves_gf;
 #if SURENA_GDD_FFB_RANDOM_MOVES
-static get_concrete_move_probabilities_gf_t get_concrete_move_probabilities;
+static get_concrete_move_probabilities_gf_t get_concrete_move_probabilities_gf;
 #endif
 #if SURENA_GDD_FFB_MOVE_ORDERING
-static get_concrete_moves_ordered_gf_t get_concrete_moves_ordered;
+static get_concrete_moves_ordered_gf_t get_concrete_moves_ordered_gf;
 #endif
 #if SURENA_GDD_FFB_RANDOM_MOVES || SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
-static get_actions_gf_t get_actions;
+static get_actions_gf_t get_actions_gf;
 #endif
-static is_legal_move_gf_t is_legal_move;
+static is_legal_move_gf_t is_legal_move_gf;
 #if SURENA_GDD_FFB_RANDOM_MOVES || SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
-static move_to_action_gf_t move_to_action;
+static move_to_action_gf_t move_to_action_gf;
 #endif
 #if SURENA_GDD_FFB_RANDOM_MOVES || SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
-static is_action_gf_t is_action;
+static is_action_gf_t is_action_gf;
 #endif
-static make_move_gf_t make_move;
-static get_results_gf_t get_results;
+static make_move_gf_t make_move_gf;
+static get_results_gf_t get_results_gf;
 #if SURENA_GDD_FFB_LEGACY
-static export_legacy_gf_t export_legacy;
+static export_legacy_gf_t export_legacy_gf;
 #endif
 #if SURENA_GDD_FFB_SCORES
-static get_scores_gf_t get_scores;
+static get_scores_gf_t get_scores_gf;
 #endif
 #if SURENA_GDD_FFB_ID
-static id_gf_t id;
+static id_gf_t id_gf;
 #endif
 #if SURENA_GDD_FFB_EVAL
-static eval_gf_t eval;
+static eval_gf_t eval_gf;
 #endif
 #if SURENA_GDD_FFB_RANDOM_MOVES || SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
-static discretize_gf_t discretize;
+static discretize_gf_t discretize_gf;
 #endif
 #if SURENA_GDD_FFB_PLAYOUT
-static playout_gf_t playout;
+static playout_gf_t playout_gf;
 #endif
 #if SURENA_GDD_FFB_RANDOM_MOVES || SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
-static redact_keep_state_gf_t redact_keep_state;
+static redact_keep_state_gf_t redact_keep_state_gf;
 #endif
 #if SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
-static export_sync_data_gf_t export_sync_data;
+static export_sync_data_gf_t export_sync_data_gf;
 #endif
 #if SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
-static import_sync_data_gf_t import_sync_data;
+static import_sync_data_gf_t import_sync_data_gf;
 #endif
-static get_move_data_gf_t get_move_data;
-static get_move_str_gf_t get_move_str;
+static get_move_data_gf_t get_move_data_gf;
+static get_move_str_gf_t get_move_str_gf;
 #if SURENA_GDD_FFB_PRINT
-static print_gf_t print;
+static print_gf_t print_gf;
 #endif
 
 // clang-format off
@@ -258,107 +258,107 @@ const game_methods SURENA_GDD_BENAME
     },
     .internal_methods = (void*)(SURENA_GDD_INTERNALS),
 #if SURENA_GDD_FFB_ERROR_STRINGS
-    .get_last_error = get_last_error,
+    .get_last_error = get_last_error_gf,
 #else
     .get_last_error = NULL,
 #endif
-    .create = create,
-    .destroy = destroy,
-    .clone = clone,
-    .copy_from = copy_from,
-    .compare = compare,
+    .create = create_gf,
+    .destroy = destroy_gf,
+    .clone = clone_gf,
+    .copy_from = copy_from_gf,
+    .compare = compare_gf,
 #if SURENA_GDD_FFB_OPTIONS
-    .export_options = export_options,
+    .export_options = export_options_gf,
 #else
     .export_options = NULL,
 #endif
-    .player_count = player_count,
-    .export_state = export_state,
-    .import_state = import_state,
+    .player_count = player_count_gf,
+    .export_state = export_state_gf,
+    .import_state = import_state_gf,
 #if SURENA_GDD_FFB_SERIALIZABLE
-    .serialize = serialize,
+    .serialize = serialize_gf,
 #else
     .serialize = NULL,
 #endif
-    .players_to_move = players_to_move,
-    .get_concrete_moves = get_concrete_moves,
+    .players_to_move = players_to_move_gf,
+    .get_concrete_moves = get_concrete_moves_gf,
 #if SURENA_GDD_FFB_RANDOM_MOVES
-    .get_concrete_move_probabilities = get_concrete_move_probabilities,
+    .get_concrete_move_probabilities = get_concrete_move_probabilities_gf,
 #else
     .get_concrete_move_probabilities = NULL,
 #endif
 #if SURENA_GDD_FFB_MOVE_ORDERING
-    .get_concrete_moves_ordered = get_concrete_moves_ordered,
+    .get_concrete_moves_ordered = get_concrete_moves_ordered_gf,
 #else
     .get_concrete_moves_ordered = NULL,
 #endif
 #if SURENA_GDD_FFB_RANDOM_MOVES || SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
-    .get_actions = get_actions,
+    .get_actions = get_actions_gf,
 #else
     .get_actions = NULL,
 #endif
-    .is_legal_move = is_legal_move,
+    .is_legal_move = is_legal_move_gf,
 #if SURENA_GDD_FFB_RANDOM_MOVES || SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
-    .move_to_action = move_to_action,
+    .move_to_action = move_to_action_gf,
 #else
     .move_to_action = NULL,
 #endif
 #if SURENA_GDD_FFB_RANDOM_MOVES || SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
-    .is_action = is_action,
+    .is_action = is_action_gf,
 #else
     .is_action = NULL,
 #endif
-    .make_move = make_move,
-    .get_results = get_results,
+    .make_move = make_move_gf,
+    .get_results = get_results_gf,
 #if SURENA_GDD_FFB_LEGACY
-    .export_legacy = export_legacy,
+    .export_legacy = export_legacy_gf,
 #else
     .export_legacy = NULL,
 #endif
 #if SURENA_GDD_FFB_SCORES
-    .get_scores = get_scores,
+    .get_scores = get_scores_gf,
 #else
     .get_scores = NULL,
 #endif
 #if SURENA_GDD_FFB_ID
-    .id = id,
+    .id = id_gf,
 #else
     .id = NULL,
 #endif
 #if SURENA_GDD_FFB_EVAL
-    .eval = eval,
+    .eval = eval_gf,
 #else
     .eval = NULL,
 #endif
 #if SURENA_GDD_FFB_RANDOM_MOVES || SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
-    .discretize = discretize,
+    .discretize = discretize_gf,
 #else
     .discretize = NULL,
 #endif
 #if SURENA_GDD_FFB_PLAYOUT
-    .playout = playout,
+    .playout = playout_gf,
 #else
     .playout = NULL,
 #endif
 #if SURENA_GDD_FFB_RANDOM_MOVES || SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
-    .redact_keep_state = redact_keep_state,
+    .redact_keep_state = redact_keep_state_gf,
 #else
     .redact_keep_state = NULL,
 #endif
 #if SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
-    .export_sync_data = export_sync_data,
+    .export_sync_data = export_sync_data_gf,
 #else
     .export_sync_data = NULL,
 #endif
 #if SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
-    .import_sync_data = import_sync_data,
+    .import_sync_data = import_sync_data_gf,
 #else
     .import_sync_data = NULL,
 #endif
-    .get_move_data = get_move_data,
-    .get_move_str = get_move_str,
+    .get_move_data = get_move_data_gf,
+    .get_move_str = get_move_str_gf,
 #if SURENA_GDD_FFB_PRINT
-    .print = print,
+    .print = print_gf,
 #else
     .print = NULL,
 #endif

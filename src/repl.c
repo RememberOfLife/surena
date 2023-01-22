@@ -35,8 +35,9 @@ void strargsplit(const char* str, int* argc, char*** argv)
     if (str == NULL) {
         // the first element of *argv points to the start of the allocation used
         // for all strings in *argv
-        if (*argc)
+        if (*argc > 0) {
             free((*argv)[0]);
+        }
         free(*argv);
         return;
     }
@@ -83,8 +84,9 @@ void strargsplit(const char* str, int* argc, char*** argv)
     }
     // if cnt is 0, no reference to the newstr allocation will remain
     // hence, free newstr now for this case
-    if (!cnt)
+    if (cnt == 0) {
         free(newstr);
+    }
 }
 
 const game_methods* load_plugin_game_methods(const char* file, uint32_t idx)

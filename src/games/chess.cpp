@@ -61,22 +61,22 @@ extern "C" {
 
 const char CHESS_PIECE_TYPE_CHARS[7] = {'-', 'K', 'Q', 'R', 'B', 'N', 'P'}; // none, king, queen, rook, bishop, knight, pawn
 
-static error_code get_cell(game* self, int x, int y, CHESS_piece* p);
-static error_code set_cell(game* self, int x, int y, CHESS_piece p);
-static error_code set_current_player(game* self, player_id p);
-static error_code set_result(game* self, player_id p);
-static error_code count_positions(game* self, int depth, uint64_t* count);
-static error_code apply_move_internal(game* self, move_code move, bool replace_castling_by_kings);
-static error_code get_moves_pseudo_legal(game* self, uint32_t* move_cnt, move_code* move_vec);
+static error_code get_cell_gf(game* self, int x, int y, CHESS_piece* p);
+static error_code set_cell_gf(game* self, int x, int y, CHESS_piece p);
+static error_code set_current_player_gf(game* self, player_id p);
+static error_code set_result_gf(game* self, player_id p);
+static error_code count_positions_gf(game* self, int depth, uint64_t* count);
+static error_code apply_move_internal_gf(game* self, move_code move, bool replace_castling_by_kings);
+static error_code get_moves_pseudo_legal_gf(game* self, uint32_t* move_cnt, move_code* move_vec);
 
 static const chess_internal_methods chess_gbe_internal_methods{
-    .get_cell = get_cell,
-    .set_cell = set_cell,
-    .set_current_player = set_current_player,
-    .set_result = set_result,
-    .count_positions = count_positions,
-    .apply_move_internal = apply_move_internal,
-    .get_moves_pseudo_legal = get_moves_pseudo_legal,
+    .get_cell = get_cell_gf,
+    .set_cell = set_cell_gf,
+    .set_current_player = set_current_player_gf,
+    .set_result = set_result_gf,
+    .count_positions = count_positions_gf,
+    .apply_move_internal = apply_move_internal_gf,
+    .get_moves_pseudo_legal = get_moves_pseudo_legal_gf,
 };
 
 // declare and form game
@@ -92,7 +92,7 @@ static const chess_internal_methods chess_gbe_internal_methods{
 
 // implementation
 
-static error_code create(game* self, game_init* init_info)
+static error_code create_gf(game* self, game_init* init_info)
 {
     self->data1 = malloc(sizeof(game_data));
     if (self->data1 == NULL) {
@@ -113,7 +113,7 @@ static error_code create(game* self, game_init* init_info)
             bufs.results == NULL ||
             bufs.move_str == NULL ||
             bufs.print == NULL) {
-            destroy(self);
+            destroy_gf(self);
             return ERR_OUT_OF_MEMORY;
         }
     }
@@ -121,10 +121,10 @@ static error_code create(game* self, game_init* init_info)
     if (init_info->source_type == GAME_INIT_SOURCE_TYPE_STANDARD) {
         initial_state = init_info->source.standard.state;
     }
-    return import_state(self, initial_state);
+    return import_state_gf(self, initial_state);
 }
 
-static error_code destroy(game* self)
+static error_code destroy_gf(game* self)
 {
     {
         export_buffers& bufs = get_bufs(self);
@@ -140,37 +140,37 @@ static error_code destroy(game* self)
     return ERR_OK;
 }
 
-static error_code clone(game* self, game* clone_target)
+static error_code clone_gf(game* self, game* clone_target)
 {
     clone_target->methods = self->methods;
     game_init init_info = (game_init){.source_type = GAME_INIT_SOURCE_TYPE_DEFAULT};
-    error_code ec = create(clone_target, &init_info);
+    error_code ec = create_gf(clone_target, &init_info);
     if (ec != ERR_OK) {
         return ec;
     }
-    copy_from(clone_target, self);
+    copy_from_gf(clone_target, self);
     return ERR_OK;
 }
 
-static error_code copy_from(game* self, game* other)
+static error_code copy_from_gf(game* self, game* other)
 {
     get_repr(self) = get_repr(other);
     return ERR_OK;
 }
 
-static error_code compare(game* self, game* other, bool* ret_equal)
+static error_code compare_gf(game* self, game* other, bool* ret_equal)
 {
     *ret_equal = (memcmp(&get_repr(self), &get_repr(other), sizeof(state_repr)) == 0);
     return ERR_OK;
 }
 
-static error_code player_count(game* self, uint8_t* ret_count)
+static error_code player_count_gf(game* self, uint8_t* ret_count)
 {
     *ret_count = 2;
     return ERR_OK;
 }
 
-static error_code export_state(game* self, player_id player, size_t* ret_size, const char** ret_str)
+static error_code export_state_gf(game* self, player_id player, size_t* ret_size, const char** ret_str)
 {
     export_buffers& bufs = get_bufs(self);
     char* outbuf = bufs.state;
@@ -249,7 +249,7 @@ static error_code export_state(game* self, player_id player, size_t* ret_size, c
     return ERR_OK;
 }
 
-static error_code import_state(game* self, const char* str)
+static error_code import_state_gf(game* self, const char* str)
 {
     state_repr& data = get_repr(self);
     for (int y = 0; y < 8; y++) {
@@ -473,7 +473,7 @@ static error_code import_state(game* self, const char* str)
     return ERR_OK;
 }
 
-static error_code players_to_move(game* self, uint8_t* ret_count, const player_id** ret_players)
+static error_code players_to_move_gf(game* self, uint8_t* ret_count, const player_id** ret_players)
 {
     *ret_count = 1;
     state_repr& data = get_repr(self);
@@ -489,7 +489,7 @@ static error_code players_to_move(game* self, uint8_t* ret_count, const player_i
     return ERR_OK;
 }
 
-static error_code get_concrete_moves(game* self, player_id player, uint32_t* ret_count, const move_data** ret_moves)
+static error_code get_concrete_moves_gf(game* self, player_id player, uint32_t* ret_count, const move_data** ret_moves)
 {
     export_buffers& bufs = get_bufs(self);
     move_data* outbuf = bufs.concrete_moves;
@@ -503,23 +503,23 @@ static error_code get_concrete_moves(game* self, player_id player, uint32_t* ret
     }
     uint32_t pseudo_move_cnt;
     move_code pseudo_moves[CHESS_MAX_MOVES * 4]; //TODO calculate proper size for this
-    get_moves_pseudo_legal(self, &pseudo_move_cnt, pseudo_moves);
+    get_moves_pseudo_legal_gf(self, &pseudo_move_cnt, pseudo_moves);
     // check move legality by checking king capture
     game pseudo_game;
-    clone(self, &pseudo_game);
+    clone_gf(self, &pseudo_game);
     uint32_t move_cnt = 0;
     for (int i = 0; i < pseudo_move_cnt; i++) {
-        copy_from(&pseudo_game, self);
-        apply_move_internal(&pseudo_game, pseudo_moves[i], true);
+        copy_from_gf(&pseudo_game, self);
+        apply_move_internal_gf(&pseudo_game, pseudo_moves[i], true);
         bool is_legal = true;
         uint32_t response_move_cnt;
         move_code response_moves[CHESS_MAX_MOVES];
-        get_moves_pseudo_legal(&pseudo_game, &response_move_cnt, response_moves);
+        get_moves_pseudo_legal_gf(&pseudo_game, &response_move_cnt, response_moves);
         for (int j = 0; j < response_move_cnt; j++) {
             int cm_tx = (response_moves[j] >> 4) & 0x0F;
             int cm_ty = response_moves[j] & 0x0F;
             CHESS_piece pseudo_piece;
-            get_cell(&pseudo_game, cm_tx, cm_ty, &pseudo_piece);
+            get_cell_gf(&pseudo_game, cm_tx, cm_ty, &pseudo_piece);
             if (pseudo_piece.type == CHESS_PIECE_TYPE_KING) {
                 is_legal = false;
                 break;
@@ -531,11 +531,11 @@ static error_code get_concrete_moves(game* self, player_id player, uint32_t* ret
     }
     *ret_count = move_cnt;
     *ret_moves = bufs.concrete_moves;
-    destroy(&pseudo_game);
+    destroy_gf(&pseudo_game);
     return ERR_OK;
 }
 
-static error_code is_legal_move(game* self, player_id player, move_data_sync move)
+static error_code is_legal_move_gf(game* self, player_id player, move_data_sync move)
 {
     //TODO use better detection
     if (game_e_move_sync_is_none(move) == true) {
@@ -543,13 +543,13 @@ static error_code is_legal_move(game* self, player_id player, move_data_sync mov
     }
     uint8_t ptm_count;
     const player_id* ptm;
-    players_to_move(self, &ptm_count, &ptm);
+    players_to_move_gf(self, &ptm_count, &ptm);
     if (*ptm != player) {
         return ERR_INVALID_INPUT;
     }
     uint32_t move_cnt;
     const move_data* moves;
-    get_concrete_moves(self, *ptm, &move_cnt, &moves);
+    get_concrete_moves_gf(self, *ptm, &move_cnt, &moves);
     while (move_cnt > 0) {
         move_cnt--;
         if (moves[move_cnt].cl.code == move.md.cl.code) {
@@ -559,21 +559,21 @@ static error_code is_legal_move(game* self, player_id player, move_data_sync mov
     return ERR_INVALID_INPUT;
 }
 
-static error_code make_move(game* self, player_id player, move_data_sync move)
+static error_code make_move_gf(game* self, player_id player, move_data_sync move)
 {
     state_repr& data = get_repr(self);
-    apply_move_internal(self, move.md.cl.code, false); // this swaps players after the move on its own
+    apply_move_internal_gf(self, move.md.cl.code, false); // this swaps players after the move on its own
     //TODO draw on halfmove clock, should this happen here? probably just offer a move to claim draw, but for both players..
     //TODO does draw on threfold repetition happen here?
     //TODO better detection for win by checkmate and draw by stalemate
     uint32_t available_move_cnt;
     const move_data* available_moves_data;
-    get_concrete_moves(self, data.current_player, &available_move_cnt, &available_moves_data);
+    get_concrete_moves_gf(self, data.current_player, &available_move_cnt, &available_moves_data);
     move_code available_moves_code[CHESS_MAX_MOVES];
     if (available_move_cnt == 0) {
         // this is at least a stalemate here, now see if the other player would have a way to capture the king next turn
         data.current_player = data.current_player == CHESS_PLAYER_WHITE ? CHESS_PLAYER_BLACK : CHESS_PLAYER_WHITE;
-        get_moves_pseudo_legal(self, &available_move_cnt, available_moves_code);
+        get_moves_pseudo_legal_gf(self, &available_move_cnt, available_moves_code);
         for (int i = 0; i < available_move_cnt; i++) {
             int cm_tx = (available_moves_code[i] >> 4) & 0x0F;
             int cm_ty = available_moves_code[i] & 0x0F;
@@ -590,7 +590,7 @@ static error_code make_move(game* self, player_id player, move_data_sync move)
     return ERR_OK;
 }
 
-static error_code get_results(game* self, uint8_t* ret_count, const player_id** ret_players)
+static error_code get_results_gf(game* self, uint8_t* ret_count, const player_id** ret_players)
 {
     export_buffers& bufs = get_bufs(self);
     player_id* outbuf = bufs.results;
@@ -605,7 +605,7 @@ static error_code get_results(game* self, uint8_t* ret_count, const player_id** 
     return ERR_OK;
 }
 
-static error_code id(game* self, uint64_t* ret_id)
+static error_code id_gf(game* self, uint64_t* ret_id)
 {
     //TODO use proper zobrist
     state_repr& data = get_repr(self);
@@ -614,7 +614,7 @@ static error_code id(game* self, uint64_t* ret_id)
     return ERR_OK;
 }
 
-static error_code get_move_data(game* self, player_id player, const char* str, move_data_sync** ret_move)
+static error_code get_move_data_gf(game* self, player_id player, const char* str, move_data_sync** ret_move)
 {
     export_buffers& bufs = get_bufs(self);
     size_t str_len = strlen(str);
@@ -663,7 +663,7 @@ static error_code get_move_data(game* self, player_id player, const char* str, m
     return ERR_OK;
 }
 
-static error_code get_move_str(game* self, player_id player, move_data_sync move, size_t* ret_size, const char** ret_str)
+static error_code get_move_str_gf(game* self, player_id player, move_data_sync move, size_t* ret_size, const char** ret_str)
 {
     export_buffers& bufs = get_bufs(self);
     char* outbuf = bufs.move_str;
@@ -685,7 +685,7 @@ static error_code get_move_str(game* self, player_id player, move_data_sync move
     return ERR_OK;
 }
 
-static error_code print(game* self, player_id player, size_t* ret_size, const char** ret_str)
+static error_code print_gf(game* self, player_id player, size_t* ret_size, const char** ret_str)
 {
     export_buffers& bufs = get_bufs(self);
     char* outbuf = bufs.print;
@@ -729,60 +729,60 @@ static error_code print(game* self, player_id player, size_t* ret_size, const ch
 //=====
 // game internal methods
 
-static error_code get_cell(game* self, int x, int y, CHESS_piece* p)
+static error_code get_cell_gf(game* self, int x, int y, CHESS_piece* p)
 {
     state_repr& data = get_repr(self);
     *p = data.board[y][x];
     return ERR_OK;
 }
 
-static error_code set_cell(game* self, int x, int y, CHESS_piece p)
+static error_code set_cell_gf(game* self, int x, int y, CHESS_piece p)
 {
     state_repr& data = get_repr(self);
     data.board[y][x] = p;
     return ERR_OK;
 }
 
-static error_code set_current_player(game* self, player_id p)
+static error_code set_current_player_gf(game* self, player_id p)
 {
     state_repr& data = get_repr(self);
     data.current_player = (CHESS_PLAYER)p;
     return ERR_OK;
 }
 
-static error_code set_result(game* self, player_id p)
+static error_code set_result_gf(game* self, player_id p)
 {
     state_repr& data = get_repr(self);
     data.winning_player = (CHESS_PLAYER)p;
     return ERR_OK;
 }
 
-static error_code count_positions(game* self, int depth, uint64_t* count)
+static error_code count_positions_gf(game* self, int depth, uint64_t* count)
 {
     // this chess implementation is valid against all chessprogrammingwiki positions, tested up to depth 4
     state_repr& data = get_repr(self);
     uint32_t move_cnt;
     const move_data* moves;
-    get_concrete_moves(self, data.current_player, &move_cnt, &moves);
+    get_concrete_moves_gf(self, data.current_player, &move_cnt, &moves);
     if (depth == 1) {
         *count = move_cnt; // bulk counting since get_moves generates only legal moves
     }
     uint64_t positions = 0;
     game test_game;
-    clone(self, &test_game);
+    clone_gf(self, &test_game);
     for (int i = 0; i < move_cnt; i++) {
-        copy_from(&test_game, self);
-        apply_move_internal(&test_game, moves[i].cl.code, false);
+        copy_from_gf(&test_game, self);
+        apply_move_internal_gf(&test_game, moves[i].cl.code, false);
         uint64_t test_game_positions;
-        count_positions(&test_game, depth - 1, &test_game_positions);
+        count_positions_gf(&test_game, depth - 1, &test_game_positions);
         positions += test_game_positions;
     }
     *count = positions;
-    destroy(&test_game);
+    destroy_gf(&test_game);
     return ERR_OK;
 }
 
-static error_code apply_move_internal(game* self, move_code move, bool replace_castling_by_kings)
+static error_code apply_move_internal_gf(game* self, move_code move, bool replace_castling_by_kings)
 {
     state_repr& data = get_repr(self);
     int ox = (move >> 12) & 0x0F;
@@ -869,7 +869,7 @@ static error_code apply_move_internal(game* self, move_code move, bool replace_c
     return ERR_OK;
 }
 
-static error_code get_moves_pseudo_legal(game* self, uint32_t* move_cnt, move_code* move_vec)
+static error_code get_moves_pseudo_legal_gf(game* self, uint32_t* move_cnt, move_code* move_vec)
 {
     state_repr& data = get_repr(self);
     // directions are: N,S,W,E,NW,SE,NE,SW
