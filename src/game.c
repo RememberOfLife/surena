@@ -437,7 +437,7 @@ error_code game_get_actions(game* self, player_id player, uint32_t* ret_count, c
 {
     assert(self);
     assert(self->methods);
-    assert(game_ff(self).random_moves || game_ff(self).hidden_information || game_ff(self).simultaneous_moves);
+    assert(game_ff(self).hidden_information || game_ff(self).simultaneous_moves);
     assert(ret_count);
     assert(ret_moves);
     assert(player != PLAYER_NONE);
@@ -462,7 +462,7 @@ error_code game_move_to_action(game* self, player_id player, move_data_sync move
 {
     assert(self);
     assert(self->methods);
-    assert(game_ff(self).random_moves || game_ff(self).hidden_information || game_ff(self).simultaneous_moves);
+    assert(game_ff(self).hidden_information || game_ff(self).simultaneous_moves);
     assert(ret_action);
     assert(player != PLAYER_NONE);
     if (self->sync_ctr != move.sync_ctr && game_ff(self).simultaneous_moves == false) {
@@ -475,7 +475,7 @@ error_code game_is_action(game* self, player_id player, move_data_sync move, boo
 {
     assert(self);
     assert(self->methods);
-    assert(game_ff(self).random_moves || game_ff(self).hidden_information || game_ff(self).simultaneous_moves);
+    assert(game_ff(self).hidden_information || game_ff(self).simultaneous_moves);
     assert(ret_is_action);
     if (self->sync_ctr != move.sync_ctr && game_ff(self).simultaneous_moves == false) {
         return ERR_SYNC_COUNTER_MISMATCH;
@@ -493,7 +493,7 @@ error_code game_make_move(game* self, player_id player, move_data_sync move)
         return ec;
     }
     bool action_dropped = false;
-    if (game_ff(self).random_moves || game_ff(self).hidden_information || game_ff(self).simultaneous_moves) {
+    if (game_ff(self).hidden_information || game_ff(self).simultaneous_moves) {
         move_data_sync* action;
         ec = game_move_to_action(self, player, move, &action);
         if (ec != ERR_OK) {
@@ -563,6 +563,7 @@ error_code game_discretize(game* self, uint64_t seed)
     assert(self);
     assert(self->methods);
     assert(game_ff(self).random_moves || game_ff(self).hidden_information || game_ff(self).simultaneous_moves);
+    assert(seed != SEED_NONE);
     return self->methods->discretize(self, seed);
 }
 
@@ -624,6 +625,7 @@ error_code game_get_move_str(game* self, player_id player, move_data_sync move, 
     assert(ret_size);
     assert(ret_str);
     assert(player != PLAYER_NONE);
+    assert(game_e_move_sync_is_none(move) == false);
     if (self->sync_ctr != move.sync_ctr && game_ff(self).simultaneous_moves == false) {
         return ERR_SYNC_COUNTER_MISMATCH;
     }
@@ -739,6 +741,11 @@ bool game_e_move_is_big(move_data move)
     return move.data != NULL;
 }
 
+error_code grerror(game* self, error_code ec, const char* str, const char* str_end)
+{
+    return rerror((char**)&self->data2, ec, str, str_end);
+}
+
 error_code grerrorf(game* self, error_code ec, const char* fmt, ...)
 {
     va_list args;
@@ -746,6 +753,11 @@ error_code grerrorf(game* self, error_code ec, const char* fmt, ...)
     error_code ret = rerrorvf((char**)&self->data2, ec, fmt, args);
     va_end(args);
     return ret;
+}
+
+error_code grerrorvf(game* self, error_code ec, const char* fmt, va_list args)
+{
+    return rerrorvf((char**)&self->data2, ec, fmt, args);
 }
 
 #ifdef __cplusplus

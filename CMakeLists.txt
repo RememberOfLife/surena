@@ -38,6 +38,7 @@ set(SOURCES
     src/games/chess.cpp
     src/games/havannah.cpp
     # src/games/oshisumo.cpp
+    src/games/quasar.cpp
     src/games/tictactoe_ultimate.cpp
     src/games/tictactoe.cpp
     src/games/twixt_pp.cpp

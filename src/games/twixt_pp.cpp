@@ -723,7 +723,7 @@ static error_code playout_gf(game* self, uint64_t seed)
     players_to_move_gf(self, &ptm_count, &ptm);
     while (ptm_count > 0) {
         get_concrete_moves_gf(self, ptm[0], &moves_count, &moves);
-        make_move_gf(self, ptm[0], game_e_move_make_sync(self, moves[squirrelnoise5(ctr++, seed) % moves_count]));
+        make_move_gf(self, ptm[0], game_e_move_make_sync(self, moves[squirrelnoise5(ctr++, seed) % moves_count])); //BUG this has modulo bias, use proper rand_intn
         players_to_move_gf(self, &ptm_count, &ptm);
     }
     return ERR_OK;

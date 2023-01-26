@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 27;
+static const uint64_t SURENA_GAME_API_VERSION = 28;
 
 typedef uint32_t error_code;
 
@@ -42,7 +42,7 @@ enum ERR {
 
 // returns not_general if the err is not a general error
 const char* get_general_error_string(error_code err, const char* fallback);
-// instead of returning an error code, one can return rerrorf which automatically manages fmt string buffer allocation for the error string
+// instead of returning an error code, one can return rerror(f,vf) which automatically manages fmt string buffer allocation for the error string
 // call rerrorf or rerrorvf with fmt(or str)=NULL to free (*pbuf) (does not work on rerror)
 error_code rerror(char** pbuf, error_code ec, const char* str, const char* str_end);
 error_code rerrorf(char** pbuf, error_code ec, const char* fmt, ...);
@@ -243,7 +243,7 @@ typedef error_code compare_gf_t(game* self, game* other, bool* ret_equal);
 // write this games options to a universal options string and returns a read only pointer to it
 // returns the length of the options string written, excluding null character
 // player specifies the perspective player from which this is done (relevant for feature: hidden_information) (PLAYER_NONE is omniscient pov)
-// the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
+// the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 typedef error_code export_options_gf_t(game* self, player_id player, size_t* ret_size, const char** ret_str);
 
 // returns the number of players participating in this game
@@ -252,7 +252,7 @@ typedef error_code player_count_gf_t(game* self, uint8_t* ret_count);
 // writes the game state to a universal state string and returns a read only pointer to it
 // returns the length of the state string written, excluding null character
 // player specifies the perspective player from which this is done (relevant for feature: hidden_information) (PLAYER_NONE is omniscient pov)
-// the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
+// the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 typedef error_code export_state_gf_t(game* self, player_id player, size_t* ret_size, const char** ret_str);
 
 // load the game state from the given string, beware this may be called on running games
@@ -264,7 +264,7 @@ typedef error_code import_state_gf_t(game* self, const char* str);
 // FEATURE: serializable
 // writes the game state and options to a game specific raw byte representation that is absolutely accurate to the state of the game and returns a read only pointer to it
 // player specifies the perspective player from which this is done (relevant for feature: hidden_information) (PLAYER_NONE is omniscient pov)
-// the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
+// the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 // considerations: the serialization contains the: sync_ctr, options, legacy, state, internals
 typedef error_code serialize_gf_t(game* self, player_id player, const blob** ret_blob);
 
@@ -273,53 +273,55 @@ typedef error_code serialize_gf_t(game* self, player_id player, const blob** ret
 // writes no ids if the game is over
 // returns the number of ids written
 // written player ids are ordered from lowest to highest
-// the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
+// the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 typedef error_code players_to_move_gf_t(game* self, uint8_t* ret_count, const player_id** ret_players);
 
 // writes the available moves for the player from this position and returns a read only pointer to them
 // writes no moves if the game is over or the player is not to move
 // if the game uses moves at this position, which can not be feasibly listed it can return ERR_UNSTABLE_POSITION to signal this
-// the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
+// the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 typedef error_code get_concrete_moves_gf_t(game* self, player_id player, uint32_t* ret_count, const move_data** ret_moves);
 
 // FEATURE: random_moves
 // writes the probabilities [0,1] of each avilable move in get_concrete_moves and returns a read only pointer to them
 // order is the same as get_concrete_moves
-// writes no moves if the available moves are not random moves
-// the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
+// only available if the the ptm is PLAYER_RAND
+// the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 typedef error_code get_concrete_move_probabilities_gf_t(game* self, player_id player, uint32_t* ret_count, const float** ret_move_probabilities);
+//TODO move probabilities are only available for player rand anyway, remove player arg here
 
 // FEATURE: move_ordering
 // writes the available moves for the player from this position and returns a read only pointer to them
 // writes no moves if the game is over
 // moves must be at least of count get_moves(NULL)
 // moves written are ordered according to the game method, from perceived strongest to weakest
-// the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
+// the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 typedef error_code get_concrete_moves_ordered_gf_t(game* self, player_id player, uint32_t* ret_count, const move_data** ret_moves);
 
-// FEATURE: random_moves || hidden_information || simultaneous_moves
+// FEATURE: hidden_information || simultaneous_moves
 // writes the available action moves for the player from this position and returns a read only pointer to them
 // writes no action moves if there are no action moves available
-// the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
+// the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 typedef error_code get_actions_gf_t(game* self, player_id player, uint32_t* ret_count, const move_data** ret_moves);
 
 // returns whether or not this move would be legal to make on the current state
+// only available if this ptm is to move
 // for non SM games (or those that are totally ordered) equivalent to the fallback check of: move in list of get_moves?
 // should be optimized by the game method if possible
 // moves do not have to be valid
 // the game only reads the move, the caller still has to clean it up
 typedef error_code is_legal_move_gf_t(game* self, player_id player, move_data_sync move);
 
-// FEATURE: random_moves || hidden_information || simultaneous_moves
+// FEATURE: hidden_information || simultaneous_moves
 // returns the action representing the information set transformation of the (concrete) LEGAL move (action instance)
 // if move is already an action then it is directly returned unaltered
 // if this returns the null move action, the action should not be sent to ther clients and the sync_ctr in the game no incremented after making the move
 // use e.g. on server, send out only the action to client which are not controlling the player that sent the move
 // the game only reads the move, the caller still has to clean it up
-// the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
+// the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 typedef error_code move_to_action_gf_t(game* self, player_id player, move_data_sync move, move_data_sync** ret_action);
 
-// FEATURE: random_moves || hidden_information || simultaneous_moves
+// FEATURE: hidden_information || simultaneous_moves
 // convenience wrapper
 // returns true if the move represents an action for this player
 // the game only reads the move, the caller still has to clean it up
@@ -335,7 +337,7 @@ typedef error_code make_move_gf_t(game* self, player_id player, move_data_sync m
 // writes the result (winning) players and returns a read only pointer to them
 // writes no ids if the game is not over yet or there are no result players
 // returns the number of ids written
-// the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
+// the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 typedef error_code get_results_gf_t(game* self, uint8_t* ret_count, const player_id** ret_players);
 
 // FEATURE: legacy
@@ -343,7 +345,7 @@ typedef error_code get_results_gf_t(game* self, uint8_t* ret_count, const player
 // player specifies the perspective player from which this is done (relevant for feature: hidden_information) (PLAYER_NONE is omniscient pov)
 // use PLAYER_NONE to export all the hidden info for everything
 // NOTE: this does not include the used options, save them separately for reuse together with this in a future game
-// the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
+// the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 typedef error_code export_legacy_gf_t(game* self, player_id player, size_t* ret_size, const char** ret_str);
 
 // FEATURE: scores
@@ -351,7 +353,7 @@ typedef error_code export_legacy_gf_t(game* self, player_id player, size_t* ret_
 // writes the scores of players, as accumulated during this game only, to scores, and the respective players to players
 //TODO is int32 enough? need more complex? or float?
 //TODO offer some default score?
-// the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
+// the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 typedef error_code get_scores_gf_t(game* self, size_t* ret_count, player_id* players, const int32_t** ret_scores);
 
 // FEATURE: id
@@ -371,6 +373,7 @@ typedef error_code eval_gf_t(game* self, player_id player, float* ret_eval);
 // seed the game and collapse the hidden information and all that was inferred via play
 // the resulting game state assigns possible values to all previously unknown information
 // all random moves from here on will be pre-rolled from this seed
+// here SEED_NONE can not be used
 typedef error_code discretize_gf_t(game* self, uint64_t seed);
 
 // FEATURE: playout
@@ -388,7 +391,7 @@ typedef error_code redact_keep_state_gf_t(game* self, uint8_t count, const playe
 // one sync data always describes the data to be sent to the given player array to sync up their state
 // multiple sync data structs incur multiple events, i.e. multiple import_sync_data calls
 // use this after making a move to test what sync data should be sent to which player clients before the action
-// the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
+// the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 typedef error_code export_sync_data_gf_t(game* self, uint32_t* ret_count, const sync_data** ret_sync_data);
 
 // FEATURE: hidden_information || simultaneous_moves
@@ -399,21 +402,21 @@ typedef error_code import_sync_data_gf_t(game* self, blob b);
 // if the move string does not represent a valid move this returns MOVE_NONE (or for big moves len==0 data==NULL) (NOTE: avoid crashes)
 // if player is PLAYER_NONE assumes current player to move
 // this should accept at least the string given out by get_move_str, but is allowed to accept more strings as well
-// the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
+// the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 typedef error_code get_move_data_gf_t(game* self, player_id player, const char* str, move_data_sync** ret_move);
 
 // writes the game method and state specific move string representing the move data for this player and returns a read only pointer to it
 // if player is PLAYER_NONE assumes current player to move
 // returns number of characters written to string buffer on success, excluding null character
 // the game only reads the move, the caller still has to clean it up
-// the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
+// the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 typedef error_code get_move_str_gf_t(game* self, player_id player, move_data_sync move, size_t* ret_size, const char** ret_str);
 
 // FEATURE: print
 // prints the game state into the str_buf and returns a read only pointer to it
 // returns the number of characters written to string buffer on success, excluding null character
 // player specifies the perspective player from which this is done (relevant for feature: hidden_information) (PLAYER_NONE is omniscient pov)
-// the returned ptr is valid until the next call on this game, undefined behaviour if used after;  it is still owned by the game
+// the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 typedef error_code print_gf_t(game* self, player_id player, size_t* ret_size, const char** ret_str);
 
 // FEATURE: time
@@ -583,7 +586,10 @@ void game_e_move_destroy(move_data move);
 void game_e_move_sync_destroy(move_data_sync move);
 bool game_e_move_is_big(move_data move);
 
-error_code grerrorf(game* self, error_code ec, const char* fmt, ...); // game internal rerrorf: if your error string is self->data2 use this as a shorthand
+// game internal rerrorf: if your error string is self->data2 use this as a shorthand
+error_code grerror(game* self, error_code ec, const char* str, const char* str_end);
+error_code grerrorf(game* self, error_code ec, const char* fmt, ...);
+error_code grerrorvf(game* self, error_code ec, const char* fmt, va_list args);
 
 #ifdef __cplusplus
 }

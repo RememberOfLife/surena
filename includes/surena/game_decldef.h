@@ -189,14 +189,14 @@ static get_concrete_move_probabilities_gf_t get_concrete_move_probabilities_gf;
 #if SURENA_GDD_FFB_MOVE_ORDERING
 static get_concrete_moves_ordered_gf_t get_concrete_moves_ordered_gf;
 #endif
-#if SURENA_GDD_FFB_RANDOM_MOVES || SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
+#if SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
 static get_actions_gf_t get_actions_gf;
 #endif
 static is_legal_move_gf_t is_legal_move_gf;
-#if SURENA_GDD_FFB_RANDOM_MOVES || SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
+#if SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
 static move_to_action_gf_t move_to_action_gf;
 #endif
-#if SURENA_GDD_FFB_RANDOM_MOVES || SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
+#if SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
 static is_action_gf_t is_action_gf;
 #endif
 static make_move_gf_t make_move_gf;
@@ -292,18 +292,18 @@ const game_methods SURENA_GDD_BENAME
 #else
     .get_concrete_moves_ordered = NULL,
 #endif
-#if SURENA_GDD_FFB_RANDOM_MOVES || SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
+#if SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
     .get_actions = get_actions_gf,
 #else
     .get_actions = NULL,
 #endif
     .is_legal_move = is_legal_move_gf,
-#if SURENA_GDD_FFB_RANDOM_MOVES || SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
+#if SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
     .move_to_action = move_to_action_gf,
 #else
     .move_to_action = NULL,
 #endif
-#if SURENA_GDD_FFB_RANDOM_MOVES || SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
+#if SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
     .is_action = is_action_gf,
 #else
     .is_action = NULL,

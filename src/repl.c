@@ -9,6 +9,7 @@
 
 #include "surena/games/chess.h"
 #include "surena/games/havannah.h"
+#include "surena/games/quasar.h"
 #include "surena/games/tictactoe_ultimate.h"
 #include "surena/games/tictactoe.h"
 #include "surena/games/twixt_pp.h"
@@ -127,6 +128,7 @@ const game_methods* load_plugin_game_methods(const char* file, uint32_t idx)
 const game_methods* static_game_methods[] = {
     &chess_standard_gbe,
     &havannah_standard_gbe,
+    &quasar_standard_gbe,
     &tictactoe_standard_gbe,
     &tictactoe_ultimate_gbe,
     &twixt_pp_gbe,
@@ -857,6 +859,5 @@ void repl_cmd_handle_g_print(repl_state* rs, int argc, char** argv)
         print_game_error(&rs->g, ec);
         return;
     }
-    printf("board print (%03hhu):\n", pov);
     printf("%s", print_str);
 }
