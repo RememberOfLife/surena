@@ -13,39 +13,43 @@
 
 // general purpose helpers for opts, data, bufs
 
-struct export_buffers {
-    char* state;
-    player_id* players_to_move;
-    move_data* concrete_moves;
-    float* move_probabilities;
-    player_id* results;
-    move_data_sync move_out;
-    char* move_str;
-    char* print;
-};
+namespace {
 
-struct state_repr {
-    uint64_t seed;
-    uint64_t move_ctr;
-    uint8_t num;
-    uint8_t generating; // 0 if not, 1 if 1-8, 2 if 4-7
-    bool done;
-};
+    struct export_buffers {
+        char* state;
+        player_id* players_to_move;
+        move_data* concrete_moves;
+        float* move_probabilities;
+        player_id* results;
+        move_data_sync move_out;
+        char* move_str;
+        char* print;
+    };
 
-struct game_data {
-    export_buffers bufs;
-    state_repr state;
-};
+    struct state_repr {
+        uint64_t seed;
+        uint64_t move_ctr;
+        uint8_t num;
+        uint8_t generating; // 0 if not, 1 if 1-8, 2 if 4-7
+        bool done;
+    };
 
-export_buffers& get_bufs(game* self)
-{
-    return ((game_data*)(self->data1))->bufs;
-}
+    struct game_data {
+        export_buffers bufs;
+        state_repr state;
+    };
 
-state_repr& get_repr(game* self)
-{
-    return ((game_data*)(self->data1))->state;
-}
+    export_buffers& get_bufs(game* self)
+    {
+        return ((game_data*)(self->data1))->bufs;
+    }
+
+    state_repr& get_repr(game* self)
+    {
+        return ((game_data*)(self->data1))->state;
+    }
+
+} // namespace
 
 #ifdef __cplusplus
 extern "C" {
@@ -71,7 +75,7 @@ static const quasar_internal_methods quasar_gbe_internal_methods{
 #define SURENA_GDD_GNAME "Quasar"
 #define SURENA_GDD_VNAME "Standard"
 #define SURENA_GDD_INAME "surena_default"
-#define SURENA_GDD_VERSION ((semver){1, 0, 0})
+#define SURENA_GDD_VERSION ((semver){1, 0, 1})
 #define SURENA_GDD_INTERNALS &quasar_gbe_internal_methods
 #define SURENA_GDD_FF_RANDOM_MOVES
 #define SURENA_GDD_FF_ID
@@ -80,11 +84,6 @@ static const quasar_internal_methods quasar_gbe_internal_methods{
 #include "surena/game_decldef.h"
 
 // implementation
-
-static const char* get_last_error(game* self)
-{
-    return (char*)self->data2;
-}
 
 static error_code create_gf(game* self, game_init* init_info)
 {

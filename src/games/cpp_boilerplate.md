@@ -76,7 +76,7 @@ struct export_buffers {
     player_id* results;
     char* legacy;
     int32_t* scores;
-    // sync_data* sync_data;
+    // sync_data* sync_out;
     move_data_sync move_out;
     char* move_str;
     char* print;

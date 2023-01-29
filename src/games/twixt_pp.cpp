@@ -89,7 +89,7 @@ static const twixt_pp_internal_methods twixt_pp_gbe_internal_methods{
 #define SURENA_GDD_GNAME "TwixT"
 #define SURENA_GDD_VNAME "PP"
 #define SURENA_GDD_INAME "surena_default"
-#define SURENA_GDD_VERSION ((semver){0, 2, 0})
+#define SURENA_GDD_VERSION ((semver){1, 0, 0})
 #define SURENA_GDD_INTERNALS &twixt_pp_gbe_internal_methods
 #define SURENA_GDD_FF_OPTIONS
 #define SURENA_GDD_FF_PLAYOUT

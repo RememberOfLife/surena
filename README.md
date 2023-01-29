@@ -15,6 +15,8 @@ Don't forget to clone submodules too by using:
 |---|---|
 |Chess|DONE|
 |Havannah|DONE|
+|Quasar|DONE|
+|RockPaperScissors|DONE|
 |TicTacToe|DONE|
 |TicTacToe.Ultimate|DONE|
 |TwixT.PP|DONE|

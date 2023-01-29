@@ -10,6 +10,7 @@
 #include "surena/games/chess.h"
 #include "surena/games/havannah.h"
 #include "surena/games/quasar.h"
+#include "surena/games/rockpaperscissors.h"
 #include "surena/games/tictactoe_ultimate.h"
 #include "surena/games/tictactoe.h"
 #include "surena/games/twixt_pp.h"
@@ -129,6 +130,7 @@ const game_methods* static_game_methods[] = {
     &chess_standard_gbe,
     &havannah_standard_gbe,
     &quasar_standard_gbe,
+    &rockpaperscissors_standard_gbe,
     &tictactoe_standard_gbe,
     &tictactoe_ultimate_gbe,
     &twixt_pp_gbe,

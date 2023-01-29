@@ -94,7 +94,7 @@ static const havannah_internal_methods havannah_gbe_internal_methods{
 #define SURENA_GDD_GNAME "Havannah"
 #define SURENA_GDD_VNAME "Standard"
 #define SURENA_GDD_INAME "surena_default"
-#define SURENA_GDD_VERSION ((semver){0, 2, 0})
+#define SURENA_GDD_VERSION ((semver){1, 0, 0})
 #define SURENA_GDD_INTERNALS &havannah_gbe_internal_methods
 #define SURENA_GDD_FF_OPTIONS
 #define SURENA_GDD_FF_PLAYOUT

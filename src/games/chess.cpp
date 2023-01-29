@@ -84,7 +84,7 @@ static const chess_internal_methods chess_gbe_internal_methods{
 #define SURENA_GDD_GNAME "Chess"
 #define SURENA_GDD_VNAME "Standard"
 #define SURENA_GDD_INAME "surena_default"
-#define SURENA_GDD_VERSION ((semver){0, 2, 0})
+#define SURENA_GDD_VERSION ((semver){1, 0, 0})
 #define SURENA_GDD_INTERNALS &chess_gbe_internal_methods
 #define SURENA_GDD_FF_ID
 #define SURENA_GDD_FF_PRINT

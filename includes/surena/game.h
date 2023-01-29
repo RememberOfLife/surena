@@ -374,6 +374,7 @@ typedef error_code eval_gf_t(game* self, player_id player, float* ret_eval);
 // the resulting game state assigns possible values to all previously unknown information
 // all random moves from here on will be pre-rolled from this seed
 // here SEED_NONE can not be used
+// NOTE: this would only really be used by engines, so in normal play you will never need this
 typedef error_code discretize_gf_t(game* self, uint64_t seed);
 
 // FEATURE: playout
@@ -585,6 +586,7 @@ move_data_sync game_e_move_sync_copy(move_data_sync move);
 void game_e_move_destroy(move_data move);
 void game_e_move_sync_destroy(move_data_sync move);
 bool game_e_move_is_big(move_data move);
+// error_code game_e_make_random_move(game* self); //TODO from a position where PLAYER_RAND is ptm this uses the get_concrete_move_probabilities to make a random move
 
 // game internal rerrorf: if your error string is self->data2 use this as a shorthand
 error_code grerror(game* self, error_code ec, const char* str, const char* str_end);
