@@ -70,7 +70,7 @@ static const rockpaperscissors_internal_methods rockpaperscissors_gbe_internal_m
 #define SURENA_GDD_GNAME "RockPaperScissors"
 #define SURENA_GDD_VNAME "Standard"
 #define SURENA_GDD_INAME "surena_default"
-#define SURENA_GDD_VERSION ((semver){1, 0, 0})
+#define SURENA_GDD_VERSION ((semver){1, 0, 1})
 #define SURENA_GDD_INTERNALS &rockpaperscissors_gbe_internal_methods
 #define SURENA_GDD_FF_SIMULTANEOUS_MOVES
 #define SURENA_GDD_FF_PRINT
@@ -177,7 +177,11 @@ static error_code export_state_gf(game* self, player_id player, size_t* ret_size
     export_buffers& bufs = get_bufs(self);
     state_repr& data = get_repr(self);
     char* outbuf = bufs.state;
-    switch (data.acc[0]) {
+    uint8_t acc1 = data.acc[0];
+    if (data.done == false && acc1 != ROCKPAPERSCISSORS_NONE && (player != 1 && player != PLAYER_NONE)) {
+        acc1 = ROCKPAPERSCISSORS_ANY;
+    }
+    switch (acc1) {
         case ROCKPAPERSCISSORS_NONE: {
             outbuf += sprintf(outbuf, "-");
         } break;
@@ -195,7 +199,11 @@ static error_code export_state_gf(game* self, player_id player, size_t* ret_size
         } break;
     }
     outbuf += sprintf(outbuf, "-");
-    switch (data.acc[1]) {
+    uint8_t acc2 = data.acc[1];
+    if (data.done == false && acc2 != ROCKPAPERSCISSORS_NONE && (player != 2 && player != PLAYER_NONE)) {
+        acc2 = ROCKPAPERSCISSORS_ANY;
+    }
+    switch (acc2) {
         case ROCKPAPERSCISSORS_NONE: {
             outbuf += sprintf(outbuf, "-");
         } break;
@@ -470,7 +478,11 @@ static error_code print_gf(game* self, player_id player, size_t* ret_size, const
     export_buffers& bufs = get_bufs(self);
     state_repr& data = get_repr(self);
     char* outbuf = bufs.state;
-    switch (data.acc[0]) {
+    uint8_t acc1 = data.acc[0];
+    if (data.done == false && acc1 != ROCKPAPERSCISSORS_NONE && (player != 1 && player != PLAYER_NONE)) {
+        acc1 = ROCKPAPERSCISSORS_ANY;
+    }
+    switch (acc1) {
         case ROCKPAPERSCISSORS_NONE: {
             outbuf += sprintf(outbuf, "-");
         } break;
@@ -502,7 +514,11 @@ static error_code print_gf(game* self, player_id player, size_t* ret_size, const
     } else {
         outbuf += sprintf(outbuf, "-");
     }
-    switch (data.acc[1]) {
+    uint8_t acc2 = data.acc[1];
+    if (data.done == false && acc2 != ROCKPAPERSCISSORS_NONE && (player != 2 && player != PLAYER_NONE)) {
+        acc2 = ROCKPAPERSCISSORS_ANY;
+    }
+    switch (acc2) {
         case ROCKPAPERSCISSORS_NONE: {
             outbuf += sprintf(outbuf, "-");
         } break;
