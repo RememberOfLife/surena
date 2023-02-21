@@ -5,7 +5,9 @@
 #include <string.h>
 
 #include "rosalia/base64.h"
+#include "rosalia/noise.h"
 #include "rosalia/serialization.h"
+#include "rosalia/timestamp.h"
 
 #include "surena/games/chess.h"
 #include "surena/games/havannah.h"
@@ -276,6 +278,7 @@ typedef enum REPL_CMD_E {
     // REPL_CMD_G_GET_MOVE_DATA,
     // REPL_CMD_G_GET_MOVE_STR,
     REPL_CMD_G_PRINT,
+    REPL_CMD_GS_RESOLVE_RANDOM,
     REPL_CMD_COUNT,
 } REPL_CMD;
 
@@ -293,6 +296,7 @@ repl_cmd_func_t repl_cmd_handle_g_create;
 repl_cmd_func_t repl_cmd_handle_g_destroy;
 repl_cmd_func_t repl_cmd_handle_g_make_move;
 repl_cmd_func_t repl_cmd_handle_g_print;
+repl_cmd_func_t repl_cmd_handle_gs_resolve_random;
 
 typedef struct game_command_info_s {
     char* text; //TODO support multiple alias via "abc\0def\0"
@@ -338,6 +342,7 @@ game_command_info game_command_infos[REPL_CMD_COUNT] = {
     // [REPL_CMD_G_GET_MOVE_DATA] = {"get_move_data", NULL},
     // [REPL_CMD_G_GET_MOVE_STR] = {"get_move_str", NULL},
     [REPL_CMD_G_PRINT] = {"print", repl_cmd_handle_g_print},
+    [REPL_CMD_GS_RESOLVE_RANDOM] = {"resolve_random", repl_cmd_handle_gs_resolve_random},
 };
 
 REPL_CMD get_cmd_type(const char* str, const char* str_end)
@@ -862,4 +867,102 @@ void repl_cmd_handle_g_print(repl_state* rs, int argc, char** argv)
         return;
     }
     printf("%s", print_str);
+}
+
+void repl_cmd_handle_gs_resolve_random(repl_state* rs, int argc, char** argv)
+{
+    if (rs == NULL) { // print help
+        printf("usage: resolve_random [count] [seed]\n");
+        printf("resolve the next count many random moves, or by default (0), until all random moves are done\n");
+        return;
+    }
+    if (rs->g.methods == NULL) {
+        printf("no game running\n");
+        return;
+    }
+    if (game_ff(&rs->g).random_moves == false) {
+        printf("game does not support feature: random_moves\n");
+        return;
+    }
+    uint32_t random_count;
+    if (argc >= 1) {
+        int sc = sscanf(argv[0], "%u", &random_count);
+        if (sc != 1) {
+            printf("could not parse count as u32\n");
+            return;
+        }
+    }
+    uint32_t random_seed = timestamp_get_ns64() ^ (timestamp_get_ns64() >> 32);
+    if (argc >= 2) {
+        int sc = sscanf(argv[1], "%u", &random_seed);
+        if (sc != 1) {
+            printf("could not parse seed as u32\n");
+            return;
+        }
+    }
+    while (true) {
+        if (random_count > 0 && --random_count == 0) {
+            break;
+        }
+        error_code ec;
+        // check that ptm random player is actually to move
+        uint8_t ptm_c;
+        const player_id* ptm;
+        ec = game_players_to_move(&rs->g, &ptm_c, &ptm);
+        if (ec != ERR_OK) {
+            print_game_error(&rs->g, ec);
+            printf("[ERROR] unexpected game player to move error\n");
+            return;
+        }
+        if (ptm_c == 0 || ptm[0] != PLAYER_RAND) {
+            break;
+        }
+        // get percentage change of random moves
+        uint32_t moves_c;
+        const float* moves_prob;
+        ec = game_get_concrete_move_probabilities(&rs->g, PLAYER_RAND, &moves_c, &moves_prob);
+        if (ec != ERR_OK || moves_c == 0) {
+            print_game_error(&rs->g, ec);
+            printf("[ERROR] unexpected game get move probabilities error\n");
+            return;
+        }
+        // choose 1 random move via roulette wheel
+        float selected_move = get_1d_zto(123, random_seed);
+        float move_prob_sum = 0;
+        uint32_t move_idx = 0;
+        for (; move_idx < moves_c; move_idx++) {
+            move_prob_sum += moves_prob[move_idx];
+            if (selected_move < move_prob_sum) {
+                break;
+            }
+        }
+        if (move_idx == moves_c) {
+            move_idx = moves_c - 1; // maybe can possibly get here with some floating point inaccuracies accumulating over time
+        }
+        // get random moves available
+        const move_data* moves;
+        ec = game_get_concrete_moves(&rs->g, PLAYER_RAND, &moves_c, &moves);
+        if (ec != ERR_OK || moves_c == 0) {
+            print_game_error(&rs->g, ec);
+            printf("[ERROR] unexpected game get concrete moves error\n");
+            return;
+        }
+        // print chosen move
+        size_t size_fill;
+        const char* move_str;
+        ec = game_get_move_str(&rs->g, PLAYER_RAND, game_e_move_make_sync(&rs->g, moves[move_idx]), &size_fill, &move_str);
+        if (ec != ERR_OK) {
+            print_game_error(&rs->g, ec);
+            printf("[ERROR] unexpected game get move str error\n");
+            return;
+        }
+        printf("playing random move: %s\n", move_str);
+        // play chosen move
+        ec = game_make_move(&rs->g, PLAYER_RAND, game_e_move_make_sync(&rs->g, moves[move_idx]));
+        if (ec != ERR_OK) {
+            print_game_error(&rs->g, ec);
+            printf("[ERROR] unexpected game make move error\n");
+            return;
+        }
+    }
 }

@@ -245,7 +245,7 @@ static error_code get_concrete_moves_gf(game* self, player_id player, uint32_t* 
     export_buffers& bufs = get_bufs(self);
     state_repr& data = get_repr(self);
     move_data* outbuf = bufs.concrete_moves;
-    uint32_t count;
+    uint32_t count = 0;
     if (data.generating == 0) {
         bool can_big;
         bool can_payout;
@@ -290,7 +290,7 @@ static error_code get_concrete_move_probabilities_gf(game* self, player_id playe
     export_buffers& bufs = get_bufs(self);
     state_repr& data = get_repr(self);
     float* outbuf = bufs.move_probabilities;
-    uint32_t count;
+    uint32_t count = 0;
     if (data.generating == 1) {
         for (int i = 1; i < 9; i++) {
             outbuf[count++] = 0.125;

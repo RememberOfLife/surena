@@ -320,6 +320,7 @@ typedef error_code is_legal_move_gf_t(game* self, player_id player, move_data_sy
 // the game only reads the move, the caller still has to clean it up
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 typedef error_code move_to_action_gf_t(game* self, player_id player, move_data_sync move, move_data_sync** ret_action);
+//TODO maybe introduce target player here so that every player can get a different action if the game wants to
 
 // FEATURE: hidden_information || simultaneous_moves
 // convenience wrapper
