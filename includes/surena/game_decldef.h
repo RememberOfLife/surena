@@ -72,6 +72,10 @@
 #error "surena gdd internal feature flag bool already defined: SURENA_GDD_FFB_EVAL"
 #endif
 
+#ifdef SURENA_GDD_FFB_DISCRETIZE
+#error "surena gdd internal feature flag bool already defined: SURENA_GDD_FFB_DISCRETIZE"
+#endif
+
 #ifdef SURENA_GDD_FFB_PLAYOUT
 #error "surena gdd internal feature flag bool already defined: SURENA_GDD_FFB_PLAYOUT"
 #endif
@@ -152,6 +156,12 @@
 #define SURENA_GDD_FFB_EVAL true
 #endif
 
+#ifndef SURENA_GDD_FF_DISCRETIZE
+#define SURENA_GDD_FFB_DISCRETIZE false
+#else
+#define SURENA_GDD_FFB_DISCRETIZE true
+#endif
+
 #ifndef SURENA_GDD_FF_PLAYOUT
 #define SURENA_GDD_FFB_PLAYOUT false
 #else
@@ -213,7 +223,7 @@ static id_gf_t id_gf;
 #if SURENA_GDD_FFB_EVAL
 static eval_gf_t eval_gf;
 #endif
-#if SURENA_GDD_FFB_RANDOM_MOVES || SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
+#if (SURENA_GDD_FFB_RANDOM_MOVES || SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES) && SURENA_GDD_FFB_DISCRETIZE
 static discretize_gf_t discretize_gf;
 #endif
 #if SURENA_GDD_FFB_PLAYOUT
@@ -253,6 +263,7 @@ const game_methods SURENA_GDD_BENAME
         .scores = SURENA_GDD_FFB_SCORES,
         .id = SURENA_GDD_FFB_ID,
         .eval = SURENA_GDD_FFB_EVAL,
+        .discretize = SURENA_GDD_FFB_DISCRETIZE,
         .playout = SURENA_GDD_FFB_PLAYOUT,
         .print = SURENA_GDD_FFB_PRINT,
     },
@@ -330,7 +341,7 @@ const game_methods SURENA_GDD_BENAME
 #else
     .eval = NULL,
 #endif
-#if SURENA_GDD_FFB_RANDOM_MOVES || SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
+#if (SURENA_GDD_FFB_RANDOM_MOVES || SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES) && SURENA_GDD_FFB_DISCRETIZE
     .discretize = discretize_gf,
 #else
     .discretize = NULL,
@@ -407,6 +418,9 @@ const game_methods SURENA_GDD_BENAME
 
 #undef SURENA_GDD_FF_EVAL
 #undef SURENA_GDD_FFB_EVAL
+
+#undef SURENA_GDD_FF_DISCRETIZE
+#undef SURENA_GDD_FFB_DISCRETIZE
 
 #undef SURENA_GDD_FF_PLAYOUT
 #undef SURENA_GDD_FFB_PLAYOUT

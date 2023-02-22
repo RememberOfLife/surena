@@ -73,6 +73,7 @@ static const rockpaperscissors_internal_methods rockpaperscissors_gbe_internal_m
 #define SURENA_GDD_VERSION ((semver){1, 0, 1})
 #define SURENA_GDD_INTERNALS &rockpaperscissors_gbe_internal_methods
 #define SURENA_GDD_FF_SIMULTANEOUS_MOVES
+#define SURENA_GDD_FF_DISCRETIZE
 #define SURENA_GDD_FF_PRINT
 #include "surena/game_decldef.h"
 

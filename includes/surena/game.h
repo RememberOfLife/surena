@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 29;
+static const uint64_t SURENA_GAME_API_VERSION = 30;
 
 typedef uint32_t error_code;
 
@@ -133,6 +133,8 @@ typedef struct game_feature_flags_s {
     bool id : 1;
 
     bool eval : 1;
+
+    bool discretize : 1;
 
     bool playout : 1;
 

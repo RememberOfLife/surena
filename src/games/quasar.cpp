@@ -80,6 +80,7 @@ static const quasar_internal_methods quasar_gbe_internal_methods{
 #define SURENA_GDD_FF_RANDOM_MOVES
 #define SURENA_GDD_FF_ID
 #define SURENA_GDD_FF_EVAL
+#define SURENA_GDD_FF_DISCRETIZE
 #define SURENA_GDD_FF_PRINT
 #include "surena/game_decldef.h"
 

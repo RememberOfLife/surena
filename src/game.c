@@ -562,7 +562,7 @@ error_code game_discretize(game* self, uint64_t seed)
 {
     assert(self);
     assert(self->methods);
-    assert(game_ff(self).random_moves || game_ff(self).hidden_information || game_ff(self).simultaneous_moves);
+    assert((game_ff(self).random_moves || game_ff(self).hidden_information || game_ff(self).simultaneous_moves) && game_ff(self).discretize);
     assert(seed != SEED_NONE);
     return self->methods->discretize(self, seed);
 }
