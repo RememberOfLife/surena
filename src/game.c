@@ -698,6 +698,21 @@ bool game_e_move_sync_is_none(move_data_sync move)
     return game_e_move_is_none(move.md);
 }
 
+bool game_e_move_compare(move_data left, move_data right)
+{
+    assert(game_e_move_is_big(left) && game_e_move_is_big(right));
+    if (game_e_move_is_big(left) == true) {
+        return left.cl.len == right.cl.len && memcmp(left.data, right.data, left.cl.len) == 0;
+    } else {
+        return left.cl.code == right.cl.code;
+    }
+}
+
+bool game_e_move_sync_compare(move_data_sync left, move_data_sync right)
+{
+    return game_e_move_compare(left.md, right.md) && left.sync_ctr == right.sync_ctr;
+}
+
 move_data game_e_move_copy(move_data move)
 {
     move_data ret;

@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 28;
+static const uint64_t SURENA_GAME_API_VERSION = 29;
 
 typedef uint32_t error_code;
 
@@ -582,6 +582,8 @@ move_data_sync game_e_create_move_sync_big(game* self, size_t len, uint8_t* buf)
 move_data_sync game_e_move_make_sync(game* self, move_data move);
 bool game_e_move_is_none(move_data move);
 bool game_e_move_sync_is_none(move_data_sync move);
+bool game_e_move_compare(move_data left, move_data right);
+bool game_e_move_sync_compare(move_data_sync left, move_data_sync right);
 move_data game_e_move_copy(move_data move);
 move_data_sync game_e_move_sync_copy(move_data_sync move);
 void game_e_move_destroy(move_data move);

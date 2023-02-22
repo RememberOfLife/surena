@@ -10,16 +10,18 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_MOVE_HISTORY_API_VERSION = 2;
+static const uint64_t SURENA_MOVE_HISTORY_API_VERSION = 3;
 
 typedef struct move_history_s move_history;
 
 struct move_history_s {
+    blob* sync_data; // rosa_vec<blob> the sync data imported before the move is applied
     // the move how we got here, the root node of a move history tree is always PLAYER_NONE and MOVE_NONE
     player_id player;
-    move_code move;
+    move_data_sync move;
     char* move_str;
-    //TODO can stil cache game duplicates in intervals / busy split points, while waiting for true state export
+
+    //TODO cache game serialization every few nodes
 
     // binary tree to represent that a node can have many children
     //TODO this can not serve transposition merging into the same subtree (in that case, reachable sub graph) again, but its currently not required anyway
@@ -39,10 +41,11 @@ struct move_history_s {
 
 void move_history_create(move_history* h);
 
-// inserts the player and move combination as a child for the given history, returns a pointer to the newly created move node
-// if the combination already exists, it simply returns the pointer to the already existing history
+// inserts the (sync_data, player, move) combination as a child for the given history, returns a pointer to the newly created move node
+// if the combination already exists, it simply returns the pointer to the already existing history (this only compares the move, not the sync data!)
 // in all cases the created/existing node is also selected for h
-move_history* move_history_insert(move_history* h, player_id player, move_code move);
+// sync_data is a rosa_vec<blob>
+move_history* move_history_insert(move_history* h, blob* sync_data, player_id player, move_data_sync move);
 
 // recursively sets all its parents selected_child indices to the path pointing to this history, also unsets the selected_child idx for itself
 void move_history_select(move_history* h);

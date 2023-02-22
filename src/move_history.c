@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <stdlib.h>
 
+#include "rosalia/vector.h"
+
 #include "surena/game.h"
 
 #include "surena/move_history.h"
@@ -17,8 +19,15 @@ extern "C" {
 void move_history_create(move_history* h)
 {
     *h = (move_history){
+        .sync_data = NULL,
         .player = PLAYER_NONE,
-        .move = MOVE_NONE,
+        .move = (move_data_sync){
+            .md = (move_data){
+                .cl.len = 0,
+                .data = NULL,
+            },
+            .sync_ctr = SYNC_CTR_DEFAULT,
+        },
         .move_str = NULL,
         .parent = NULL,
         .left_child = NULL,
@@ -32,13 +41,13 @@ void move_history_create(move_history* h)
     };
 }
 
-move_history* move_history_insert(move_history* h, player_id player, move_code move)
+move_history* move_history_insert(move_history* h, blob* sync_data, player_id player, move_data_sync move)
 {
     move_history** ip = &h->left_child;
     uint32_t idx_in_parent = 0;
     move_history* lp = h->left_child;
     while (lp) {
-        if (lp->player == player && lp->move == move) {
+        if (lp->player == player && game_e_move_sync_compare(lp->move, move)) {
             h->selected_child = lp->idx_in_parent;
             lp->selected_child = UINT32_MAX;
             return lp;
@@ -52,8 +61,13 @@ move_history* move_history_insert(move_history* h, player_id player, move_code m
     // move node was not found, create and insert at ip, reuse lp as new pointer
     lp = (move_history*)malloc(sizeof(move_history));
     move_history_create(lp);
+    VEC_CREATE(&lp->sync_data, VEC_LEN(&sync_data));
+    VEC_PUSH_N(&lp->sync_data, VEC_LEN(&sync_data));
+    for (size_t i = 0; i < VEC_LEN(&sync_data); i++) {
+        blob_copy(&lp->sync_data[i], &sync_data[i]);
+    }
     lp->player = player;
-    lp->move = move;
+    lp->move = game_e_move_sync_copy(move);
     lp->parent = h;
     lp->idx_in_parent = idx_in_parent;
     *ip = lp;
@@ -290,6 +304,11 @@ void move_history_destroy(move_history* h)
             // delete current node
             move_history* del_free = del_head;
             del_head = del_head->parent;
+            for (size_t i = 0; i < VEC_LEN(&del_free->sync_data); i++) {
+                blob_destroy(&del_free->sync_data[i]);
+            }
+            VEC_DESTROY(&del_free->sync_data);
+            game_e_move_sync_destroy(del_free->move);
             free(del_free->move_str);
             free(del_free);
         } else {
@@ -297,6 +316,11 @@ void move_history_destroy(move_history* h)
         }
     }
     // delete last node
+    for (size_t i = 0; i < VEC_LEN(&del_head->sync_data); i++) {
+        blob_destroy(&del_head->sync_data[i]);
+    }
+    VEC_DESTROY(&del_head->sync_data);
+    game_e_move_sync_destroy(del_head->move);
     free(del_head->move_str);
     free(del_head);
 }

@@ -50,10 +50,11 @@ set(SOURCES
     src/rosa_impl/semver.c
     src/rosa_impl/serialization.c
     src/rosa_impl/timestamp.c
+    src/rosa_impl/vector.c
 
     # src/engine.cpp
     src/game.c
-    # src/move_history.c
+    src/move_history.c
     src/repl.c
 
     src/main.cpp
