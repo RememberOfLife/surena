@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_MOVE_HISTORY_API_VERSION = 3;
+static const uint64_t SURENA_MOVE_HISTORY_API_VERSION = 4;
 
 typedef struct move_history_s move_history;
 
@@ -39,13 +39,13 @@ struct move_history_s {
     uint32_t width; // SUM of widths of children, terminal node has width 1; equal to number of leaf nodes from here
 };
 
-void move_history_create(move_history* h);
+move_history* move_history_create();
 
 // inserts the (sync_data, player, move) combination as a child for the given history, returns a pointer to the newly created move node
 // if the combination already exists, it simply returns the pointer to the already existing history (this only compares the move, not the sync data!)
 // in all cases the created/existing node is also selected for h
 // sync_data is a rosa_vec<blob>
-move_history* move_history_insert(move_history* h, blob* sync_data, player_id player, move_data_sync move);
+move_history* move_history_insert(move_history* h, blob* sync_data, player_id player, move_data_sync move, const char* move_str);
 
 // recursively sets all its parents selected_child indices to the path pointing to this history, also unsets the selected_child idx for itself
 void move_history_select(move_history* h);

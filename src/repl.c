@@ -18,6 +18,7 @@
 #include "surena/games/twixt_pp.h"
 #include "surena/game_plugin.h"
 #include "surena/game.h"
+#include "surena/move_history.h"
 
 #include "repl.h"
 
@@ -234,6 +235,8 @@ typedef struct repl_state_s {
     char* g_c_b64_serialized;
     blob g_c_serialized;
     game g;
+    move_history* history;
+    move_history* history_head;
     player_id pov;
 } repl_state;
 
@@ -278,6 +281,7 @@ typedef enum REPL_CMD_E {
     // REPL_CMD_G_GET_MOVE_DATA,
     // REPL_CMD_G_GET_MOVE_STR,
     REPL_CMD_G_PRINT,
+    REPL_CMD_GS_HISTORY,
     REPL_CMD_GS_RESOLVE_RANDOM,
     REPL_CMD_COUNT,
 } REPL_CMD;
@@ -296,6 +300,7 @@ repl_cmd_func_t repl_cmd_handle_g_create;
 repl_cmd_func_t repl_cmd_handle_g_destroy;
 repl_cmd_func_t repl_cmd_handle_g_make_move;
 repl_cmd_func_t repl_cmd_handle_g_print;
+repl_cmd_func_t repl_cmd_handle_gs_history;
 repl_cmd_func_t repl_cmd_handle_gs_resolve_random;
 
 typedef struct game_command_info_s {
@@ -342,6 +347,7 @@ game_command_info game_command_infos[REPL_CMD_COUNT] = {
     // [REPL_CMD_G_GET_MOVE_DATA] = {"get_move_data", NULL},
     // [REPL_CMD_G_GET_MOVE_STR] = {"get_move_str", NULL},
     [REPL_CMD_G_PRINT] = {"print", repl_cmd_handle_g_print},
+    [REPL_CMD_GS_HISTORY] = {"history", repl_cmd_handle_gs_history},
     [REPL_CMD_GS_RESOLVE_RANDOM] = {"resolve_random", repl_cmd_handle_gs_resolve_random},
 };
 
@@ -407,8 +413,11 @@ int repl()
             .data2 = NULL,
             .sync_ctr = SYNC_CTR_DEFAULT,
         },
+        .history = move_history_create(),
+        .history_head = NULL,
         .pov = PLAYER_NONE,
     };
+    rs.history_head = rs.history;
     const size_t read_buf_size = 4096;
     char* read_buf = malloc(read_buf_size);
     while (rs.exit == false) {
@@ -710,6 +719,11 @@ void repl_cmd_handle_g_create(repl_state* rs, int argc, char** argv)
             printf("[ERROR] unexpected game destruction error\n");
         }
     }
+    // swap out move history for new one
+    move_history_destroy(rs->history);
+    rs->history = move_history_create();
+    rs->history_head = rs->history;
+    // create new game
     rs->g.methods = rs->g_methods;
     ec = game_create(&rs->g, &game_init_info);
     if (ec != ERR_OK) {
@@ -753,6 +767,9 @@ void repl_cmd_handle_g_destroy(repl_state* rs, int argc, char** argv)
         printf("[ERROR] unexpected game destruction error\n");
     }
     rs->pov = PLAYER_NONE;
+    move_history_destroy(rs->history);
+    rs->history = move_history_create();
+    rs->history_head = rs->history;
 }
 
 void repl_cmd_handle_g_make_move(repl_state* rs, int argc, char** argv)
@@ -822,6 +839,7 @@ void repl_cmd_handle_g_make_move(repl_state* rs, int argc, char** argv)
         printf("[ERROR] unexpected move making error\n");
         return;
     }
+    rs->history_head = move_history_insert(rs->history_head, NULL, pov, move, movestr);
 }
 
 void repl_cmd_handle_g_print(repl_state* rs, int argc, char** argv)
@@ -867,6 +885,25 @@ void repl_cmd_handle_g_print(repl_state* rs, int argc, char** argv)
         return;
     }
     printf("%s", print_str);
+}
+
+void repl_cmd_handle_gs_history(repl_state* rs, int argc, char** argv)
+{
+    if (rs == NULL) { // print help
+        printf("usage: history\n");
+        printf("show the move history that lead to this state\n");
+        //TODO manipulation features planned for moving around the tree
+        return;
+    }
+    if (rs->g.methods == NULL) {
+        printf("no game running\n");
+        return;
+    }
+    move_history* hn = rs->history->left_child;
+    while (hn != NULL) {
+        printf("%03hhu: %s\n", hn->player, hn->move_str);
+        hn = hn->left_child;
+    }
 }
 
 void repl_cmd_handle_gs_resolve_random(repl_state* rs, int argc, char** argv)

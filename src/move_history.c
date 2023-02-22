@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "rosalia/vector.h"
 
@@ -16,9 +17,10 @@ extern "C" {
 
 //TODO make split height work as effective height, i.e. during propagation consider max(height, splitheight)
 
-void move_history_create(move_history* h)
+move_history* move_history_create()
 {
-    *h = (move_history){
+    move_history* rp = (move_history*)malloc(sizeof(move_history));
+    *rp = (move_history){
         .sync_data = NULL,
         .player = PLAYER_NONE,
         .move = (move_data_sync){
@@ -39,9 +41,10 @@ void move_history_create(move_history* h)
         .split_height = 0,
         .width = 1,
     };
+    return rp;
 }
 
-move_history* move_history_insert(move_history* h, blob* sync_data, player_id player, move_data_sync move)
+move_history* move_history_insert(move_history* h, blob* sync_data, player_id player, move_data_sync move, const char* move_str)
 {
     move_history** ip = &h->left_child;
     uint32_t idx_in_parent = 0;
@@ -59,15 +62,17 @@ move_history* move_history_insert(move_history* h, blob* sync_data, player_id pl
         lp = lp->right_sibling;
     }
     // move node was not found, create and insert at ip, reuse lp as new pointer
-    lp = (move_history*)malloc(sizeof(move_history));
-    move_history_create(lp);
-    VEC_CREATE(&lp->sync_data, VEC_LEN(&sync_data));
-    VEC_PUSH_N(&lp->sync_data, VEC_LEN(&sync_data));
-    for (size_t i = 0; i < VEC_LEN(&sync_data); i++) {
-        blob_copy(&lp->sync_data[i], &sync_data[i]);
+    lp = move_history_create();
+    if (sync_data != NULL) {
+        VEC_CREATE(&lp->sync_data, VEC_LEN(&sync_data));
+        VEC_PUSH_N(&lp->sync_data, VEC_LEN(&sync_data));
+        for (size_t i = 0; i < VEC_LEN(&sync_data); i++) {
+            blob_copy(&lp->sync_data[i], &sync_data[i]);
+        }
     }
     lp->player = player;
     lp->move = game_e_move_sync_copy(move);
+    lp->move_str = move_str != NULL ? strdup(move_str) : NULL;
     lp->parent = h;
     lp->idx_in_parent = idx_in_parent;
     *ip = lp;
@@ -251,13 +256,13 @@ void move_history_recalculate_heights(move_history* h)
 
 void move_history_destroy(move_history* h)
 {
-    if (h->parent->selected_child == h->idx_in_parent) {
-        h->parent->selected_child = UINT32_MAX;
-    } else if (h->idx_in_parent < h->parent->selected_child) {
-        h->parent->selected_child--;
-    }
     //TODO set height and split height of parent tree correctly, height propagates up the tree and can consequently change split height
-    if (h->parent) {
+    if (h->parent != NULL) {
+        if (h->parent->selected_child == h->idx_in_parent) {
+            h->parent->selected_child = UINT32_MAX;
+        } else if (h->idx_in_parent < h->parent->selected_child) {
+            h->parent->selected_child--;
+        }
         move_history* left_sibling = h->parent->left_child;
         if (left_sibling == h) {
             // we're the left most child, unlink immediately
