@@ -13,14 +13,14 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 30;
+static const uint64_t SURENA_GAME_API_VERSION = 31;
 
 typedef uint32_t error_code;
 
 // general purpose error codes
 enum ERR {
     ERR_OK = 0,
-    // ERR_NOK, //TODO might want this to show that input was in fact valid, but the result is just false, i.e. legal move and engine game support
+    ERR_NOK,
     ERR_STATE_UNRECOVERABLE,
     ERR_STATE_CORRUPTED,
     ERR_OUT_OF_MEMORY,
@@ -32,6 +32,7 @@ enum ERR {
     ERR_INVALID_OPTIONS,
     ERR_INVALID_LEGACY,
     ERR_INVALID_STATE,
+    ERR_UNENUMERABLE,
     ERR_UNSTABLE_POSITION,
     ERR_SYNC_COUNTER_MISMATCH,
     ERR_SYNC_COUNTER_IMPOSSIBLE_REORDER,
@@ -43,10 +44,10 @@ enum ERR {
 // returns not_general if the err is not a general error
 const char* get_general_error_string(error_code err, const char* fallback);
 // instead of returning an error code, one can return rerror(f,vf) which automatically manages fmt string buffer allocation for the error string
-// call rerrorf or rerrorvf with fmt(or str)=NULL to free (*pbuf) (does not work on rerror)
+// call rerrorf or rerrorfv with fmt(or str)=NULL to free (*pbuf) (does not work on rerror)
 error_code rerror(char** pbuf, error_code ec, const char* str, const char* str_end);
 error_code rerrorf(char** pbuf, error_code ec, const char* fmt, ...);
-error_code rerrorvf(char** pbuf, error_code ec, const char* fmt, va_list args);
+error_code rerrorfv(char** pbuf, error_code ec, const char* fmt, va_list args);
 
 // anywhere a rng seed is use, SEED_NONE represents not using the rng
 static const uint64_t SEED_NONE = 0;
@@ -115,15 +116,21 @@ typedef struct game_feature_flags_s {
 
     bool hidden_information : 1;
 
-    //TODO extra flag for sync data?
+    // FEATURE: hidden_information || simultaneous_moves
+    // enable to signal that this game uses sync data
+    // not all games with hidden information require/want to use the sync_data protocol
+    bool sync_data : 1;
 
     // remember: the game owner must guarantee total move order on all moves!
     bool simultaneous_moves : 1;
 
-    //TODO extra flag for sync_ctr?
+    // FEATURE: simultaneous_moves
+    // if this is used, the game manages the sync_ctr itself, and enables commutative simultaneous moves when it wants to
+    bool sync_ctr : 1;
 
-    // in a game that uses this feature flag, ALL moves are big moves
+    // in a game that uses this feature flag, moves can be both small AND big moves
     // big moves use move_data.big, otherwise use move_data.code
+    // see the appropriate helper functions for interacting with ambiguous moves
     bool big_moves : 1;
 
     bool move_ordering : 1;
@@ -134,6 +141,7 @@ typedef struct game_feature_flags_s {
 
     bool eval : 1;
 
+    // FEATURE: random_moves || hidden_information || simultaneous_moves
     bool discretize : 1;
 
     bool playout : 1;
@@ -280,17 +288,23 @@ typedef error_code players_to_move_gf_t(game* self, uint8_t* ret_count, const pl
 
 // writes the available moves for the player from this position and returns a read only pointer to them
 // writes no moves if the game is over or the player is not to move
-// if the game uses moves at this position, which can not be feasibly listed it can return ERR_UNSTABLE_POSITION to signal this
+// if the game uses moves at this position, which can not be feasibly listed it can return ERR_UNENUMERABLE to signal this
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 typedef error_code get_concrete_moves_gf_t(game* self, player_id player, uint32_t* ret_count, const move_data** ret_moves);
 
 // FEATURE: random_moves
-// writes the probabilities [0,1] of each avilable move in get_concrete_moves and returns a read only pointer to them
+// writes the probabilities [0,1] of each avilable move in get_concrete_moves(player=PLAYER_RAND) and returns a read only pointer to them (SUM=1)
 // order is the same as get_concrete_moves
 // only available if the the ptm is PLAYER_RAND
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
-typedef error_code get_concrete_move_probabilities_gf_t(game* self, player_id player, uint32_t* ret_count, const float** ret_move_probabilities);
-//TODO move probabilities are only available for player rand anyway, remove player arg here
+typedef error_code get_concrete_move_probabilities_gf_t(game* self, uint32_t* ret_count, const float** ret_move_probabilities);
+
+// FEATURE: random_moves
+// returns a legal random move from this position, for the PLAYER_RAND
+// this will work even when the moves are ERR_UNENUMERABLE
+// the move will always be chosen deterministically from the supplied seed
+// the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
+typedef error_code get_random_move_gf_t(game* self, uint64_t seed, move_data_sync** ret_move);
 
 // FEATURE: move_ordering
 // writes the available moves for the player from this position and returns a read only pointer to them
@@ -317,12 +331,12 @@ typedef error_code is_legal_move_gf_t(game* self, player_id player, move_data_sy
 // FEATURE: hidden_information || simultaneous_moves
 // returns the action representing the information set transformation of the (concrete) LEGAL move (action instance)
 // if move is already an action then it is directly returned unaltered
-// if this returns the null move action, the action should not be sent to ther clients and the sync_ctr in the game no incremented after making the move
-// use e.g. on server, send out only the action to client which are not controlling the player that sent the move
+// if this returns the null move action for one player it MUST return the null move action for all players, the action should then not be sent to other clients and the sync_ctr in the game not incremented after making the move
+// use e.g. on server, send out the only the action to target_player
 // the game only reads the move, the caller still has to clean it up
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
-typedef error_code move_to_action_gf_t(game* self, player_id player, move_data_sync move, move_data_sync** ret_action);
-//TODO maybe introduce target player here so that every player can get a different action if the game wants to
+typedef error_code move_to_action_gf_t(game* self, player_id player, move_data_sync move, player_id target_player, move_data_sync** ret_action);
+//TODO maybe return array here instead, so for all players their move?
 
 // FEATURE: hidden_information || simultaneous_moves
 // convenience wrapper
@@ -391,14 +405,14 @@ typedef error_code playout_gf_t(game* self, uint64_t seed);
 // if PLAYER_RAND is not in players, then the seed (and all internal hidden information) is redacted as well
 typedef error_code redact_keep_state_gf_t(game* self, uint8_t count, const player_id* players);
 
-// FEATURE: hidden_information || simultaneous_moves
+// FEATURE: (hidden_information || simultaneous_moves) && sync_data
 // one sync data always describes the data to be sent to the given player array to sync up their state
 // multiple sync data structs incur multiple events, i.e. multiple import_sync_data calls
 // use this after making a move to test what sync data should be sent to which player clients before the action
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 typedef error_code export_sync_data_gf_t(game* self, uint32_t* ret_count, const sync_data** ret_sync_data);
 
-// FEATURE: hidden_information || simultaneous_moves
+// FEATURE: (hidden_information || simultaneous_moves) && sync_data
 // import a sync data block received from another (more knowing) instance of this game (e.g. across the network)
 typedef error_code import_sync_data_gf_t(game* self, blob b);
 
@@ -474,6 +488,7 @@ typedef struct game_methods_s {
     players_to_move_gf_t* players_to_move;
     get_concrete_moves_gf_t* get_concrete_moves;
     get_concrete_move_probabilities_gf_t* get_concrete_move_probabilities;
+    get_random_move_gf_t* get_random_move;
     get_concrete_moves_ordered_gf_t* get_concrete_moves_ordered;
     get_actions_gf_t* get_actions;
     is_legal_move_gf_t* is_legal_move;
@@ -557,6 +572,7 @@ serialize_gf_t game_serialize;
 players_to_move_gf_t game_players_to_move;
 get_concrete_moves_gf_t game_get_concrete_moves;
 get_concrete_move_probabilities_gf_t game_get_concrete_move_probabilities;
+get_random_move_gf_t game_get_random_move;
 get_concrete_moves_ordered_gf_t game_get_concrete_moves_ordered;
 get_actions_gf_t game_get_actions;
 is_legal_move_gf_t game_is_legal_move;
@@ -591,12 +607,12 @@ move_data_sync game_e_move_sync_copy(move_data_sync move);
 void game_e_move_destroy(move_data move);
 void game_e_move_sync_destroy(move_data_sync move);
 bool game_e_move_is_big(move_data move);
-// error_code game_e_make_random_move(game* self); //TODO from a position where PLAYER_RAND is ptm this uses the get_concrete_move_probabilities to make a random move
+move_data_sync game_e_get_random_move_sync(game* self, uint64_t seed); // from a position where PLAYER_RAND is ptm this uses the get_concrete_move_probabilities to copy a random move sync
 
 // game internal rerrorf: if your error string is self->data2 use this as a shorthand
 error_code grerror(game* self, error_code ec, const char* str, const char* str_end);
 error_code grerrorf(game* self, error_code ec, const char* fmt, ...);
-error_code grerrorvf(game* self, error_code ec, const char* fmt, va_list args);
+error_code grerrorfv(game* self, error_code ec, const char* fmt, va_list args);
 
 #ifdef __cplusplus
 }

@@ -216,7 +216,12 @@ static error_code get_concrete_moves_gf(game* self, player_id player, uint32_t* 
     //TODO
 }
 
-static error_code get_concrete_move_probabilities_gf(game* self, player_id player, uint32_t* ret_count, const float** ret_move_probabilities)
+static error_code get_concrete_move_probabilities_gf(game* self, uint32_t* ret_count, const float** ret_move_probabilities)
+{
+    //TODO
+}
+
+static error_code get_random_move_gf(game* self, uint64_t seed, move_data_sync** ret_move)
 {
     //TODO
 }
@@ -236,7 +241,7 @@ static error_code is_legal_move_gf(game* self, player_id player, move_data_sync 
     //TODO
 }
 
-static error_code move_to_action_gf(game* self, player_id player, move_data_sync move, move_data_sync** ret_action)
+static error_code move_to_action_gf(game* self, player_id player, move_data_sync move, player_id target_player, move_data_sync** ret_action)
 {
     //TODO
 }

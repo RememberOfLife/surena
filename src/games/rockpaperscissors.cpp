@@ -324,11 +324,15 @@ static error_code is_legal_move_gf(game* self, player_id player, move_data_sync 
     return ERR_OK;
 }
 
-static error_code move_to_action_gf(game* self, player_id player, move_data_sync move, move_data_sync** ret_action)
+static error_code move_to_action_gf(game* self, player_id player, move_data_sync move, player_id target_player, move_data_sync** ret_action)
 {
     //TODO is this ok?
     export_buffers& bufs = get_bufs(self);
-    bufs.move_out = game_e_create_move_sync_small(self, ROCKPAPERSCISSORS_ANY);
+    if (player == target_player) { // playing player gets their move, everyone else gets the any action
+        bufs.move_out = game_e_create_move_sync_small(self, move.md.cl.code);
+    } else {
+        bufs.move_out = game_e_create_move_sync_small(self, ROCKPAPERSCISSORS_ANY);
+    }
     *ret_action = &bufs.move_out;
     return ERR_OK;
 }

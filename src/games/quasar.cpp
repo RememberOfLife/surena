@@ -286,7 +286,7 @@ static error_code get_concrete_moves_gf(game* self, player_id player, uint32_t* 
     return ERR_OK;
 }
 
-static error_code get_concrete_move_probabilities_gf(game* self, player_id player, uint32_t* ret_count, const float** ret_move_probabilities)
+static error_code get_concrete_move_probabilities_gf(game* self, uint32_t* ret_count, const float** ret_move_probabilities)
 {
     export_buffers& bufs = get_bufs(self);
     state_repr& data = get_repr(self);
@@ -303,6 +303,15 @@ static error_code get_concrete_move_probabilities_gf(game* self, player_id playe
     }
     *ret_count = count;
     *ret_move_probabilities = bufs.move_probabilities;
+    return ERR_OK;
+}
+
+static error_code get_random_move_gf(game* self, uint64_t seed, move_data_sync** ret_move)
+{
+    export_buffers& bufs = get_bufs(self);
+    move_data_sync* outbuf = &bufs.move_out;
+    *outbuf = game_e_get_random_move_sync(self, seed);
+    *ret_move = outbuf;
     return ERR_OK;
 }
 

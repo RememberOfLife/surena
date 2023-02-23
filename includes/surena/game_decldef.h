@@ -48,8 +48,16 @@
 #error "surena gdd internal feature flag bool already defined: SURENA_GDD_FFB_HIDDEN_INFORMATION"
 #endif
 
+#ifdef SURENA_GDD_FFB_SYNC_DATA
+#error "surena gdd internal feature flag bool already defined: SURENA_GDD_FFB_SYNC_DATA"
+#endif
+
 #ifdef SURENA_GDD_FFB_SIMULTANEOUS_MOVES
 #error "surena gdd internal feature flag bool already defined: SURENA_GDD_FFB_SIMULTANEOUS_MOVES"
+#endif
+
+#ifdef SURENA_GDD_FFB_SYNC_CTR
+#error "surena gdd internal feature flag bool already defined: SURENA_GDD_FFB_SYNC_CTR"
 #endif
 
 #ifdef SURENA_GDD_FFB_BIG_MOVES
@@ -120,10 +128,22 @@
 #define SURENA_GDD_FFB_HIDDEN_INFORMATION true
 #endif
 
+#ifndef SURENA_GDD_FF_SYNC_DATA
+#define SURENA_GDD_FFB_SYNC_DATA false
+#else
+#define SURENA_GDD_FFB_SYNC_DATA true
+#endif
+
 #ifndef SURENA_GDD_FF_SIMULTANEOUS_MOVES
 #define SURENA_GDD_FFB_SIMULTANEOUS_MOVES false
 #else
 #define SURENA_GDD_FFB_SIMULTANEOUS_MOVES true
+#endif
+
+#ifndef SURENA_GDD_FF_SYNC_CTR
+#define SURENA_GDD_FFB_SYNC_CTR false
+#else
+#define SURENA_GDD_FFB_SYNC_CTR true
 #endif
 
 #ifndef SURENA_GDD_FF_BIG_MOVES
@@ -196,6 +216,9 @@ static get_concrete_moves_gf_t get_concrete_moves_gf;
 #if SURENA_GDD_FFB_RANDOM_MOVES
 static get_concrete_move_probabilities_gf_t get_concrete_move_probabilities_gf;
 #endif
+#if SURENA_GDD_FFB_RANDOM_MOVES
+static get_random_move_gf_t get_random_move_gf;
+#endif
 #if SURENA_GDD_FFB_MOVE_ORDERING
 static get_concrete_moves_ordered_gf_t get_concrete_moves_ordered_gf;
 #endif
@@ -232,10 +255,10 @@ static playout_gf_t playout_gf;
 #if SURENA_GDD_FFB_RANDOM_MOVES || SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
 static redact_keep_state_gf_t redact_keep_state_gf;
 #endif
-#if SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
+#if (SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES) && SURENA_GDD_FFB_SYNC_DATA
 static export_sync_data_gf_t export_sync_data_gf;
 #endif
-#if SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
+#if (SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES) && SURENA_GDD_FFB_SYNC_DATA
 static import_sync_data_gf_t import_sync_data_gf;
 #endif
 static get_move_data_gf_t get_move_data_gf;
@@ -258,7 +281,9 @@ const game_methods SURENA_GDD_BENAME
         .legacy = SURENA_GDD_FFB_LEGACY,
         .random_moves = SURENA_GDD_FFB_RANDOM_MOVES,
         .hidden_information = SURENA_GDD_FFB_HIDDEN_INFORMATION,
+        .sync_data = SURENA_GDD_FFB_SYNC_DATA,
         .simultaneous_moves = SURENA_GDD_FFB_SIMULTANEOUS_MOVES,
+        .sync_ctr = SURENA_GDD_FFB_SYNC_CTR,
         .move_ordering = SURENA_GDD_FFB_MOVE_ORDERING,
         .scores = SURENA_GDD_FFB_SCORES,
         .id = SURENA_GDD_FFB_ID,
@@ -297,6 +322,11 @@ const game_methods SURENA_GDD_BENAME
     .get_concrete_move_probabilities = get_concrete_move_probabilities_gf,
 #else
     .get_concrete_move_probabilities = NULL,
+#endif
+#if SURENA_GDD_FFB_RANDOM_MOVES
+    .get_random_move = get_random_move_gf,
+#else
+    .get_random_move = NULL,
 #endif
 #if SURENA_GDD_FFB_MOVE_ORDERING
     .get_concrete_moves_ordered = get_concrete_moves_ordered_gf,
@@ -356,12 +386,12 @@ const game_methods SURENA_GDD_BENAME
 #else
     .redact_keep_state = NULL,
 #endif
-#if SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
+#if (SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES) && SURENA_GDD_FFB_SYNC_DATA
     .export_sync_data = export_sync_data_gf,
 #else
     .export_sync_data = NULL,
 #endif
-#if SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
+#if (SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES) && SURENA_GDD_FFB_SYNC_DATA
     .import_sync_data = import_sync_data_gf,
 #else
     .import_sync_data = NULL,
@@ -401,8 +431,14 @@ const game_methods SURENA_GDD_BENAME
 #undef SURENA_GDD_FF_HIDDEN_INFORMATION
 #undef SURENA_GDD_FFB_HIDDEN_INFORMATION
 
+#undef SURENA_GDD_FF_SYNC_DATA
+#undef SURENA_GDD_FFB_SYNC_DATA
+
 #undef SURENA_GDD_FF_SIMULTANEOUS_MOVES
 #undef SURENA_GDD_FFB_SIMULTANEOUS_MOVES
+
+#undef SURENA_GDD_FF_SYNC_CTR
+#undef SURENA_GDD_FFB_SYNC_CTR
 
 #undef SURENA_GDD_FF_BIG_MOVES
 #undef SURENA_GDD_FFB_BIG_MOVES

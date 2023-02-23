@@ -929,11 +929,11 @@ void repl_cmd_handle_gs_resolve_random(repl_state* rs, int argc, char** argv)
             return;
         }
     }
-    uint32_t random_seed = timestamp_get_ns64() ^ (timestamp_get_ns64() >> 32);
+    uint64_t random_seed = timestamp_get_ns64();
     if (argc >= 2) {
-        int sc = sscanf(argv[1], "%u", &random_seed);
+        int sc = sscanf(argv[1], "%lu", &random_seed);
         if (sc != 1) {
-            printf("could not parse seed as u32\n");
+            printf("could not parse seed as u64\n");
             return;
         }
     }
@@ -941,6 +941,7 @@ void repl_cmd_handle_gs_resolve_random(repl_state* rs, int argc, char** argv)
         if (random_count > 0 && --random_count == 0) {
             break;
         }
+        random_seed++;
         error_code ec;
         // check that ptm random player is actually to move
         uint8_t ptm_c;
@@ -954,40 +955,12 @@ void repl_cmd_handle_gs_resolve_random(repl_state* rs, int argc, char** argv)
         if (ptm_c == 0 || ptm[0] != PLAYER_RAND) {
             break;
         }
-        // get percentage change of random moves
-        uint32_t moves_c;
-        const float* moves_prob;
-        ec = game_get_concrete_move_probabilities(&rs->g, PLAYER_RAND, &moves_c, &moves_prob);
-        if (ec != ERR_OK || moves_c == 0) {
-            print_game_error(&rs->g, ec);
-            printf("[ERROR] unexpected game get move probabilities error\n");
-            return;
-        }
-        // choose 1 random move via roulette wheel
-        float selected_move = get_1d_zto(123, random_seed);
-        float move_prob_sum = 0;
-        uint32_t move_idx = 0;
-        for (; move_idx < moves_c; move_idx++) {
-            move_prob_sum += moves_prob[move_idx];
-            if (selected_move < move_prob_sum) {
-                break;
-            }
-        }
-        if (move_idx == moves_c) {
-            move_idx = moves_c - 1; // maybe can possibly get here with some floating point inaccuracies accumulating over time
-        }
-        // get random moves available
-        const move_data* moves;
-        ec = game_get_concrete_moves(&rs->g, PLAYER_RAND, &moves_c, &moves);
-        if (ec != ERR_OK || moves_c == 0) {
-            print_game_error(&rs->g, ec);
-            printf("[ERROR] unexpected game get concrete moves error\n");
-            return;
-        }
+        // use get_random_move to get a random move
+        move_data_sync random_move = game_e_get_random_move_sync(&rs->g, random_seed);
         // print chosen move
         size_t size_fill;
         const char* move_str;
-        ec = game_get_move_str(&rs->g, PLAYER_RAND, game_e_move_make_sync(&rs->g, moves[move_idx]), &size_fill, &move_str);
+        ec = game_get_move_str(&rs->g, PLAYER_RAND, random_move, &size_fill, &move_str);
         if (ec != ERR_OK) {
             print_game_error(&rs->g, ec);
             printf("[ERROR] unexpected game get move str error\n");
@@ -995,7 +968,7 @@ void repl_cmd_handle_gs_resolve_random(repl_state* rs, int argc, char** argv)
         }
         printf("playing random move: %s\n", move_str);
         // play chosen move
-        ec = game_make_move(&rs->g, PLAYER_RAND, game_e_move_make_sync(&rs->g, moves[move_idx]));
+        ec = game_make_move(&rs->g, PLAYER_RAND, random_move);
         if (ec != ERR_OK) {
             print_game_error(&rs->g, ec);
             printf("[ERROR] unexpected game make move error\n");
