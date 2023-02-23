@@ -483,18 +483,6 @@ error_code game_move_to_action(game* self, player_id player, move_data_sync move
     return self->methods->move_to_action(self, player, move, target_player, ret_action);
 }
 
-error_code game_is_action(game* self, player_id player, move_data_sync move, bool* ret_is_action)
-{
-    assert(self);
-    assert(self->methods);
-    assert(game_ff(self).hidden_information || game_ff(self).simultaneous_moves);
-    assert(ret_is_action);
-    if (self->sync_ctr != move.sync_ctr && game_ff(self).sync_ctr == false) {
-        return ERR_SYNC_COUNTER_MISMATCH;
-    }
-    return self->methods->is_action(self, player, move, ret_is_action);
-}
-
 error_code game_make_move(game* self, player_id player, move_data_sync move)
 {
     assert(self);

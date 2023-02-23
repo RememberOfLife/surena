@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 32;
+static const uint64_t SURENA_GAME_API_VERSION = 33;
 
 typedef uint32_t error_code;
 
@@ -338,12 +338,6 @@ typedef error_code is_legal_move_gf_t(game* self, player_id player, move_data_sy
 typedef error_code move_to_action_gf_t(game* self, player_id player, move_data_sync move, player_id target_player, move_data_sync** ret_action);
 //TODO maybe return array here instead, so for all players their move?
 
-// FEATURE: hidden_information || simultaneous_moves
-// convenience wrapper
-// returns true if the move represents an action for this player
-// the game only reads the move, the caller still has to clean it up
-typedef error_code is_action_gf_t(game* self, player_id player, move_data_sync move, bool* ret_is_action);
-
 // make the legal move on the game state as player
 // undefined behaviour if move is not within the get_moves list for this player (MAY CRASH)
 // undefined behaviour if player is not within players_to_move (MAY CRASH)
@@ -494,7 +488,6 @@ typedef struct game_methods_s {
     get_actions_gf_t* get_actions;
     is_legal_move_gf_t* is_legal_move;
     move_to_action_gf_t* move_to_action;
-    is_action_gf_t* is_action;
     make_move_gf_t* make_move;
     get_results_gf_t* get_results;
     export_legacy_gf_t* export_legacy;
@@ -578,7 +571,6 @@ get_concrete_moves_ordered_gf_t game_get_concrete_moves_ordered;
 get_actions_gf_t game_get_actions;
 is_legal_move_gf_t game_is_legal_move;
 move_to_action_gf_t game_move_to_action;
-is_action_gf_t game_is_action;
 make_move_gf_t game_make_move;
 get_results_gf_t game_get_results;
 export_legacy_gf_t game_export_legacy;

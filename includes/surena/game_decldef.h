@@ -229,9 +229,6 @@ static is_legal_move_gf_t is_legal_move_gf;
 #if SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
 static move_to_action_gf_t move_to_action_gf;
 #endif
-#if SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
-static is_action_gf_t is_action_gf;
-#endif
 static make_move_gf_t make_move_gf;
 static get_results_gf_t get_results_gf;
 #if SURENA_GDD_FFB_LEGACY
@@ -343,11 +340,6 @@ const game_methods SURENA_GDD_BENAME
     .move_to_action = move_to_action_gf,
 #else
     .move_to_action = NULL,
-#endif
-#if SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
-    .is_action = is_action_gf,
-#else
-    .is_action = NULL,
 #endif
     .make_move = make_move_gf,
     .get_results = get_results_gf,

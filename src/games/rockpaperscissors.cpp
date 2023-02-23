@@ -337,13 +337,6 @@ static error_code move_to_action_gf(game* self, player_id player, move_data_sync
     return ERR_OK;
 }
 
-static error_code is_action_gf(game* self, player_id player, move_data_sync move, bool* ret_is_action)
-{
-    //TODO is this ok?
-    *ret_is_action = move.md.cl.code == ROCKPAPERSCISSORS_ANY;
-    return ERR_OK;
-}
-
 static error_code make_move_gf(game* self, player_id player, move_data_sync move)
 {
     //TODO is this ok?
