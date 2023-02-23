@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 31;
+static const uint64_t SURENA_GAME_API_VERSION = 32;
 
 typedef uint32_t error_code;
 
@@ -367,11 +367,12 @@ typedef error_code export_legacy_gf_t(game* self, player_id player, size_t* ret_
 
 // FEATURE: scores
 // available after creation for the entire lifetime of the game and returns a read only pointer to it
-// writes the scores of players, as accumulated during this game only, to scores, and the respective players to players
+// writes the scores of players, as accumulated during this game only, to scores
+// player_count many scores are written, matching ids from 1 to N
 //TODO is int32 enough? need more complex? or float?
 //TODO offer some default score?
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
-typedef error_code get_scores_gf_t(game* self, size_t* ret_count, player_id* players, const int32_t** ret_scores);
+typedef error_code get_scores_gf_t(game* self, const int32_t** ret_scores);
 
 // FEATURE: id
 // state id, should be as conflict free as possible

@@ -266,7 +266,7 @@ static error_code export_legacy_gf(game* self, player_id player, size_t* ret_siz
     //TODO
 }
 
-static error_code get_scores_gf(game* self, size_t* ret_count, player_id* players, const int32_t** ret_scores)
+static error_code get_scores_gf(game* self, const int32_t** ret_scores)
 {
     //TODO
 }

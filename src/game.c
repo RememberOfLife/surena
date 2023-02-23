@@ -540,15 +540,13 @@ error_code game_export_legacy(game* self, player_id player, size_t* ret_size, co
     return self->methods->export_legacy(self, player, ret_size, ret_str);
 }
 
-error_code game_get_scores(game* self, size_t* ret_count, player_id* players, const int32_t** ret_scores)
+error_code game_get_scores(game* self, const int32_t** ret_scores)
 {
     assert(self);
     assert(self->methods);
     assert(game_ff(self).scores);
-    assert(ret_count);
-    assert(players);
     assert(ret_scores);
-    return self->methods->get_scores(self, ret_count, players, ret_scores);
+    return self->methods->get_scores(self, ret_scores);
 }
 
 error_code game_id(game* self, uint64_t* ret_id)
