@@ -259,15 +259,16 @@ typedef enum REPL_CMD_E {
     // REPL_CMD_G_EXPORT_STATE,
     // REPL_CMD_G_IMPORT_STATE,
     // REPL_CMD_G_SERIALIZE,
-    // REPL_CMD_G_PLAYERS_TO_MOVE,
-    // REPL_CMD_G_GET_CONCRETE_MOVES,
+    REPL_CMD_G_PLAYERS_TO_MOVE,
+    REPL_CMD_G_GET_CONCRETE_MOVES,
     // REPL_CMD_G_GET_CONCRETE_MOVE_PROBABILITIES,
+    // REPL_CMD_G_GET_RANDOM_MOVE,
     // REPL_CMD_G_GET_CONCRETE_MOVES_ORDERED,
     // REPL_CMD_G_GET_ACTIONS,
     // REPL_CMD_G_IS_LEGAL_MOVE,
     // REPL_CMD_G_MOVE_TO_ACTION,
     REPL_CMD_G_MAKE_MOVE,
-    // REPL_CMD_G_GET_RESULTS,
+    REPL_CMD_G_GET_RESULTS,
     // REPL_CMD_G_EXPORT_LEGACY,
     // REPL_CMD_G_GET_SCORES,
     // REPL_CMD_G_ID,
@@ -297,7 +298,10 @@ repl_cmd_func_t repl_cmd_handle_m_set;
 repl_cmd_func_t repl_cmd_handle_m_pov;
 repl_cmd_func_t repl_cmd_handle_g_create;
 repl_cmd_func_t repl_cmd_handle_g_destroy;
+repl_cmd_func_t repl_cmd_handle_g_players_to_move;
+repl_cmd_func_t repl_cmd_handle_g_get_concrete_moves;
 repl_cmd_func_t repl_cmd_handle_g_make_move;
+repl_cmd_func_t repl_cmd_handle_g_get_results;
 repl_cmd_func_t repl_cmd_handle_g_print;
 repl_cmd_func_t repl_cmd_handle_gs_history;
 repl_cmd_func_t repl_cmd_handle_gs_resolve_random;
@@ -324,15 +328,16 @@ game_command_info game_command_infos[REPL_CMD_COUNT] = {
     // [REPL_CMD_G_EXPORT_STATE] = {"export_state", NULL},
     // [REPL_CMD_G_IMPORT_STATE] = {"import_state", NULL},
     // [REPL_CMD_G_SERIALIZE] = {"serialize", NULL},
-    // [REPL_CMD_G_PLAYERS_TO_MOVE] = {"players_to_move", NULL},
-    // [REPL_CMD_G_GET_CONCRETE_MOVES] = {"get_concrete_moves", NULL},
+    [REPL_CMD_G_PLAYERS_TO_MOVE] = {"players_to_move", repl_cmd_handle_g_players_to_move},
+    [REPL_CMD_G_GET_CONCRETE_MOVES] = {"get_concrete_moves", repl_cmd_handle_g_get_concrete_moves},
     // [REPL_CMD_G_GET_CONCRETE_MOVE_PROBABILITIES] = {"get_concrete_move_probabilities", NULL},
+    // [REPL_CMD_G_GET_RANDOM_MOVE] = {"get_random_move", NULL},
     // [REPL_CMD_G_GET_CONCRETE_MOVES_ORDERED] = {"get_concrete_moves_ordered", NULL},
     // [REPL_CMD_G_GET_ACTIONS] = {"get_actions", NULL},
     // [REPL_CMD_G_IS_LEGAL_MOVE] = {"is_legal_move", NULL},
     // [REPL_CMD_G_MOVE_TO_ACTION] = {"move_to_action", NULL},
     [REPL_CMD_G_MAKE_MOVE] = {"make_move", repl_cmd_handle_g_make_move},
-    // [REPL_CMD_G_GET_RESULTS] = {"get_results", NULL},
+    [REPL_CMD_G_GET_RESULTS] = {"get_results", repl_cmd_handle_g_get_results},
     // [REPL_CMD_G_EXPORT_LEGACY] = {"export_legacy", NULL},
     // [REPL_CMD_G_GET_SCORES] = {"get_scores", NULL},
     // [REPL_CMD_G_ID] = {"id", NULL},
@@ -770,6 +775,129 @@ void repl_cmd_handle_g_destroy(repl_state* rs, int argc, char** argv)
     rs->history_head = rs->history;
 }
 
+void repl_cmd_handle_g_players_to_move(repl_state* rs, int argc, char** argv)
+{
+    if (rs == NULL) { // print help
+        printf("usage: players_to_move\n");
+        printf("list all the players to move from this position\n");
+        return;
+    }
+    if (rs->g.methods == NULL) {
+        printf("no game running\n");
+        return;
+    }
+    error_code ec;
+    uint8_t size_fill;
+    const player_id* ptm;
+    ec = game_players_to_move(&rs->g, &size_fill, &ptm);
+    if (ec != ERR_OK) {
+        print_game_error(&rs->g, ec);
+        printf("[ERROR] unexpected game players to move error\n");
+        return;
+    }
+    printf("players to move (%hhu):", size_fill);
+    for (uint8_t i = 0; i < size_fill; i++) {
+        if (ptm[i] == PLAYER_RAND) {
+            printf(" RAND");
+        } else {
+            printf(" %03hhu", ptm[i]);
+        }
+    }
+    printf("\n");
+}
+
+void repl_cmd_handle_g_get_concrete_moves(repl_state* rs, int argc, char** argv)
+{
+    if (rs == NULL) { // print help
+        printf("usage: get_concrete_moves [pov]\n");
+        printf("list all available concrete moves for the pov, uses the current pov by default\n");
+        return;
+    }
+    if (rs->g.methods == NULL) {
+        printf("no game running\n");
+        return;
+    }
+    error_code ec;
+    player_id pov = rs->pov;
+    if (argc > 0) {
+        int sc = sscanf(argv[0], "%hhu", &pov);
+        if (sc != 1) {
+            printf("could not parse pov as u8\n");
+            return;
+        }
+        uint8_t pnum;
+        ec = game_player_count(&rs->g, &pnum);
+        if (ec != ERR_OK) {
+            print_game_error(&rs->g, ec);
+            printf("[ERROR] unexpected game player count error\n");
+            return;
+        }
+        if (pov > pnum && pov != PLAYER_RAND) {
+            printf("invalid pov for %u players\n", pnum);
+            return;
+        }
+    }
+    uint8_t ptm_c;
+    const player_id* ptm;
+    ec = game_players_to_move(&rs->g, &ptm_c, &ptm);
+    if (ec != ERR_OK) {
+        print_game_error(&rs->g, ec);
+        printf("[ERROR] unexpected game players to move error\n");
+        return;
+    }
+    bool pov_valid = false;
+    for (uint8_t i = 0; i < ptm_c; i++) {
+        if (ptm[i] == pov) {
+            pov_valid = true;
+            break;
+        }
+    }
+    if (pov_valid == false) {
+        printf("[ERROR] player is not to move\n");
+        return;
+    }
+
+    uint32_t moves_c;
+    const move_data* moves_out;
+    ec = game_get_concrete_moves(&rs->g, pov, &moves_c, &moves_out);
+    if (ec != ERR_OK) {
+        print_game_error(&rs->g, ec);
+        printf("[ERROR] unexpected game get concrete moves error\n");
+        return;
+    }
+    move_data* moves = (move_data*)malloc(sizeof(move_data) * moves_c);
+    char** move_strs = (char**)malloc(sizeof(char*) * moves_c);
+    uint32_t copystr_idx = 0;
+    bool copystr_fail = false;
+    for (; copystr_idx < moves_c; copystr_idx++) {
+        moves[copystr_idx] = game_e_move_copy(moves_out[copystr_idx]);
+        size_t size_fill;
+        const char* move_str;
+        ec = game_get_move_str(&rs->g, pov, game_e_move_make_sync(&rs->g, moves[copystr_idx]), &size_fill, &move_str);
+        if (ec != ERR_OK) {
+            print_game_error(&rs->g, ec);
+            printf("[ERROR] unexpected game get move str error\n");
+            game_e_move_destroy(moves[copystr_idx]);
+            copystr_fail = true;
+            break;
+        }
+        move_strs[copystr_idx] = strdup(move_str);
+    }
+    if (copystr_fail == false) {
+        printf("concrete moves pov%03hhu (%u):", pov, moves_c);
+        for (uint32_t i = 0; i < moves_c; i++) {
+            printf(" %s", move_strs[i]);
+        }
+        printf("\n");
+    }
+    for (uint32_t i = 0; i < copystr_idx; i++) {
+        game_e_move_destroy(moves[i]);
+        free(move_strs[i]);
+    }
+    free(moves);
+    free(move_strs);
+}
+
 void repl_cmd_handle_g_make_move(repl_state* rs, int argc, char** argv)
 {
     if (rs == NULL) { // print help
@@ -838,6 +966,33 @@ void repl_cmd_handle_g_make_move(repl_state* rs, int argc, char** argv)
         return;
     }
     rs->history_head = move_history_insert(rs->history_head, NULL, pov, move, movestr);
+}
+
+void repl_cmd_handle_g_get_results(repl_state* rs, int argc, char** argv)
+{
+    if (rs == NULL) { // print help
+        printf("usage: get_results\n");
+        printf("list all the winning players\n");
+        return;
+    }
+    if (rs->g.methods == NULL) {
+        printf("no game running\n");
+        return;
+    }
+    error_code ec;
+    uint8_t size_fill;
+    const player_id* res;
+    ec = game_get_results(&rs->g, &size_fill, &res);
+    if (ec != ERR_OK) {
+        print_game_error(&rs->g, ec);
+        printf("[ERROR] unexpected game get results error\n");
+        return;
+    }
+    printf("results (%hhu):", size_fill);
+    for (uint8_t i = 0; i < size_fill; i++) {
+        printf(" %03hhu", res[i]);
+    }
+    printf("\n");
 }
 
 void repl_cmd_handle_g_print(repl_state* rs, int argc, char** argv)
@@ -936,9 +1091,6 @@ void repl_cmd_handle_gs_resolve_random(repl_state* rs, int argc, char** argv)
         }
     }
     while (true) {
-        if (random_count > 0 && --random_count == 0) {
-            break;
-        }
         random_seed++;
         error_code ec;
         // check that ptm random player is actually to move
@@ -964,13 +1116,16 @@ void repl_cmd_handle_gs_resolve_random(repl_state* rs, int argc, char** argv)
             printf("[ERROR] unexpected game get move str error\n");
             return;
         }
-        printf("playing random move: %s\n", move_str);
+        // printf("playing random move: %s\n", move_str); //TODO this needs a setting
         // play chosen move
         ec = game_make_move(&rs->g, PLAYER_RAND, random_move);
         if (ec != ERR_OK) {
             print_game_error(&rs->g, ec);
             printf("[ERROR] unexpected game make move error\n");
             return;
+        }
+        if (random_count > 0 && --random_count == 0) {
+            break;
         }
     }
 }
