@@ -424,7 +424,7 @@ error_code game_get_concrete_move_probabilities(game* self, uint32_t* ret_count,
     return self->methods->get_concrete_move_probabilities(self, ret_count, ret_move_probabilities);
 }
 
-error_code get_random_move(game* self, uint64_t seed, move_data_sync** ret_move)
+error_code game_get_random_move(game* self, uint64_t seed, move_data_sync** ret_move)
 {
     assert(self);
     assert(self->methods);

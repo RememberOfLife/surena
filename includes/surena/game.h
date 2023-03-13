@@ -303,6 +303,7 @@ typedef error_code get_concrete_move_probabilities_gf_t(game* self, uint32_t* re
 // returns a legal random move from this position, for the PLAYER_RAND
 // this will work even when the moves are ERR_UNENUMERABLE
 // the move will always be chosen deterministically from the supplied seed
+// SEED_NONE is a valid seed here and behaves just like all other possible values that a u64 can take
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 typedef error_code get_random_move_gf_t(game* self, uint64_t seed, move_data_sync** ret_move);
 
@@ -381,7 +382,7 @@ typedef error_code id_gf_t(game* self, uint64_t* ret_id);
 // states with multiple players to move can be unstable, if their evaluations are worthless use ERR_UNSTABLE_POSITION to signal this
 typedef error_code eval_gf_t(game* self, player_id player, float* ret_eval);
 
-// FEATURE: random_moves || hidden_information || simultaneous_moves
+// FEATURE: (random_moves || hidden_information || simultaneous_moves) && discretize
 // seed the game and collapse the hidden information and all that was inferred via play
 // the resulting game state assigns possible values to all previously unknown information
 // all random moves from here on will be pre-rolled from this seed
