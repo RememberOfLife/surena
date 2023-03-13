@@ -760,6 +760,7 @@ move_data_sync game_e_get_random_move_sync(game* self, uint64_t seed)
     uint32_t moves_c;
     const float* moves_prob;
     game_get_concrete_move_probabilities(self, &moves_c, &moves_prob);
+    assert(moves_c > 0);
     // choose 1 random move via roulette wheel
     float selected_move = get_1d_zto(seed >> 32, seed);
     float move_prob_sum = 0;

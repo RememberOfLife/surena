@@ -820,6 +820,7 @@ void repl_cmd_handle_g_get_concrete_moves(repl_state* rs, int argc, char** argv)
     error_code ec;
     player_id pov = rs->pov;
     if (argc > 0) {
+        //TODO should be able to parse RAND here
         int sc = sscanf(argv[0], "%hhu", &pov);
         if (sc != 1) {
             printf("could not parse pov as u8\n");
@@ -918,7 +919,7 @@ void repl_cmd_handle_g_make_move(repl_state* rs, int argc, char** argv)
     } else if (argc == 1) {
         movestr = argv[0];
     } else if (argc == 2) {
-        //TODO allow none and rand as string shorthands for 0 and 255 and allow rand only for games with random in general!
+        //TODO should be able to parse RAND here
         int sc = sscanf(argv[0], "%hhu", &pov);
         if (sc != 1) {
             printf("could not parse pov as u8\n");
@@ -1013,6 +1014,7 @@ void repl_cmd_handle_g_print(repl_state* rs, int argc, char** argv)
     error_code ec;
     player_id pov = rs->pov;
     if (argc >= 1) {
+        //TODO should be able to parse RAND here
         int sc = sscanf(argv[0], "%hhu", &pov);
         if (sc != 1) {
             printf("could not parse pov as u8\n");
