@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 33;
+static const uint64_t SURENA_GAME_API_VERSION = 34;
 
 typedef uint32_t error_code;
 
@@ -602,6 +602,7 @@ void game_e_move_destroy(move_data move);
 void game_e_move_sync_destroy(move_data_sync move);
 bool game_e_move_is_big(move_data move);
 move_data_sync game_e_get_random_move_sync(game* self, uint64_t seed); // from a position where PLAYER_RAND is ptm this uses the get_concrete_move_probabilities to copy a random move sync
+bool game_e_player_to_move(game* self, player_id player); // returns true if this player is in ptm
 
 // game internal rerrorf: if your error string is self->data2 use this as a shorthand
 error_code grerror(game* self, error_code ec, const char* str, const char* str_end);

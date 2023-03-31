@@ -410,7 +410,9 @@ error_code game_get_concrete_moves(game* self, player_id player, uint32_t* ret_c
     assert(self->methods);
     assert(ret_count);
     assert(ret_moves);
-    assert(player != PLAYER_NONE);
+    if (game_e_player_to_move(self, player) == false) {
+        return ERR_INVALID_INPUT;
+    }
     return self->methods->get_concrete_moves(self, player, ret_count, ret_moves);
 }
 
@@ -421,6 +423,9 @@ error_code game_get_concrete_move_probabilities(game* self, uint32_t* ret_count,
     assert(game_ff(self).random_moves);
     assert(ret_count);
     assert(ret_move_probabilities);
+    if (game_e_player_to_move(self, PLAYER_RAND) == false) {
+        return ERR_INVALID_INPUT;
+    }
     return self->methods->get_concrete_move_probabilities(self, ret_count, ret_move_probabilities);
 }
 
@@ -430,6 +435,9 @@ error_code game_get_random_move(game* self, uint64_t seed, move_data_sync** ret_
     assert(self->methods);
     assert(game_ff(self).random_moves);
     assert(ret_move);
+    if (game_e_player_to_move(self, PLAYER_RAND) == false) {
+        return ERR_INVALID_INPUT;
+    }
     return self->methods->get_random_move(self, seed, ret_move);
 }
 
@@ -440,7 +448,9 @@ error_code game_get_concrete_moves_ordered(game* self, player_id player, uint32_
     assert(game_ff(self).move_ordering);
     assert(ret_count);
     assert(ret_moves);
-    assert(player != PLAYER_NONE);
+    if (game_e_player_to_move(self, player) == false) {
+        return ERR_INVALID_INPUT;
+    }
     return self->methods->get_concrete_moves_ordered(self, player, ret_count, ret_moves);
 }
 
@@ -451,7 +461,9 @@ error_code game_get_actions(game* self, player_id player, uint32_t* ret_count, c
     assert(game_ff(self).hidden_information || game_ff(self).simultaneous_moves);
     assert(ret_count);
     assert(ret_moves);
-    assert(player != PLAYER_NONE);
+    if (game_e_player_to_move(self, player) == false) {
+        return ERR_INVALID_INPUT;
+    }
     return self->methods->get_actions(self, player, ret_count, ret_moves);
 }
 
@@ -459,7 +471,9 @@ error_code game_is_legal_move(game* self, player_id player, move_data_sync move)
 {
     assert(self);
     assert(self->methods);
-    assert(player != PLAYER_NONE);
+    if (game_e_player_to_move(self, player) == false) {
+        return ERR_INVALID_INPUT;
+    }
     if (self->sync_ctr != move.sync_ctr && game_ff(self).sync_ctr == false) {
         return ERR_SYNC_COUNTER_MISMATCH;
     }
@@ -779,6 +793,19 @@ move_data_sync game_e_get_random_move_sync(game* self, uint64_t seed)
     game_get_concrete_moves(self, PLAYER_RAND, &moves_c, &moves);
     // make sync, copy, return
     return game_e_move_sync_copy(game_e_move_make_sync(self, moves[move_idx]));
+}
+
+bool game_e_player_to_move(game* self, player_id player)
+{
+    uint8_t ptm_c;
+    const player_id* ptm;
+    game_players_to_move(self, &ptm_c, &ptm);
+    for (uint8_t pidx = 0; pidx < ptm_c; pidx++) {
+        if (ptm[pidx] == player) {
+            return true;
+        }
+    }
+    return false;
 }
 
 error_code grerror(game* self, error_code ec, const char* str, const char* str_end)

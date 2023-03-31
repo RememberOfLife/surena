@@ -1076,7 +1076,7 @@ void repl_cmd_handle_gs_resolve_random(repl_state* rs, int argc, char** argv)
         printf("game does not support feature: random_moves\n");
         return;
     }
-    uint32_t random_count;
+    uint32_t random_count = 0;
     if (argc >= 1) {
         int sc = sscanf(argv[0], "%u", &random_count);
         if (sc != 1) {
