@@ -68,16 +68,16 @@
 #error "surena gdd internal feature flag bool already defined: SURENA_GDD_FFB_MOVE_ORDERING"
 #endif
 
-#ifdef SURENA_GDD_FFB_SCORES
-#error "surena gdd internal feature flag bool already defined: SURENA_GDD_FFB_SCORES"
-#endif
-
 #ifdef SURENA_GDD_FFB_ID
 #error "surena gdd internal feature flag bool already defined: SURENA_GDD_FFB_ID"
 #endif
 
 #ifdef SURENA_GDD_FFB_EVAL
 #error "surena gdd internal feature flag bool already defined: SURENA_GDD_FFB_EVAL"
+#endif
+
+#ifdef SURENA_GDD_FFB_ACTION_LIST
+#error "surena gdd internal feature flag bool already defined: SURENA_GDD_FFB_ACTION_LIST"
 #endif
 
 #ifdef SURENA_GDD_FFB_DISCRETIZE
@@ -90,6 +90,10 @@
 
 #ifdef SURENA_GDD_FFB_PRINT
 #error "surena gdd internal feature flag bool already defined: SURENA_GDD_FFB_PRINT"
+#endif
+
+#ifdef SURENA_GDD_FFB_COMPARE
+#error "surena gdd internal feature flag bool already defined: SURENA_GDD_FFB_COMPARE"
 #endif
 
 #ifndef SURENA_GDD_FF_ERROR_STRINGS
@@ -158,12 +162,6 @@
 #define SURENA_GDD_FFB_MOVE_ORDERING true
 #endif
 
-#ifndef SURENA_GDD_FF_SCORES
-#define SURENA_GDD_FFB_SCORES false
-#else
-#define SURENA_GDD_FFB_SCORES true
-#endif
-
 #ifndef SURENA_GDD_FF_ID
 #define SURENA_GDD_FFB_ID false
 #else
@@ -174,6 +172,12 @@
 #define SURENA_GDD_FFB_EVAL false
 #else
 #define SURENA_GDD_FFB_EVAL true
+#endif
+
+#ifndef SURENA_GDD_FF_ACTION_LIST
+#define SURENA_GDD_FFB_ACTION_LIST false
+#else
+#define SURENA_GDD_FFB_ACTION_LIST true
 #endif
 
 #ifndef SURENA_GDD_FF_DISCRETIZE
@@ -194,6 +198,12 @@
 #define SURENA_GDD_FFB_PRINT true
 #endif
 
+#ifndef SURENA_GDD_FF_COMPARE
+#define SURENA_GDD_FFB_COMPARE false
+#else
+#define SURENA_GDD_FFB_COMPARE true
+#endif
+
 #if SURENA_GDD_FFB_ERROR_STRINGS
 static get_last_error_gf_t get_last_error_gf;
 #endif
@@ -201,7 +211,9 @@ static create_gf_t create_gf;
 static destroy_gf_t destroy_gf;
 static clone_gf_t clone_gf;
 static copy_from_gf_t copy_from_gf;
+#if SURENA_GDD_FFB_COMPARE
 static compare_gf_t compare_gf;
+#endif
 #if SURENA_GDD_FFB_OPTIONS
 static export_options_gf_t export_options_gf;
 #endif
@@ -222,7 +234,7 @@ static get_random_move_gf_t get_random_move_gf;
 #if SURENA_GDD_FFB_MOVE_ORDERING
 static get_concrete_moves_ordered_gf_t get_concrete_moves_ordered_gf;
 #endif
-#if SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
+#if SURENA_GDD_FFB_ACTION_LIST && (SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES)
 static get_actions_gf_t get_actions_gf;
 #endif
 static is_legal_move_gf_t is_legal_move_gf;
@@ -234,8 +246,8 @@ static get_results_gf_t get_results_gf;
 #if SURENA_GDD_FFB_LEGACY
 static export_legacy_gf_t export_legacy_gf;
 #endif
-#if SURENA_GDD_FFB_SCORES
-static get_scores_gf_t get_scores_gf;
+#if SURENA_GDD_FFB_LEGACY
+static get_legacy_results_sgf_t get_legacy_results_sgf;
 #endif
 #if SURENA_GDD_FFB_ID
 static id_gf_t id_gf;
@@ -282,12 +294,13 @@ const game_methods SURENA_GDD_BENAME
         .simultaneous_moves = SURENA_GDD_FFB_SIMULTANEOUS_MOVES,
         .sync_ctr = SURENA_GDD_FFB_SYNC_CTR,
         .move_ordering = SURENA_GDD_FFB_MOVE_ORDERING,
-        .scores = SURENA_GDD_FFB_SCORES,
         .id = SURENA_GDD_FFB_ID,
         .eval = SURENA_GDD_FFB_EVAL,
+        .action_list = SURENA_GDD_FFB_ACTION_LIST,
         .discretize = SURENA_GDD_FFB_DISCRETIZE,
         .playout = SURENA_GDD_FFB_PLAYOUT,
         .print = SURENA_GDD_FFB_PRINT,
+        .compare = SURENA_GDD_FFB_COMPARE
     },
     .internal_methods = (void*)(SURENA_GDD_INTERNALS),
 #if SURENA_GDD_FFB_ERROR_STRINGS
@@ -299,7 +312,11 @@ const game_methods SURENA_GDD_BENAME
     .destroy = destroy_gf,
     .clone = clone_gf,
     .copy_from = copy_from_gf,
+#if SURENA_GDD_FFB_COMPARE
     .compare = compare_gf,
+#else
+    .compare = NULL,
+#endif
 #if SURENA_GDD_FFB_OPTIONS
     .export_options = export_options_gf,
 #else
@@ -330,7 +347,7 @@ const game_methods SURENA_GDD_BENAME
 #else
     .get_concrete_moves_ordered = NULL,
 #endif
-#if SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES
+#if SURENA_GDD_FFB_ACTION_LIST && (SURENA_GDD_FFB_HIDDEN_INFORMATION || SURENA_GDD_FFB_SIMULTANEOUS_MOVES)
     .get_actions = get_actions_gf,
 #else
     .get_actions = NULL,
@@ -348,10 +365,10 @@ const game_methods SURENA_GDD_BENAME
 #else
     .export_legacy = NULL,
 #endif
-#if SURENA_GDD_FFB_SCORES
-    .get_scores = get_scores_gf,
+#if SURENA_GDD_FFB_LEGACY
+    .s_get_legacy_results = get_legacy_results_sgf,
 #else
-    .get_scores = NULL,
+    .s_get_legacy_results = NULL,
 #endif
 #if SURENA_GDD_FFB_ID
     .id = id_gf,
@@ -438,14 +455,14 @@ const game_methods SURENA_GDD_BENAME
 #undef SURENA_GDD_FF_MOVE_ORDERING
 #undef SURENA_GDD_FFB_MOVE_ORDERING
 
-#undef SURENA_GDD_FF_SCORES
-#undef SURENA_GDD_FFB_SCORES
-
 #undef SURENA_GDD_FF_ID
 #undef SURENA_GDD_FFB_ID
 
 #undef SURENA_GDD_FF_EVAL
 #undef SURENA_GDD_FFB_EVAL
+
+#undef SURENA_GDD_FF_ACTION_LIST
+#undef SURENA_GDD_FFB_ACTION_LIST
 
 #undef SURENA_GDD_FF_DISCRETIZE
 #undef SURENA_GDD_FFB_DISCRETIZE
@@ -455,3 +472,6 @@ const game_methods SURENA_GDD_BENAME
 
 #undef SURENA_GDD_FF_PRINT
 #undef SURENA_GDD_FFB_PRINT
+
+#undef SURENA_GDD_FF_COMPARE
+#undef SURENA_GDD_FFB_COMPARE
