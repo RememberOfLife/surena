@@ -71,7 +71,7 @@ move_history* move_history_insert(move_history* h, blob* sync_data, player_id pl
         }
     }
     lp->player = player;
-    lp->move = game_e_move_sync_copy(move);
+    game_e_move_sync_copy(&lp->move, &move); //TODO this can fail oom
     lp->move_str = move_str != NULL ? strdup(move_str) : NULL;
     lp->parent = h;
     lp->idx_in_parent = idx_in_parent;

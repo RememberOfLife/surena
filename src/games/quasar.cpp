@@ -192,7 +192,7 @@ static error_code import_state_gf(game* self, const char* str)
 {
     state_repr& data = get_repr(self);
     data = (state_repr){
-        .seed = SEED_NONE,
+        .seed = SEED128_NONE,
         .move_ctr = 0,
         .num = 0,
         .generating = 1,
@@ -264,7 +264,7 @@ static error_code get_concrete_moves_gf(game* self, player_id player, uint32_t* 
             outbuf[count++] = game_e_create_move_small(QUASAR_MOVE_SMALL);
         }
     } else {
-        if (data.seed != SEED_NONE) {
+        if (data.seed != SEED128_NONE) {
             int min = (data.generating == 1 ? 1 : 4);
             int range = (data.generating == 1 ? 8 : 4);
             int val = min + squirrelnoise5(data.move_ctr, data.seed) % range; //BUG this has modulo bias, use proper rand_intn
@@ -441,7 +441,7 @@ static error_code redact_keep_state_gf(game* self, uint8_t count, const player_i
     }
     if (keep_rand == false) {
         state_repr& data = get_repr(self);
-        data.seed = SEED_NONE;
+        data.seed = SEED128_NONE;
     }
     return ERR_OK;
 }
@@ -508,7 +508,7 @@ static error_code print_gf(game* self, player_id player, size_t* ret_size, const
         int score;
         get_score_gf(self, &score);
         outbuf += sprintf(outbuf, "%hhu: %d", data.num, score);
-        if (data.seed != SEED_NONE) {
+        if (data.seed != SEED128_NONE) {
             outbuf += sprintf(outbuf, "(%016lx)\n", data.seed);
         } else {
             outbuf += sprintf(outbuf, "\n");

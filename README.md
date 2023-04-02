@@ -28,6 +28,8 @@ For more details regarding the various APIs available, see the [design](./docs/d
 ## backlog
 
 ### todos
+* rework design doc for recent api changes and the final hidden info api currently in use
+  * also go through game.h comment doc and make sure it all still fits
 * use rerrorf in the game impls to clarify errors, and free it
 * move history, add plugin functionality for e.g. (universal -> pgn -> universal)
   * want similar translation layer for (de)serialization?

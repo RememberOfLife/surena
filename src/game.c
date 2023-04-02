@@ -25,6 +25,7 @@ const char* general_error_strings[] = {
     [ERR_OUT_OF_MEMORY] = "out of memory",
     [ERR_FEATURE_UNSUPPORTED] = "feature unsupported",
     [ERR_MISSING_HIDDEN_STATE] = "missing hidden state",
+    [ERR_INVALID_PLAYER_COUNT] = "invalid player count",
     [ERR_INVALID_INPUT] = "invalid input",
     [ERR_INVALID_PLAYER] = "invalid player",
     [ERR_INVALID_MOVE] = "invalid move",
@@ -187,33 +188,18 @@ const serialization_layout sl_move_data_sync[] = {
     {SL_TYPE_STOP},
 };
 
-void game_init_create_standard(game_init* init_info, const char* opts, const char* legacy, const char* state, uint64_t sync_ctr)
-{
-    *init_info = (game_init){
-        .source_type = GAME_INIT_SOURCE_TYPE_STANDARD,
-        .source = {
-            .standard = {
-                .opts = (opts == NULL ? NULL : strdup(opts)),
-                .legacy = (legacy == NULL ? NULL : strdup(legacy)),
-                .state = (state == NULL ? NULL : strdup(state)),
-                .sync_ctr = sync_ctr,
-            },
-        },
-    };
-}
-
-void game_init_create_serialized(game_init* init_info, blob b)
-{
-    init_info->source_type = GAME_INIT_SOURCE_TYPE_SERIALIZED;
-    blob_create(&init_info->source.serialized.b, b.len);
-    if (b.len > 0) {
-        memcpy(init_info->source.serialized.b.data, b.data, b.len);
-    }
-}
+const serialization_layout sl_sync_data[] = {
+    {SL_TYPE_U8, offsetof(sync_data, player_c)},
+    {SL_TYPE_U8 | SL_TYPE_PTRARRAY, offsetof(sync_data, players), .len.offset = offsetof(sync_data, player_c)},
+    {SL_TYPE_BLOB, offsetof(sync_data, b)},
+    {SL_TYPE_STOP},
+};
 
 const serialization_layout sl_game_init_info_standard[] = {
     {SL_TYPE_STRING, offsetof(game_init_standard, opts)},
-    {SL_TYPE_STRING, offsetof(game_init_standard, legacy)},
+    {SL_TYPE_U8, offsetof(game_init_standard, player_count)},
+    {SL_TYPE_STRING, offsetof(game_init_standard, env_legacy)},
+    {SL_TYPE_STRING | SL_TYPE_PTRARRAY, offsetof(game_init_standard, player_legacies), .len.offset = offsetof(game_init_standard, player_count)},
     {SL_TYPE_STRING, offsetof(game_init_standard, state)},
     {SL_TYPE_U64, offsetof(game_init_standard, sync_ctr)},
     {SL_TYPE_STOP},
@@ -244,6 +230,38 @@ const serialization_layout sl_game_init_info[] = {
     },
     {SL_TYPE_STOP},
 };
+
+void game_init_create_standard(game_init* init_info, const char* opts, uint8_t player_count, const char* env_legacy, const char* const* player_legacies, const char* state, uint64_t sync_ctr)
+{
+    *init_info = (game_init){
+        .source_type = GAME_INIT_SOURCE_TYPE_STANDARD,
+        .source = {
+            .standard = {
+                .opts = (opts == NULL ? NULL : strdup(opts)),
+                .player_count = player_count,
+                .env_legacy = (env_legacy == NULL ? NULL : strdup(env_legacy)),
+                .player_legacies = NULL,
+                .state = (state == NULL ? NULL : strdup(state)),
+                .sync_ctr = sync_ctr,
+            },
+        },
+    };
+    if (player_legacies != NULL) {
+        init_info->source.standard.player_legacies = (const char**)malloc(sizeof(const char*) * player_count);
+        for (uint8_t pi = 0; pi < player_count; pi++) {
+            init_info->source.standard.player_legacies[pi] = (player_legacies[pi] == NULL ? NULL : strdup(player_legacies[pi]));
+        }
+    }
+}
+
+void game_init_create_serialized(game_init* init_info, blob b)
+{
+    init_info->source_type = GAME_INIT_SOURCE_TYPE_SERIALIZED;
+    blob_create(&init_info->source.serialized.b, b.len);
+    if (b.len > 0) {
+        memcpy(init_info->source.serialized.b.data, b.data, b.len);
+    }
+}
 
 const char* game_gname(game* self)
 {
@@ -348,15 +366,14 @@ error_code game_compare(game* self, game* other, bool* ret_equal)
     return self->methods->compare(self, other, ret_equal);
 }
 
-error_code game_export_options(game* self, player_id player, size_t* ret_size, const char** ret_str)
+error_code game_export_options(game* self, size_t* ret_size, const char** ret_str)
 {
     assert(self);
     assert(self->methods);
     assert(game_ff(self).options);
     assert(ret_size);
     assert(ret_str);
-    assert(player != PLAYER_RAND);
-    return self->methods->export_options(self, player, ret_size, ret_str);
+    return self->methods->export_options(self, ret_size, ret_str);
 }
 
 error_code game_player_count(game* self, uint8_t* ret_count)
@@ -367,14 +384,13 @@ error_code game_player_count(game* self, uint8_t* ret_count)
     return self->methods->player_count(self, ret_count);
 }
 
-error_code game_export_state(game* self, player_id player, size_t* ret_size, const char** ret_str)
+error_code game_export_state(game* self, size_t* ret_size, const char** ret_str)
 {
     assert(self);
     assert(self->methods);
     assert(ret_size);
     assert(ret_str);
-    assert(player != PLAYER_RAND);
-    return self->methods->export_state(self, player, ret_size, ret_str);
+    return self->methods->export_state(self, ret_size, ret_str);
 }
 
 error_code game_import_state(game* self, const char* str)
@@ -385,14 +401,13 @@ error_code game_import_state(game* self, const char* str)
     return self->methods->import_state(self, str);
 }
 
-error_code game_serialize(game* self, player_id player, const blob** ret_blob)
+error_code game_serialize(game* self, const blob** ret_blob)
 {
     assert(self);
     assert(self->methods);
     assert(game_ff(self).serializable);
     assert(ret_blob);
-    assert(player != PLAYER_RAND);
-    return self->methods->serialize(self, player, ret_blob);
+    return self->methods->serialize(self, ret_blob);
 }
 
 error_code game_players_to_move(game* self, uint8_t* ret_count, const player_id** ret_players)
@@ -423,19 +438,19 @@ error_code game_get_concrete_move_probabilities(game* self, uint32_t* ret_count,
     assert(game_ff(self).random_moves);
     assert(ret_count);
     assert(ret_move_probabilities);
-    if (game_e_player_to_move(self, PLAYER_RAND) == false) {
+    if (game_e_player_to_move(self, PLAYER_ENV) == false) {
         return ERR_INVALID_INPUT;
     }
     return self->methods->get_concrete_move_probabilities(self, ret_count, ret_move_probabilities);
 }
 
-error_code game_get_random_move(game* self, uint64_t seed, move_data_sync** ret_move)
+error_code game_get_random_move(game* self, seed128 seed, move_data_sync** ret_move)
 {
     assert(self);
     assert(self->methods);
     assert(game_ff(self).random_moves);
     assert(ret_move);
-    if (game_e_player_to_move(self, PLAYER_RAND) == false) {
+    if (game_e_player_to_move(self, PLAYER_ENV) == false) {
         return ERR_INVALID_INPUT;
     }
     return self->methods->get_random_move(self, seed, ret_move);
@@ -458,7 +473,7 @@ error_code game_get_actions(game* self, player_id player, uint32_t* ret_count, c
 {
     assert(self);
     assert(self->methods);
-    assert(game_ff(self).hidden_information || game_ff(self).simultaneous_moves);
+    assert(game_ff(self).action_list && (game_ff(self).hidden_information || game_ff(self).simultaneous_moves));
     assert(ret_count);
     assert(ret_moves);
     if (game_e_player_to_move(self, player) == false) {
@@ -483,18 +498,19 @@ error_code game_is_legal_move(game* self, player_id player, move_data_sync move)
     return self->methods->is_legal_move(self, player, move);
 }
 
-error_code game_move_to_action(game* self, player_id player, move_data_sync move, player_id target_player, move_data_sync** ret_action)
+error_code game_move_to_action(game* self, player_id player, move_data_sync move, uint8_t target_count, const player_id* target_players, move_data_sync** ret_action)
 {
     assert(self);
     assert(self->methods);
     assert(game_ff(self).hidden_information || game_ff(self).simultaneous_moves);
     assert(ret_action);
+    assert(target_players);
     assert(player != PLAYER_NONE);
-    assert(target_player != PLAYER_NONE);
+    assert(target_count > 0);
     if (self->sync_ctr != move.sync_ctr && game_ff(self).sync_ctr == false) {
         return ERR_SYNC_COUNTER_MISMATCH;
     }
-    return self->methods->move_to_action(self, player, move, target_player, ret_action);
+    return self->methods->move_to_action(self, player, move, target_count, target_players, ret_action);
 }
 
 error_code game_make_move(game* self, player_id player, move_data_sync move)
@@ -506,17 +522,8 @@ error_code game_make_move(game* self, player_id player, move_data_sync move)
     if (ec != ERR_OK) {
         return ec;
     }
-    bool action_dropped = false;
-    if (game_ff(self).hidden_information || game_ff(self).simultaneous_moves) {
-        move_data_sync* action;
-        ec = game_move_to_action(self, player, move, player, &action); // if dropped, it is dropped for ALL players!
-        if (ec != ERR_OK) {
-            return ec;
-        }
-        action_dropped = game_e_move_is_none(action->md);
-    }
     ec = self->methods->make_move(self, player, move);
-    if (action_dropped == false) {
+    if (ec == ERR_OK) {
         self->sync_ctr++;
     }
     return ec;
@@ -538,17 +545,20 @@ error_code game_export_legacy(game* self, player_id player, size_t* ret_size, co
     assert(game_ff(self).legacy);
     assert(ret_size);
     assert(ret_str);
-    assert(player != PLAYER_RAND);
+    assert(player != PLAYER_NONE);
     return self->methods->export_legacy(self, player, ret_size, ret_str);
 }
 
-error_code game_get_scores(game* self, const int32_t** ret_scores)
+error_code game_s_get_legacy_results(game_methods* methods, const char* opts_str, const char* env_legacy, uint16_t player_legacy_count, const char* const* player_legacies, uint16_t* ret_count, const uint16_t** ret_legacy_idxs)
 {
-    assert(self);
-    assert(self->methods);
-    assert(game_ff(self).scores);
-    assert(ret_scores);
-    return self->methods->get_scores(self, ret_scores);
+    assert(methods);
+    assert(opts_str);
+    assert(env_legacy);
+    assert(player_legacies);
+    assert(ret_count);
+    assert(ret_legacy_idxs);
+    assert(player_legacy_count > 0);
+    return methods->s_get_legacy_results(methods, opts_str, env_legacy, player_legacy_count, player_legacies, ret_count, ret_legacy_idxs);
 }
 
 error_code game_id(game* self, uint64_t* ret_id)
@@ -566,25 +576,25 @@ error_code game_eval(game* self, player_id player, float* ret_eval)
     assert(self->methods);
     assert(game_ff(self).eval);
     assert(ret_eval);
-    assert(player != PLAYER_NONE && player != PLAYER_RAND);
+    assert(player != PLAYER_NONE && player != PLAYER_ENV);
     return self->methods->eval(self, player, ret_eval);
 }
 
-error_code game_discretize(game* self, uint64_t seed)
+error_code game_discretize(game* self, seed128 seed)
 {
     assert(self);
     assert(self->methods);
     assert((game_ff(self).random_moves || game_ff(self).hidden_information || game_ff(self).simultaneous_moves) && game_ff(self).discretize);
-    assert(seed != SEED_NONE);
+    assert(memcmp(&seed, &SEED128_NONE, sizeof(seed128)) != 0);
     return self->methods->discretize(self, seed);
 }
 
-error_code game_playout(game* self, uint64_t seed)
+error_code game_playout(game* self, seed128 seed)
 {
     assert(self);
     assert(self->methods);
     assert(game_ff(self).playout);
-    assert(seed != SEED_NONE);
+    assert(memcmp(&seed, &SEED128_NONE, sizeof(seed128)) != 0);
     return self->methods->playout(self, seed);
 }
 
@@ -637,22 +647,20 @@ error_code game_get_move_str(game* self, player_id player, move_data_sync move, 
     assert(ret_size);
     assert(ret_str);
     assert(player != PLAYER_NONE);
-    assert(game_e_move_sync_is_none(move) == false);
     if (self->sync_ctr != move.sync_ctr && game_ff(self).simultaneous_moves == false) {
         return ERR_SYNC_COUNTER_MISMATCH;
     }
     return self->methods->get_move_str(self, player, move, ret_size, ret_str);
 }
 
-error_code game_print(game* self, player_id player, size_t* ret_size, const char** ret_str)
+error_code game_print(game* self, size_t* ret_size, const char** ret_str)
 {
     assert(self);
     assert(self->methods);
     assert(game_ff(self).print);
     assert(ret_size);
     assert(ret_str);
-    assert(player != PLAYER_RAND);
-    return self->methods->print(self, player, ret_size, ret_str);
+    return self->methods->print(self, ret_size, ret_str);
 }
 
 move_data game_e_create_move_small(move_code move)
@@ -700,16 +708,6 @@ move_data_sync game_e_move_make_sync(game* self, move_data move)
     return (move_data_sync){.md = move, .sync_ctr = self->sync_ctr};
 }
 
-bool game_e_move_is_none(move_data move)
-{
-    return game_e_move_is_big(move) ? (move.cl.len == 0) : (move.cl.code == MOVE_NONE);
-}
-
-bool game_e_move_sync_is_none(move_data_sync move)
-{
-    return game_e_move_is_none(move.md);
-}
-
 bool game_e_move_compare(move_data left, move_data right)
 {
     assert(game_e_move_is_big(left) && game_e_move_is_big(right));
@@ -725,28 +723,16 @@ bool game_e_move_sync_compare(move_data_sync left, move_data_sync right)
     return game_e_move_compare(left.md, right.md) && left.sync_ctr == right.sync_ctr;
 }
 
-move_data game_e_move_copy(move_data move)
+bool game_e_move_copy(move_data* target_move, const move_data* source_move)
 {
-    move_data ret;
-    size_t rs = ls_move_data_serializer(GSIT_COPY, &move, &ret, NULL, NULL);
-    if (rs == LS_ERR) {
-        if (game_e_move_is_big(move) == true) {
-            ret.cl.len = 0;
-            ret.data = PTRMAX;
-        } else {
-            ret.cl.code = MOVE_NONE;
-            ret.data = NULL;
-        }
-    }
-    return ret;
+    size_t rs = ls_move_data_serializer(GSIT_COPY, (void*)source_move, target_move, NULL, NULL); // void* cast is fine because copy only reads from obj_in
+    return rs != LS_ERR;
 }
 
-move_data_sync game_e_move_sync_copy(move_data_sync move)
+bool game_e_move_sync_copy(move_data_sync* target_move, const move_data_sync* source_move)
 {
-    move_data_sync ret = move;
-    ret.md = game_e_move_copy(move.md);
-    ret.sync_ctr = move.sync_ctr;
-    return ret;
+    target_move->sync_ctr = source_move->sync_ctr;
+    return game_e_move_copy(&target_move->md, &source_move->md);
 }
 
 void game_e_move_destroy(move_data move)
@@ -768,7 +754,7 @@ bool game_e_move_is_big(move_data move)
     return move.data != NULL;
 }
 
-move_data_sync game_e_get_random_move_sync(game* self, uint64_t seed)
+move_data_sync game_e_get_random_move_sync(game* self, seed128 seed)
 {
     // get percentage change of random moves
     uint32_t moves_c;
@@ -776,7 +762,7 @@ move_data_sync game_e_get_random_move_sync(game* self, uint64_t seed)
     game_get_concrete_move_probabilities(self, &moves_c, &moves_prob);
     assert(moves_c > 0);
     // choose 1 random move via roulette wheel
-    float selected_move = get_1d_zto(seed >> 32, seed);
+    float selected_move = get_1d_zto(game_e_seed_rand_intn(seed, UINT32_MAX), 0);
     float move_prob_sum = 0;
     uint32_t move_idx = 0;
     for (; move_idx < moves_c; move_idx++) {
@@ -790,9 +776,12 @@ move_data_sync game_e_get_random_move_sync(game* self, uint64_t seed)
     }
     // get random moves available
     const move_data* moves;
-    game_get_concrete_moves(self, PLAYER_RAND, &moves_c, &moves);
+    game_get_concrete_moves(self, PLAYER_ENV, &moves_c, &moves);
     // make sync, copy, return
-    return game_e_move_sync_copy(game_e_move_make_sync(self, moves[move_idx]));
+    move_data_sync the_move = game_e_move_make_sync(self, moves[move_idx]); // underlying data still owned by the game, do not destroy
+    move_data_sync ret_move;
+    game_e_move_sync_copy(&ret_move, &the_move);
+    return ret_move;
 }
 
 bool game_e_player_to_move(game* self, player_id player)
@@ -806,6 +795,20 @@ bool game_e_player_to_move(game* self, player_id player)
         }
     }
     return false;
+}
+
+uint32_t game_e_seed_rand_intn(seed128 seed, uint32_t n)
+{
+    // fold the seed into a managable u32 for uintn
+    //TODO replace by proper, safer, random
+    uint32_t p = 0;
+    uint32_t s = 0;
+    for (int i = 0; i < 4; i++) {
+        uint32_t round_32 = ((uint32_t*)seed.bytes)[i];
+        s ^= round_32;
+        p = squirrelnoise5(round_32, s);
+    }
+    return noise_get_uintn(p, s, n);
 }
 
 error_code grerror(game* self, error_code ec, const char* str, const char* str_end)

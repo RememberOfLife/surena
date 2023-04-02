@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-static const uint64_t SURENA_GAME_API_VERSION = 34;
+static const uint64_t SURENA_GAME_API_VERSION = 35;
 
 typedef uint32_t error_code;
 
@@ -26,6 +26,7 @@ enum ERR {
     ERR_OUT_OF_MEMORY,
     ERR_FEATURE_UNSUPPORTED,
     ERR_MISSING_HIDDEN_STATE,
+    ERR_INVALID_PLAYER_COUNT,
     ERR_INVALID_INPUT,
     ERR_INVALID_PLAYER,
     ERR_INVALID_MOVE,
@@ -49,8 +50,12 @@ error_code rerror(char** pbuf, error_code ec, const char* str, const char* str_e
 error_code rerrorf(char** pbuf, error_code ec, const char* fmt, ...);
 error_code rerrorfv(char** pbuf, error_code ec, const char* fmt, va_list args);
 
+typedef struct seed128_s {
+    uint8_t bytes[16];
+} seed128;
+
 // anywhere a rng seed is use, SEED_NONE represents not using the rng
-static const uint64_t SEED_NONE = 0;
+static const seed128 SEED128_NONE = (seed128){.bytes = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
 
 // moves represent state transitions on the game board (and its internal state)
 // actions represent sets of moves, i.e. sets of concrete moves (action instances / informed moves)
@@ -58,23 +63,25 @@ static const uint64_t SEED_NONE = 0;
 // a move that encodes an action is part of exactly that action set
 // every concrete move can be encoded as a move
 // every concrete move can be reduced to an action, i.e. a move
-// e.g. flipping a coin is an action (i.e. flip the coin) whereupon the PLAYER_RAND decides the outcome of the flip
+// e.g. flipping a coin is an action (i.e. flip the coin) whereupon the PLAYER_ENV decides the outcome of the flip
 // e.g. laying down a hidden hand card facedown (i.e. keeping it hidden) is informed to other players through the action of playing *some card* from hand facedown, but the player doing it chooses one of the concrete moves specifying which card to play (as they can see their hand)
 //TODO better name for "concrete_move"? maybe action instance / informed move
 
 typedef uint64_t move_code;
-static const move_code MOVE_NONE = UINT64_MAX;
 
 // this can not just be a union over move_code and blob, because ls_move_data_serializer needs to be able to serialize this without the game as context
 typedef struct move_data_s {
     union {
-        move_code code; // FEATURE: !big_moves ; use MOVE_NONE for empty
-        size_t len; // FEATURE: big_moves ; if data is NULL and this is 0 then the big move is empty
+        move_code code; // FEATURE: !big_moves ; all values are moves
+        size_t len; // FEATURE: big_moves ; if data is not NULL this must be >0
     } cl;
 
     // this functions as a tag for the cl union
-    uint8_t* data; // MUST always be NULL for non big moves; if not NULL then this is a big move (use e.g. UINTPTR_MAX for NONE moves but use a 0 len)
+    uint8_t* data; // MUST always be NULL for non big moves; if not NULL then this is a big move
 } move_data; // unindexed move realization, switch by big_move feature flag
+
+// NOTE: there exists no empty move! every move_data is *some* move
+//TODO add ability to drop moves without using empty moves in the future
 
 custom_serializer_t ls_move_data_serializer;
 
@@ -85,15 +92,17 @@ typedef struct move_data_sync_s {
 
 extern const serialization_layout sl_move_data_sync[];
 
-//TODO might want empty creates for data and data_sync
-
 static const uint64_t SYNC_CTR_DEFAULT = 0; // this is already a valid sync ctr value (usually first for a fresh game)
 
 //TODO !maybe! force every move to also include a player + move_to_player in the game_methods
 
 typedef uint8_t player_id;
 static const player_id PLAYER_NONE = 0x00;
-static const player_id PLAYER_RAND = 0xFF;
+static const player_id PLAYER_ENV = 0xFF; // this player moves random moves and forced moves
+
+// random move: e.g. result of a dice roll
+// forced move: e.g. showing another player a hidden card in your hand because they may peek
+// forced moves are optional, but for very many games make the implementation easier because it can do what sync data normally does
 
 typedef struct game_feature_flags_s {
 
@@ -108,8 +117,9 @@ typedef struct game_feature_flags_s {
     bool legacy : 1;
 
     // if a board has a seed then if any random moves happen there will only ever be one move available (the rigged one)
-    // a board can be seeded at any time using discretize
+    // a board can be seeded at any time using the discretize feature
     // when a non seeded board offers random moves then all possible moves are available (according to the gathered info)
+    // if the available random moves are too many to count, then instead they are unenumerable and get_random_move must be used
     // same result moves are treated as the same, i.e. 2 dice rolled at once will only offer 12 moves for their sum
     // probability distribution of the random moves is offered in get_concrete_move_probabilities
     bool random_moves : 1;
@@ -135,11 +145,12 @@ typedef struct game_feature_flags_s {
 
     bool move_ordering : 1;
 
-    bool scores : 1;
-
     bool id : 1;
 
     bool eval : 1;
+
+    // FEATURE: hidden_information || simultaneous_moves
+    bool action_list : 1;
 
     // FEATURE: random_moves || hidden_information || simultaneous_moves
     bool discretize : 1;
@@ -150,14 +161,18 @@ typedef struct game_feature_flags_s {
 
     // bool time : 1;
 
+    // DEPRECATED
+    bool compare : 1;
+
 } game_feature_flags;
 
 typedef struct sync_data_s {
-    // end pointers points to the last byte/elem not included in the segment
     uint8_t player_c;
     uint8_t* players;
     blob b;
 } sync_data;
+
+extern const serialization_layout sl_sync_data[];
 
 typedef enum __attribute__((__packed__)) GAME_INIT_SOURCE_TYPE_E {
     GAME_INIT_SOURCE_TYPE_DEFAULT = 0, // create a default game with the default options and default initial state
@@ -167,9 +182,13 @@ typedef enum __attribute__((__packed__)) GAME_INIT_SOURCE_TYPE_E {
     GAME_INIT_SOURCE_TYPE_SIZE_MAX = UINT8_MAX,
 } GAME_INIT_SOURCE_TYPE;
 
+//TODO here, and in general, might want to remove some consts so a game_init can be kept in memory for editing, even through all the const-ness?
+
 typedef struct game_init_standard_s {
     const char* opts; // FEATURE: options ; may be NULL to use default
-    const char* legacy; // FEATURE: legacy ; may be NULL to use none
+    uint8_t player_count; // use 0 to let the game initialize to default
+    const char* env_legacy; // FEATURE: legacy ; may be NULL to use default
+    const char** player_legacies; // FEATURE: legacy ; this has len of player_count, each legacy can be NULL to use default, legacies are supplied in order for player ids 1 to player_count, is player_legacies is NULL then all players are assumed to have a NULL legacy used here
     const char* state; // may be null to use default
     uint64_t sync_ctr; // ignore this if you don't need it, otherwise this is used by the wrapper to set the initial sync ctr
 } game_init_standard;
@@ -188,15 +207,16 @@ typedef struct game_init_s {
     } source;
 } game_init;
 
-void game_init_create_standard(game_init* init_info, const char* opts, const char* legacy, const char* state, uint64_t sync_ctr);
+extern const serialization_layout sl_game_init_info[];
+
+void game_init_create_standard(game_init* init_info, const char* opts, uint8_t player_count, const char* env_legacy, const char* const* player_legacies, const char* state, uint64_t sync_ctr);
 
 void game_init_create_serialized(game_init* init_info, blob b);
-
-extern const serialization_layout sl_game_init_info[];
 
 typedef struct timectlstage_s timectlstage; //TODO better name?
 
 typedef struct game_s game; // forward declare the game for the game methods
+typedef struct game_methods_s game_methods;
 
 ///////
 // game method functions, usage comments are by the typedefs where the arguments are
@@ -245,6 +265,8 @@ typedef error_code clone_gf_t(game* self, game* clone_target);
 // undefined behaviour if self == other
 typedef error_code copy_from_gf_t(game* self, game* other);
 
+// DEPRECATED
+// FEATURE: compare
 // returns true iff self and other are in a behaviourally identical state (concerning the game methods)
 // e.g. this includes move counters (and 3fold repition histories) in e.g. chess, but not any exchangable backend data structures
 typedef error_code compare_gf_t(game* self, game* other, bool* ret_equal);
@@ -252,18 +274,18 @@ typedef error_code compare_gf_t(game* self, game* other, bool* ret_equal);
 // FEATURE: options
 // write this games options to a universal options string and returns a read only pointer to it
 // returns the length of the options string written, excluding null character
-// player specifies the perspective player from which this is done (relevant for feature: hidden_information) (PLAYER_NONE is omniscient pov)
+// the options string encodes as much information as this game knows
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
-typedef error_code export_options_gf_t(game* self, player_id player, size_t* ret_size, const char** ret_str);
+typedef error_code export_options_gf_t(game* self, size_t* ret_size, const char** ret_str);
 
 // returns the number of players participating in this game
 typedef error_code player_count_gf_t(game* self, uint8_t* ret_count);
 
 // writes the game state to a universal state string and returns a read only pointer to it
 // returns the length of the state string written, excluding null character
-// player specifies the perspective player from which this is done (relevant for feature: hidden_information) (PLAYER_NONE is omniscient pov)
+// the state string encodes as much information as this game knows
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
-typedef error_code export_state_gf_t(game* self, player_id player, size_t* ret_size, const char** ret_str);
+typedef error_code export_state_gf_t(game* self, size_t* ret_size, const char** ret_str);
 
 // load the game state from the given string, beware this may be called on running games
 // if str is NULL then the initial position is loaded
@@ -273,13 +295,13 @@ typedef error_code import_state_gf_t(game* self, const char* str);
 
 // FEATURE: serializable
 // writes the game state and options to a game specific raw byte representation that is absolutely accurate to the state of the game and returns a read only pointer to it
-// player specifies the perspective player from which this is done (relevant for feature: hidden_information) (PLAYER_NONE is omniscient pov)
+// the serialization encodes as much information as this game knows
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 // considerations: the serialization contains the: sync_ctr, options, legacy, state, internals
-typedef error_code serialize_gf_t(game* self, player_id player, const blob** ret_blob);
+typedef error_code serialize_gf_t(game* self, const blob** ret_blob);
 
 // writes the player ids to move from this state and returns a read only pointer to them
-// writes PLAYER_RAND if the current move branch is decided by randomness
+// writes PLAYER_ENV if the current move branch is decided by randomness or the games pre determined state (i.e. forced move)
 // writes no ids if the game is over
 // returns the number of ids written
 // written player ids are ordered from lowest to highest
@@ -293,19 +315,19 @@ typedef error_code players_to_move_gf_t(game* self, uint8_t* ret_count, const pl
 typedef error_code get_concrete_moves_gf_t(game* self, player_id player, uint32_t* ret_count, const move_data** ret_moves);
 
 // FEATURE: random_moves
-// writes the probabilities [0,1] of each avilable move in get_concrete_moves(player=PLAYER_RAND) and returns a read only pointer to them (SUM=1)
+// writes the probabilities [0,1] of each avilable move in get_concrete_moves(player=PLAYER_ENV) and returns a read only pointer to them (SUM=1)
 // order is the same as get_concrete_moves
-// only available if the the ptm is PLAYER_RAND
+// only available if the the ptm is PLAYER_ENV
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 typedef error_code get_concrete_move_probabilities_gf_t(game* self, uint32_t* ret_count, const float** ret_move_probabilities);
 
 // FEATURE: random_moves
-// returns a legal random move from this position, for the PLAYER_RAND
+// returns a legal random move from this position, for the PLAYER_ENV
 // this will work even when the moves are ERR_UNENUMERABLE
 // the move will always be chosen deterministically from the supplied seed
 // SEED_NONE is a valid seed here and behaves just like all other possible values that a u64 can take
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
-typedef error_code get_random_move_gf_t(game* self, uint64_t seed, move_data_sync** ret_move);
+typedef error_code get_random_move_gf_t(game* self, seed128 seed, move_data_sync** ret_move);
 
 // FEATURE: move_ordering
 // writes the available moves for the player from this position and returns a read only pointer to them
@@ -315,7 +337,8 @@ typedef error_code get_random_move_gf_t(game* self, uint64_t seed, move_data_syn
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 typedef error_code get_concrete_moves_ordered_gf_t(game* self, player_id player, uint32_t* ret_count, const move_data** ret_moves);
 
-// FEATURE: hidden_information || simultaneous_moves
+// FEATURE: action_list && (hidden_information || simultaneous_moves)
+// this is mainly for engines, it is never needed in normal play
 // writes the available action moves for the player from this position and returns a read only pointer to them
 // writes no action moves if there are no action moves available
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
@@ -330,14 +353,13 @@ typedef error_code get_actions_gf_t(game* self, player_id player, uint32_t* ret_
 typedef error_code is_legal_move_gf_t(game* self, player_id player, move_data_sync move);
 
 // FEATURE: hidden_information || simultaneous_moves
-// returns the action representing the information set transformation of the (concrete) LEGAL move (action instance)
-// if move is already an action then it is directly returned unaltered
-// if this returns the null move action for one player it MUST return the null move action for all players, the action should then not be sent to other clients and the sync_ctr in the game not incremented after making the move
-// use e.g. on server, send out the only the action to target_player
+// returns the action representing the information set transformation of the (concrete) LEGAL move (action instance), into the target perspective specific action
+// player may be in target_player, target_players can only contain ids of players who participate in the game
+// use e.g. on server, send out the only the action to the client controlling the target_players
+// for game implementations finding the greatest common knowledge among target_players should not be too difficult, if wanted however, a useful pattern would be to break up the move into parts such that each part only ever has two actions: its public identity and a generic action "move hidden"
 // the game only reads the move, the caller still has to clean it up
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
-typedef error_code move_to_action_gf_t(game* self, player_id player, move_data_sync move, player_id target_player, move_data_sync** ret_action);
-//TODO maybe return array here instead, so for all players their move?
+typedef error_code move_to_action_gf_t(game* self, player_id player, move_data_sync move, uint8_t target_count, const player_id* target_players, move_data_sync** ret_action);
 
 // make the legal move on the game state as player
 // undefined behaviour if move is not within the get_moves list for this player (MAY CRASH)
@@ -353,21 +375,22 @@ typedef error_code make_move_gf_t(game* self, player_id player, move_data_sync m
 typedef error_code get_results_gf_t(game* self, uint8_t* ret_count, const player_id** ret_players);
 
 // FEATURE: legacy
-// while the game is running exports the used legacy string at creation, or after the game is finished the resulting legacy to be used for the next game and returns a read only pointer to it
-// player specifies the perspective player from which this is done (relevant for feature: hidden_information) (PLAYER_NONE is omniscient pov)
-// use PLAYER_NONE to export all the hidden info for everything
+// while the game is running exports the used legacy strings at creation, or after the game is finished the resulting legacies to be used for the next game and returns a read only pointer to it
+// player specifies the perspective player from which this is done, this serves for score legacies where players can drop and join games but keep their personal legacies intact, the game specific history is serialized for PLAYER_ENV
+// the legacy str ptr returned is allowed to be NULL! this is a valid value and must be passed as such to future games
 // NOTE: this does not include the used options, save them separately for reuse together with this in a future game
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 typedef error_code export_legacy_gf_t(game* self, player_id player, size_t* ret_size, const char** ret_str);
 
-// FEATURE: scores
-// available after creation for the entire lifetime of the game and returns a read only pointer to it
-// writes the scores of players, as accumulated during this game only, to scores
-// player_count many scores are written, matching ids from 1 to N
-//TODO is int32 enough? need more complex? or float?
-//TODO offer some default score?
+// FEATURE: legacy
+// the options used for games of the same legacy or sharing player legacies MUST remain constant, a copy of them is supplied as opts_str
+// env legacy is often NULL for e.g. point score counting legacy results
+// winners are determined by the legacies supplied (e.g. point scores)
+// writes the result (winning) players and returns a read only pointer to them
+// NOTE: the result players written are identified by the idx of their legacy in the input player_legacies, these are NOT player_ids
+// returns the number of idxs written
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
-typedef error_code get_scores_gf_t(game* self, const int32_t** ret_scores);
+typedef error_code get_legacy_results_sgf_t(game_methods* methods, const char* opts_str, const char* env_legacy, uint16_t player_legacy_count, const char* const* player_legacies, uint16_t* ret_count, const uint16_t** ret_legacy_idxs);
 
 // FEATURE: id
 // state id, should be as conflict free as possible
@@ -388,17 +411,17 @@ typedef error_code eval_gf_t(game* self, player_id player, float* ret_eval);
 // all random moves from here on will be pre-rolled from this seed
 // here SEED_NONE can not be used
 // NOTE: this would only really be used by engines, so in normal play you will never need this
-typedef error_code discretize_gf_t(game* self, uint64_t seed);
+typedef error_code discretize_gf_t(game* self, seed128 seed);
 
 // FEATURE: playout
 // playout the game by performing random moves for all players until it is over
 // the random moves selected are determined by the seed
 // here SEED_NONE can not be used
-typedef error_code playout_gf_t(game* self, uint64_t seed);
+typedef error_code playout_gf_t(game* self, seed128 seed);
 
 // FEATURE: random_moves || hidden_information || simultaneous_moves
 // removes all but certain players hidden and public information from the internal state
-// if PLAYER_RAND is not in players, then the seed (and all internal hidden information) is redacted as well
+// if PLAYER_ENV is not in players, then the seed (and all internal hidden information) is redacted as well
 typedef error_code redact_keep_state_gf_t(game* self, uint8_t count, const player_id* players);
 
 // FEATURE: (hidden_information || simultaneous_moves) && sync_data
@@ -413,14 +436,12 @@ typedef error_code export_sync_data_gf_t(game* self, uint32_t* ret_count, const 
 typedef error_code import_sync_data_gf_t(game* self, blob b);
 
 // returns the game method and state specific move data representing the move string at this position for this player
-// if the move string does not represent a valid move this returns MOVE_NONE (or for big moves len==0 data==NULL) (NOTE: avoid crashes)
-// if player is PLAYER_NONE assumes current player to move
+// if the move string does not represent a valid move this returns an error (NOTE: avoid crashes)
 // this should accept at least the string given out by get_move_str, but is allowed to accept more strings as well
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
 typedef error_code get_move_data_gf_t(game* self, player_id player, const char* str, move_data_sync** ret_move);
 
 // writes the game method and state specific move string representing the move data for this player and returns a read only pointer to it
-// if player is PLAYER_NONE assumes current player to move
 // returns number of characters written to string buffer on success, excluding null character
 // the game only reads the move, the caller still has to clean it up
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
@@ -429,9 +450,9 @@ typedef error_code get_move_str_gf_t(game* self, player_id player, move_data_syn
 // FEATURE: print
 // prints the game state into the str_buf and returns a read only pointer to it
 // returns the number of characters written to string buffer on success, excluding null character
-// player specifies the perspective player from which this is done (relevant for feature: hidden_information) (PLAYER_NONE is omniscient pov)
+// the print string encodes as much information as this game knows
 // the returned ptr is valid until the next call on this game, undefined behaviour if used after; it is still owned by the game
-typedef error_code print_gf_t(game* self, player_id player, size_t* ret_size, const char** ret_str);
+typedef error_code print_gf_t(game* self, size_t* ret_size, const char** ret_str);
 
 // FEATURE: time
 // informs the game that the game.time timestamp has moved
@@ -492,7 +513,7 @@ typedef struct game_methods_s {
     make_move_gf_t* make_move;
     get_results_gf_t* get_results;
     export_legacy_gf_t* export_legacy;
-    get_scores_gf_t* get_scores;
+    get_legacy_results_sgf_t* s_get_legacy_results;
     id_gf_t* id;
     eval_gf_t* eval;
     discretize_gf_t* discretize;
@@ -521,7 +542,7 @@ struct game_s {
     // every participating player X has their stage at timectlstages[X], [0] is reserved
     // stages can change entirely after every game function call
     // if the game does not support / use timectl then this can be managed externally //TODO timectl helper api
-    // timectlstage* timectlstages;
+    // timectlstage** timectlstages;
 };
 
 typedef enum TIMECTLSTAGE_TYPE_E {
@@ -575,7 +596,7 @@ move_to_action_gf_t game_move_to_action;
 make_move_gf_t game_make_move;
 get_results_gf_t game_get_results;
 export_legacy_gf_t game_export_legacy;
-get_scores_gf_t game_get_scores;
+get_legacy_results_sgf_t game_s_get_legacy_results;
 id_gf_t game_id;
 eval_gf_t game_eval;
 discretize_gf_t game_discretize;
@@ -592,17 +613,16 @@ move_data game_e_create_move_big(size_t len, uint8_t* buf);
 move_data_sync game_e_create_move_sync_small(game* self, move_code move);
 move_data_sync game_e_create_move_sync_big(game* self, size_t len, uint8_t* buf);
 move_data_sync game_e_move_make_sync(game* self, move_data move);
-bool game_e_move_is_none(move_data move);
-bool game_e_move_sync_is_none(move_data_sync move);
 bool game_e_move_compare(move_data left, move_data right);
 bool game_e_move_sync_compare(move_data_sync left, move_data_sync right);
-move_data game_e_move_copy(move_data move);
-move_data_sync game_e_move_sync_copy(move_data_sync move);
+bool game_e_move_copy(move_data* target_move, const move_data* source_move);
+bool game_e_move_sync_copy(move_data_sync* target_move, const move_data_sync* source_move);
 void game_e_move_destroy(move_data move);
 void game_e_move_sync_destroy(move_data_sync move);
 bool game_e_move_is_big(move_data move);
-move_data_sync game_e_get_random_move_sync(game* self, uint64_t seed); // from a position where PLAYER_RAND is ptm this uses the get_concrete_move_probabilities to copy a random move sync
+move_data_sync game_e_get_random_move_sync(game* self, seed128 seed); // from a position where PLAYER_ENV is ptm this uses the get_concrete_move_probabilities to copy a random move sync
 bool game_e_player_to_move(game* self, player_id player); // returns true if this player is in ptm
+uint32_t game_e_seed_rand_intn(seed128 seed, uint32_t n); // generates [0,n)
 
 // game internal rerrorf: if your error string is self->data2 use this as a shorthand
 error_code grerror(game* self, error_code ec, const char* str, const char* str_end);

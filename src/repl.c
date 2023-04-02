@@ -270,6 +270,7 @@ typedef enum REPL_CMD_E {
     REPL_CMD_G_MAKE_MOVE,
     REPL_CMD_G_GET_RESULTS,
     // REPL_CMD_G_EXPORT_LEGACY,
+    // REPL_CMD_G_S_GET_LEGACY_RESULTS,
     // REPL_CMD_G_GET_SCORES,
     // REPL_CMD_G_ID,
     // REPL_CMD_G_EVAL,
@@ -339,6 +340,7 @@ game_command_info game_command_infos[REPL_CMD_COUNT] = {
     [REPL_CMD_G_MAKE_MOVE] = {"make_move", repl_cmd_handle_g_make_move},
     [REPL_CMD_G_GET_RESULTS] = {"get_results", repl_cmd_handle_g_get_results},
     // [REPL_CMD_G_EXPORT_LEGACY] = {"export_legacy", NULL},
+    // [REPL_CMD_G_S_GET_LEGACY_RESULTS] = {"s_get_legacy_results", NULL},
     // [REPL_CMD_G_GET_SCORES] = {"get_scores", NULL},
     // [REPL_CMD_G_ID] = {"id", NULL},
     // [REPL_CMD_G_EVAL] = {"eval", NULL},
@@ -573,7 +575,7 @@ void repl_cmd_handle_m_pov(repl_state* rs, int argc, char** argv)
         printf("pov: %03hhu\n", pov);
         return;
     }
-    //TODO allow none and rand as string shorthands for 0 and 255 and allow rand only for games with random in general!
+    //TODO allow none and env as string shorthands for 0 and 255
     int sc = sscanf(argv[0], "%hhu", &pov);
     if (sc != 1) {
         printf("could not parse pov as u8\n");
@@ -586,7 +588,7 @@ void repl_cmd_handle_m_pov(repl_state* rs, int argc, char** argv)
         printf("[ERROR] unexpected game player count error\n");
         return;
     }
-    if (pov > pnum && pov != PLAYER_RAND) {
+    if (pov > pnum && pov != PLAYER_ENV) {
         printf("invalid pov for %u players\n", pnum);
         return;
     }
@@ -598,12 +600,11 @@ void repl_cmd_handle_g_create(repl_state* rs, int argc, char** argv)
     if (rs == NULL) { // print help
         // printf("usage: create\n"); //TODO future feature
         printf("usage: create def\n");
-        printf("usage: create std <[O][L][S]> [options] [legacy] [state]\n");
+        printf("usage: create std <[O][P][S]> [options] [player_count] [state]\n");
         printf("usage: create ser <b64>\n");
         printf("create a game from default, standard or serialization source\n"); //TODO if no source is specified the cached one rs->g_c_* should be used
         printf("standard sources can specify which parts are supplied, other are assumed NULL\n");
         printf("e.g. to create with opts and default state: /create std O \"myopts\"\n");
-        printf("e.g. to create with legacy and initial state use default opts: /create std LS \"mylegacy\" \"mystate\"\n");
         return;
     }
     if (rs->g_methods == NULL) {
@@ -624,23 +625,28 @@ void repl_cmd_handle_g_create(repl_state* rs, int argc, char** argv)
             .source = {
                 .standard = {
                     .opts = NULL,
-                    .legacy = NULL,
+                    .player_count = 0,
+                    .env_legacy = NULL,
+                    .player_legacies = NULL,
                     .state = NULL,
                     .sync_ctr = SYNC_CTR_DEFAULT,
                 },
             },
         };
-        // if no O/L/S supplied then just use null everywhere
+        //TODO add support for E and L, i.e. env and player legacies
+        // if no specifiers supplied then just use defaults everywhere
         if (argc > 1) { // must be in order otherwise it might be confusing
             const int C_OPTIONS_IDX = 0;
-            const int C_LEGACY_IDX = 1;
-            const int C_STATE_IDX = 2;
-            bool expecting[3] = {false, false, false};
-            char* gotstr[3] = {NULL, NULL, NULL};
+            const int C_PLAYER_COUNT_IDX = 1;
+            const int C_ENV_LEGACY_IDX = 2;
+            const int C_PLAYER_LEGACIES_IDX = 3;
+            const int C_STATE_IDX = 4;
+            bool expecting[5] = {false, false, false, false, false};
+            char* gotstr[5] = {NULL, NULL, NULL, NULL, NULL};
             const char* announcing = argv[1];
             for (int ai = 0; announcing[ai] != '\0'; ai++) {
                 if (ai > 2) {
-                    printf("too many announced source strings for standard source\n");
+                    printf("too many announced infos for standard source\n");
                     return;
                 }
                 switch (announcing[ai]) {
@@ -651,13 +657,23 @@ void repl_cmd_handle_g_create(repl_state* rs, int argc, char** argv)
                         }
                         expecting[C_OPTIONS_IDX] = true;
                     } break;
-                    case 'L': {
-                        if (rs->g_methods->features.options == false) {
-                            printf("game does not support legacy\n");
-                            return;
-                        }
-                        expecting[C_LEGACY_IDX] = true;
+                    case 'P': {
+                        expecting[C_PLAYER_COUNT_IDX] = true;
                     } break;
+                    // case 'E': {
+                    //     if (rs->g_methods->features.options == false) {
+                    //         printf("game does not support legacy\n");
+                    //         return;
+                    //     }
+                    //     expecting[C_ENV_LEGACY_IDX] = true;
+                    // } break;
+                    // case 'L': {
+                    //     if (rs->g_methods->features.options == false) {
+                    //         printf("game does not support legacy\n");
+                    //         return;
+                    //     }
+                    //     expecting[C_PLAYER_LEGACIES_IDX] = true;
+                    // } break;
                     case 'S': {
                         expecting[C_STATE_IDX] = true;
                     } break;
@@ -670,7 +686,7 @@ void repl_cmd_handle_g_create(repl_state* rs, int argc, char** argv)
             // go through the rest of the supplied args and fill in everywhere where expecting first before going on
             int wargc = argc - 2;
             char** wargv = argv + 2;
-            for (int ei = 0; ei < 3; ei++) {
+            for (int ei = 0; ei < 5; ei++) {
                 if (expecting[ei] == false) {
                     continue;
                 }
@@ -682,8 +698,19 @@ void repl_cmd_handle_g_create(repl_state* rs, int argc, char** argv)
                 wargc--;
                 wargv++;
             }
+            // process all the copied info strings, if applicable set or parse and free them
             game_init_info.source.standard.opts = gotstr[C_OPTIONS_IDX];
-            game_init_info.source.standard.legacy = gotstr[C_LEGACY_IDX];
+            {
+                int ec = sscanf(gotstr[C_PLAYER_COUNT_IDX], "%hhu", &game_init_info.source.standard.player_count);
+                free(gotstr[C_PLAYER_COUNT_IDX]);
+                if (ec != 1) {
+                    //TODO proper error and free everything
+                    printf("could not parse player count as u8, using 0");
+                    game_init_info.source.standard.player_count = 0;
+                }
+            }
+            game_init_info.source.standard.env_legacy = gotstr[C_ENV_LEGACY_IDX];
+            game_init_info.source.standard.player_legacies = NULL; // gotstr[C_PLAYER_LEGACIES_IDX] should be a multi string
             game_init_info.source.standard.state = gotstr[C_STATE_IDX];
         }
     } else if (strcmp(source_type, "ser") == 0) {
@@ -797,8 +824,8 @@ void repl_cmd_handle_g_players_to_move(repl_state* rs, int argc, char** argv)
     }
     printf("players to move (%hhu):", size_fill);
     for (uint8_t i = 0; i < size_fill; i++) {
-        if (ptm[i] == PLAYER_RAND) {
-            printf(" RAND");
+        if (ptm[i] == PLAYER_ENV) {
+            printf(" ENV");
         } else {
             printf(" %03hhu", ptm[i]);
         }
@@ -820,7 +847,7 @@ void repl_cmd_handle_g_get_concrete_moves(repl_state* rs, int argc, char** argv)
     error_code ec;
     player_id pov = rs->pov;
     if (argc > 0) {
-        //TODO should be able to parse RAND here
+        //TODO should be able to parse ENV here
         int sc = sscanf(argv[0], "%hhu", &pov);
         if (sc != 1) {
             printf("could not parse pov as u8\n");
@@ -833,7 +860,7 @@ void repl_cmd_handle_g_get_concrete_moves(repl_state* rs, int argc, char** argv)
             printf("[ERROR] unexpected game player count error\n");
             return;
         }
-        if (pov > pnum && pov != PLAYER_RAND) {
+        if (pov > pnum && pov != PLAYER_ENV) {
             printf("invalid pov for %u players\n", pnum);
             return;
         }
@@ -871,7 +898,7 @@ void repl_cmd_handle_g_get_concrete_moves(repl_state* rs, int argc, char** argv)
     uint32_t copystr_idx = 0;
     bool copystr_fail = false;
     for (; copystr_idx < moves_c; copystr_idx++) {
-        moves[copystr_idx] = game_e_move_copy(moves_out[copystr_idx]);
+        game_e_move_copy(&moves[copystr_idx], moves_out + copystr_idx); //TODO this can fail oom
         size_t size_fill;
         const char* move_str;
         ec = game_get_move_str(&rs->g, pov, game_e_move_make_sync(&rs->g, moves[copystr_idx]), &size_fill, &move_str);
@@ -919,7 +946,7 @@ void repl_cmd_handle_g_make_move(repl_state* rs, int argc, char** argv)
     } else if (argc == 1) {
         movestr = argv[0];
     } else if (argc == 2) {
-        //TODO should be able to parse RAND here
+        //TODO should be able to parse ENV here
         int sc = sscanf(argv[0], "%hhu", &pov);
         if (sc != 1) {
             printf("could not parse pov as u8\n");
@@ -932,7 +959,7 @@ void repl_cmd_handle_g_make_move(repl_state* rs, int argc, char** argv)
             printf("[ERROR] unexpected game player count error\n");
             return;
         }
-        if (pov > pnum && pov != PLAYER_RAND) {
+        if (pov > pnum && pov != PLAYER_ENV) {
             printf("invalid pov for %u players\n", pnum);
             return;
         }
@@ -953,7 +980,8 @@ void repl_cmd_handle_g_make_move(repl_state* rs, int argc, char** argv)
         printf("could not get move data\n");
         return;
     }
-    move_data_sync move = game_e_move_sync_copy(*fill_move);
+    move_data_sync move;
+    game_e_move_sync_copy(&move, fill_move); //TODO this can fail oom
     ec = game_is_legal_move(&rs->g, pov, move);
     if (ec != ERR_OK) {
         print_game_error(&rs->g, ec);
@@ -999,8 +1027,8 @@ void repl_cmd_handle_g_get_results(repl_state* rs, int argc, char** argv)
 void repl_cmd_handle_g_print(repl_state* rs, int argc, char** argv)
 {
     if (rs == NULL) { // print help
-        printf("usage: print [pov]\n");
-        printf("print the board using the selected pov, or the supplied optional override\n");
+        printf("usage: print\n");
+        printf("print the current board state\n");
         return;
     }
     if (rs->g.methods == NULL) {
@@ -1012,29 +1040,9 @@ void repl_cmd_handle_g_print(repl_state* rs, int argc, char** argv)
         return;
     }
     error_code ec;
-    player_id pov = rs->pov;
-    if (argc >= 1) {
-        //TODO should be able to parse RAND here
-        int sc = sscanf(argv[0], "%hhu", &pov);
-        if (sc != 1) {
-            printf("could not parse pov as u8\n");
-            return;
-        }
-        uint8_t pnum;
-        ec = game_player_count(&rs->g, &pnum);
-        if (ec != ERR_OK) {
-            print_game_error(&rs->g, ec);
-            printf("[ERROR] unexpected game player count error\n");
-            return;
-        }
-        if (pov > pnum) {
-            printf("invalid pov for %u players\n", pnum);
-            return;
-        }
-    }
     size_t print_size;
     const char* print_str;
-    ec = game_print(&rs->g, pov, &print_size, &print_str);
+    ec = game_print(&rs->g, &print_size, &print_str);
     if (ec != ERR_OK) {
         print_game_error(&rs->g, ec);
         return;
@@ -1104,15 +1112,19 @@ void repl_cmd_handle_gs_resolve_random(repl_state* rs, int argc, char** argv)
             printf("[ERROR] unexpected game player to move error\n");
             return;
         }
-        if (ptm_c == 0 || ptm[0] != PLAYER_RAND) {
+        if (ptm_c == 0 || ptm[0] != PLAYER_ENV) {
             break;
         }
+        // TODO generate a better bigger seed, especially if not given by user
+        seed128 big_seed = SEED128_NONE;
+        ((uint64_t*)big_seed.bytes)[0] = random_seed;
+        ((uint64_t*)big_seed.bytes)[1] = ~random_seed;
         // use get_random_move to get a random move
-        move_data_sync random_move = game_e_get_random_move_sync(&rs->g, random_seed);
+        move_data_sync random_move = game_e_get_random_move_sync(&rs->g, big_seed);
         // print chosen move
         size_t size_fill;
         const char* move_str;
-        ec = game_get_move_str(&rs->g, PLAYER_RAND, random_move, &size_fill, &move_str);
+        ec = game_get_move_str(&rs->g, PLAYER_ENV, random_move, &size_fill, &move_str);
         if (ec != ERR_OK) {
             print_game_error(&rs->g, ec);
             printf("[ERROR] unexpected game get move str error\n");
@@ -1120,7 +1132,7 @@ void repl_cmd_handle_gs_resolve_random(repl_state* rs, int argc, char** argv)
         }
         // printf("playing random move: %s\n", move_str); //TODO this needs a setting
         // play chosen move
-        ec = game_make_move(&rs->g, PLAYER_RAND, random_move);
+        ec = game_make_move(&rs->g, PLAYER_ENV, random_move);
         if (ec != ERR_OK) {
             print_game_error(&rs->g, ec);
             printf("[ERROR] unexpected game make move error\n");
