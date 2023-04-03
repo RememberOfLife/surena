@@ -5,10 +5,10 @@ All manner of games can be described by the general purpose game methods provide
 * randomness
 * simultaneous moves
 * hidden information
-* scores (reward based results)
-* legacies carrying over to future games
+* legacies carrying over to future games and even attached to certain players
+  * scores (reward based results)
+* teams
 * (planned) custom and dynamic timecontrol stages and staging
-* (planned) teams
 * (planned) non-trivial draw/resign voting
 
 To facilitate general usage with game agnostic tooling (e.g. visualization / AI) many of the more advanced features of the game method api are guarded behind feature flags. Additionally the game methods can optionally be enriched with features aiding in automatic processing like state ids, board evals and further internal methods.  
@@ -24,15 +24,15 @@ For more information on the provided engine methods API see [`engine.h`](../incl
 |hidden information|Any game where there exists any valid state in which any information is conceiled from any set of players contains hidden information.|A deck of cards shuffled at the start.||
 |`player_id`|An 8-bit integer representing the id of a player participating in a game. For a game with N players, the ids are always numbered 1 to N. A maximum of 254 player ids can be assigned.||
 |`PLAYER_NONE`|Special player id representing either none or all players. Never assigned to participants.||
-|`PLAYER_RAND`|Special player id representing random chance. Non-discretized games use this to offer moves that decide the outcome of random events.||
-|move|Moves represent state transitions on the game board and its internal state. A move that encodes an action is part of exactly that action set.|Moves as the union on actions and concrete moves.|
+|`PLAYER_ENV`|Special player id representing the environment. Non-discretized games use this to offer moves that decide the outcome of random events.|The result of a coin flip is decided via a move by the environment, as is the showing action performed by an opponent when forcing them to show their hand cards in private.|
+|move|Moves represent state transitions on the game board and its internal state. A move that encodes an action is part of exactly that action set.|Moves as the union of actions and concrete moves.|
 |action|Actions represent sets of moves, i.e. sets of concrete moves (action instances / informed moves). Every action can be encoded as a move.|Draw *some* card from a hidden pile. Roll the die (irrespective of outcome).|
 |concrete move|For every action, the concrete moves it encompasses determine the outcome of the action move. Every concrete move can be encoded as a move or reduced to an action, i.e. a move.|Roll a specific number with a die.|
-|options|Any information that the game requires to be available at time of creation, and which can not be changed for lifetime of the game.|Board sizes, player counts.|
-|state|A set of facts that represents the current setup of the "board".|String equivalent of a screenshot of the board (and all players hands).|
-|serialization|Comprehensive representation of the entire game as it exists. This includes options, legacy, state *and* any internal data that influences the game. I.e. a deserialized game has to behave *exactly* like the one it was serialized from would.|Raw binary stream.|
-|legacy|Carry over information from a previous game of this type.|Parts of a card deck get replaced/changed/added/removed over the course of multiple games.|
-|scores|Scoring mechanism, possibly used to determine single game results (winners). Accumulate over multiple games for multi-game results.|Victory/Penalty points.|
+|big move|A move that is larger than the 64-bit "small move" which is normally enough for most games. Use this when you require massive randomness or text inputs.|Choosing a natural language word in a word game.|
+|options|Any information that the game requires to be available at time of creation, and which can not be changed for lifetime of the game. Options remain constant for legacy games.|Board sizes, player counts.|
+|state|A set of facts that represents the current setup of the "board". This is not a perfect representation of the game state history.|String equivalent of a screenshot of the board (and all players hands).|
+|serialization|Comprehensive representation of the entire game as it exists. This includes options, legacy, state *and* any internal data that influences the game. That is, a deserialized game has to behave *exactly* like the one it was serialized from would.|Raw binary stream.|
+|legacy|Carry over information from a previous game of this type.|Parts of a card deck get replaced/changed/added/removed over the course of multiple games. Point scores attached to players, supporting drop in/out play.|
 
 ### game methods
 Goals served by the game methods:
@@ -48,23 +48,54 @@ Examples for the more advanced features of the game methods api.
 
 //TODO provide links to the example games that implement these features..
 
+### RM+HM+SM basics
+The following are short explanations of how randomness, hidden information and simultaneous moves are represented in *open* i.e. non-discretized games. Almost all games not directly managed by an engine are of this type, so it is the most useful to understand first.
+
+#### randomness
+Randomness can be initiated e.g. by a players move like "flip a coin" or simply by advancing game state. Whenever a random decision is required, e.g. directly after a player made the move choosing to flip a coin, the `PLAYER_ENV` and only that player is to move.  
+The outcome of the random decision is then made by a move from `PLAYER_ENV` choosing among the available moves for them. (Usually a shared trusted server does this.) The chosen move is made and if applicable distributed to the servers clients, play proceeds as normal.
+
+#### simultaneous moves
+In a game with simultaneous moves it is legal to output more than one player id from `players_to_move`.  
+If not otherwise specified (by using the `sync_ctr` feature flag) games with simultaneous moves, just like all other games, are totally ordered in their moves. That is moves are never commutative, even if the game would allow for it.
+
+When the `sync_ctr` feature flag is used, the wrapper does not handle rejection of wrongly synced moves automatically via `is_legal_move` anymore. The sync counter of the game does still increase automatically every time a move is played. A game that has states where moves are truly commutative, and wants to provide them as such, then has to manually test in the `is_legal_move` function, if the sync counter of the move in question is within such a range of commutative-ness.
+
+#### hidden information
+Hidden information arises quickly. Flipping a coin in private, drawing a card from a shuffled deck to a private hand instead of showing it publicly. Hidden information can also be transformed, for example laying a card from an already hidden hand facedown on the table. For many such actions accountability is important, which is why there always has to be at least one game which does know all of the state.
+
+The imbalance of information if managed for via the `move_to_action` function. In rare cases a more complex game might want to use `sync_data` for convenience, but it is only just as powerful as `move_to_action` combined with big moves is.  
+In short: when a player makes a move that introduces or transforms randomness, only the players that will know this hidden information get an equivalent move from `move_to_action` all others will get a placeholder action informing them that something of a specific type happened, but not what exactly.
+For example flipping a coin in private: the player rand makes a move which indicates the result, the coin flipping player gets passed the identity, the other player gets a generic move "hidden result". This works similarly for a player laying down a card facedown and other such actions.
+
+When a player reveals hidden information, often the information to be revealed is itself in the move the player makes. That means in a simple card game a player would choose a card to play from their hidden hand, and make a move that details exactly what the card is they want to play, not for example the index of the card in their hand. That way if the move already contains all the revealed info, `move_to_action` passes the identity to all players, and there is no need for `sync_data`.
+
+If this is not possible or wanted, `sync_data` can be used to transfer the required reveal information from the players having this information, to the players that will require it. For example if the move is instead: play the 3rd card from the left from my hidden hand faceup. Then this move itself would not tell the other players what the card actually is. After a move is made on the server board, and **before** its `move_to_action` transformation is sent to the other clients, the board has the chance to offer any `sync_data` it wants to send to any sets of players of its choosing.  
+In this way the board could send a `sync_data` packet to the other clients, informing them that the 3rd card from the left for the player to move is "XYZ". This is then sent directly together with the move saying this player will play their 3rd card to the left, the exact value of which the clients now know, just in time.
+
 ### options
 Some games require information to be set up which can not change, easily or at all, after the set up. Among others this includes: board sizes, player counts, draft pools for components and (variant) rules.  
 On creation a game that supports the options feature may be passed an options string containing game specific information about the set up. To make the game exchangeable a created game that supports options must always be able to export the ones it is using to a string.
 
+**Note**: Player count is not actually a part of the option string, but required at the same moment, so it is useful to treat it like a sort of universal option.
+
+//TODO give all examples with open games first and make an extra thing for discretized games and their closed examples
+
+//TODO rework for possible inconsistencies
+
 ### public randomness
 Two modes of operation:
 * Undiscretized (Open)
-  * Random moves are decided by a move from PLAYER_RAND.
+  * Random moves are decided by a move from PLAYER_ENV.
 * Discretized (Closed)
-  * Random move variety is eliminated because the game has a discretization seed. PLAYER_RAND still moves, but there is only one move left.
+  * Random move variety is eliminated because the game has a discretization seed. PLAYER_ENV still moves, but there is only one move left.
 
-For replaying (physical) games, open games are used. Make the appropriate randomly selected result move as `PLAYER_RAND`.
+For replaying (physical) games, open games are used. Make the appropriate randomly selected result move as `PLAYER_ENV`.
 
 #### example 1 (flip coin)
 In this example a coin is flipped to decide which player goes first. However, the same working principle can be applied to all kinds of public randomness, like rolling dice at the start of a turn.
 
-After creation the game is undiscretized by default. Because the coin flip is the first thing that happens in the game, `players_to_move` returns `{PLAYER_RAND}`. After discretization with a seed, all randomness is removed from the game, the results are then pre-determined.
+After creation the game is undiscretized by default. Because the coin flip is the first thing that happens in the game, `players_to_move` returns `{PLAYER_ENV}`. After discretization with a seed, all randomness is removed from the game, the results are then pre-determined.
 * **Open**:
   Moves with `get_concrete_moves`: `{COIN_HEAD, COIN_TAIL}`.
 * **Closed**:
@@ -76,7 +107,7 @@ When any move has been made the game proceeds as it normally would, using the mo
 In this example we assume a game where, among other things, a player may choose to roll a dice (the result of which is then somehow used in gameplay). We assume at least 1 player, with the id`P1`.
 
 In both open and closed games we start with: `players_to_move` returns `{P1}` and `get_concrete_moves` returns `{MOVE_1, ..., ROLL_DIE, ..., MOVE_N}`.
-When player `P1` makes the move `ROLL_DIE`, in both open and closed games, the next `players_to_move` are `{PLAYER_RAND}`. Just like the coin, the results for `get_concrete_moves` differ only slightly:
+When player `P1` makes the move `ROLL_DIE`, in both open and closed games, the next `players_to_move` are `{PLAYER_ENV}`. Just like the coin, the results for `get_concrete_moves` differ only slightly:
 * **Open**: `{DIE_1, DIE_2, DIE_3, DIE_4, DIE_5, DIE_6}`
 * **Closed**: `{DIE_4}`
 
@@ -89,7 +120,7 @@ In this example a deck of cards is shuffled at the beginning of the game and pla
 #### example 1 (shuffle a deck)
 Shuffling may work different ways, depending on the implementation, but is always representable by moves. Commonly the deck is either permuted in place (swap pairs of cards), or "drafted" from a start configuration to the shuffled deck (one by one).
 
-Assuming N cards in the deck and a "draft" shuffle wherein the cards of the shuffled deck are selected one by one from an unshuffled initial deck. `PLAYER_RAND` moves N times.
+Assuming N cards in the deck and a "draft" shuffle wherein the cards of the shuffled deck are selected one by one from an unshuffled initial deck. `PLAYER_ENV` moves N times.
 
 **Open**  
 Each time the available moves *include* all the remaining undrafted cards from the initial deck.  
@@ -106,10 +137,10 @@ If for example the closed board is a "server" board, that does not want to distr
 
 #### example 2 (draw card faceup from "shuffled" deck)
 In this example we assume the easier case of drawing a card from a deck that was not actually shuffled card by card using moves, but is just represented by a list of all contained cards. On the draw action the result of the randomness if resolved.  
-On the players turn `get_concrete_moves` shows the draw action as `{..., DRAW_FACEUP, ...}`. When the `DRAW_FACEUP` move is made `PLAYER_RAND` is to move, to select the outcome of the draw.
+On the players turn `get_concrete_moves` shows the draw action as `{..., DRAW_FACEUP, ...}`. When the `DRAW_FACEUP` move is made `PLAYER_ENV` is to move, to select the outcome of the draw.
 
-**Open**: `PLAYER_RAND` offers all cards as concrete moves, choose one by random or select one to replay from physical.  
-**Closed**: `PLAYER_RAND` offers the one card that is determined to be draw by using the discretization seed.
+**Open**: `PLAYER_ENV` offers all cards as concrete moves, choose one by random or select one to replay from physical.  
+**Closed**: `PLAYER_ENV` offers the one card that is determined to be draw by using the discretization seed.
 
 //TODO want to example the pre-shuffled case as well? what would be the use case even?
 
@@ -152,14 +183,15 @@ ABC //TODO (with/without moved indicator for opponent)
 
 **Basic Idea**: The game returns multiple players to move, and for each player their available moves. If a player makes a move in a synced SM scenario, they are likely still to move, as are the other players, but the available moves for the other players might have changed. This is what the sync counter is used for. I.e. simultaneous moves not interpreted as "all move at once", but as "everyone can start moving at any time, but only one can move at a time".
 
-### scores
-//TODO
-
 ### teams
-//TODO
+This is not actually a feature in itself. Teams can be naturally represented using moves and the set structure of the results the game has after it is finished. Information sharing between team in a hidden information game is usually done by use of `sync_data` or the easier to use big moves in combination with an intelligent `move_to_action` function.
 
 ### legacy
-//TODO
+For games using the legacy feature, two types of legacy are differentiated. The environment legacy, which may encompass things such as a shared world map or deck of cards that changes and retains its changed state from game to game. And the player legacies, which can be naturally used to represent all manor of different point scoring methods across games or just some player specific starting cards carried to the next game.  
+To facilitate the use of legacy for point scoring the `s_get_legacy_results` game function takes in multiple legacies and determines a set of total winners.  
+Player legacies stay attached to that player and are only passed to the game on creation, if that player participates. That means a theoretical three player card game could be played by four people. One rotating player sits out the current round while the other three play. This is a sort of non-tournament multi-game scoring.
+
+Once a game with legacy is done, the perspectives for ALL players, including the `PLAYER_ENV` should be exported, because they will all each be needed when next passed into a game create.
 
 ### timecontrol
 //TODO
@@ -168,9 +200,4 @@ ABC //TODO (with/without moved indicator for opponent)
 //TODO
 
 ## utilities
-For implementation convenience, some general purpose APIs are provided:
-* **base64**: encode/decode bytes to base64 and back
-* **fast_prng**: small and fast seeded pseudo random number generator
-* **noise**: easy to use noise functions to generate pseudo random numbers without the need to remember anything
-* **raw_stream**: very basic primitive / string / blob stream writer to quickly put data in a buffer and get it out again
-* **serialization**: layout based descriptive serializer for zero/copy/(de-)serialize/destroy on dynamic objects
+For implementation convenience feel free to use the general purpose `C` APIs provided in [`rosalia`](https://github.com/RememberOfLife/rosalia).
