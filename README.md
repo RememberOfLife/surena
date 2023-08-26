@@ -1,3 +1,8 @@
+# this project was moved
+**The surena project board game backend API has been fully integrated into [mirabel](https://github.com/RememberOfLife/mirabel). Surena will move back to being just an AI in the future.**
+
+---
+
 # surena
 
 General purpose board game backend and some AI to go with it.
